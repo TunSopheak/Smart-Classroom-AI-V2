@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Subjects - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Academic Core</p>
+        <h2>Subjects</h2>
+    </div>
+    <a class="button primary" href="/subjects/new">Add Subject</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<section class="table-panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Description</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for subject in subjects %}
+            <tr>
+                <td>{{ subject.code }}</td>
+                <td>{{ subject.name }}</td>
+                <td>{{ subject.description or "-" }}</td>
+                <td><span class="status {{ subject.status }}">{{ subject.status }}</span></td>
+                <td class="actions">
+                    <a href="/subjects/{{ subject.id }}/edit">Edit</a>
+                    <form method="post" action="/subjects/{{ subject.id }}/toggle">
+                        <button class="link-button" type="submit">{{ "Deactivate" if subject.status == "active" else "Activate" }}</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty">No subjects yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

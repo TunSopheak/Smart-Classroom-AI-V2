@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Weekly Schedules - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Teaching Assignments</p>
+        <h2>Weekly Schedules</h2>
+    </div>
+    <a class="button primary" href="/schedules/new">Add Schedule</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<section class="table-panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Teacher</th>
+                <th>Subject</th>
+                <th>Class</th>
+                <th>Day</th>
+                <th>Time</th>
+                <th>Room</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for schedule in schedules %}
+            <tr>
+                <td>{{ schedule.teacher.teacher_code }} - {{ schedule.teacher.first_name }} {{ schedule.teacher.last_name }}</td>
+                <td>{{ schedule.subject.code }} - {{ schedule.subject.name }}</td>
+                <td>{{ schedule.class_group.class_code }} - {{ schedule.class_group.name }}</td>
+                <td>{{ schedule.day_of_week }}</td>
+                <td>{{ schedule.start_time.strftime("%H:%M") }} - {{ schedule.end_time.strftime("%H:%M") }}</td>
+                <td>{{ schedule.room }}</td>
+                <td><span class="status {{ schedule.status }}">{{ schedule.status }}</span></td>
+                <td class="actions">
+                    <a href="/schedules/{{ schedule.id }}/edit">Edit</a>
+                    <form method="post" action="/schedules/{{ schedule.id }}/toggle">
+                        <button class="link-button" type="submit">{{ "Deactivate" if schedule.status == "active" else "Activate" }}</button>
+                    </form>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="empty">No weekly schedules yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

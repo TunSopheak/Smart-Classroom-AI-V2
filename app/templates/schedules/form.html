@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% set is_edit = schedule is not none %}
+{% block title %}{{ "Edit Schedule" if is_edit else "Add Schedule" }} - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Teaching Assignments</p>
+        <h2>{{ "Edit Schedule" if is_edit else "Add Schedule" }}</h2>
+    </div>
+    <a class="button" href="/schedules">Back</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+{% if missing_dependencies %}
+<div class="notice error">Create at least one {{ missing_dependencies | join(", ") }} before adding a schedule.</div>
+{% endif %}
+
+<form class="form-panel" method="post" action="{{ action }}">
+    <label>
+        Teacher
+        {% set selected_teacher = form.teacher_id if form.teacher_id is defined else (schedule.teacher_id if is_edit else 0) %}
+        <select name="teacher_id">
+            {% for teacher in teachers %}
+            <option value="{{ teacher.id }}" {% if selected_teacher|int == teacher.id %}selected{% endif %}>
+                {{ teacher.teacher_code }} - {{ teacher.first_name }} {{ teacher.last_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Subject
+        {% set selected_subject = form.subject_id if form.subject_id is defined else (schedule.subject_id if is_edit else 0) %}
+        <select name="subject_id">
+            {% for subject in subjects %}
+            <option value="{{ subject.id }}" {% if selected_subject|int == subject.id %}selected{% endif %}>
+                {{ subject.code }} - {{ subject.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Class
+        {% set selected_class = form.class_group_id if form.class_group_id is defined else (schedule.class_group_id if is_edit else 0) %}
+        <select name="class_group_id">
+            {% for class_group in classes %}
+            <option value="{{ class_group.id }}" {% if selected_class|int == class_group.id %}selected{% endif %}>
+                {{ class_group.class_code }} - {{ class_group.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Day
+        {% set selected_day = form.day_of_week if form.day_of_week is defined else (schedule.day_of_week if is_edit else "Monday") %}
+        <select name="day_of_week">
+            {% for day in days_of_week %}
+            <option value="{{ day }}" {% if selected_day == day %}selected{% endif %}>{{ day }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Start Time
+        <input name="start_time" type="time" value="{{ form.start_time if form.start_time is defined else (schedule.start_time.strftime('%H:%M') if is_edit else '') }}">
+    </label>
+    <label>
+        End Time
+        <input name="end_time" type="time" value="{{ form.end_time if form.end_time is defined else (schedule.end_time.strftime('%H:%M') if is_edit else '') }}">
+    </label>
+    <label>
+        Room
+        <input name="room" value="{{ form.room if form.room is defined else (schedule.room if is_edit else '') }}" placeholder="Room 301">
+    </label>
+    {% if is_edit %}
+    <label>
+        Status
+        {% set selected_status = form.status if form.status is defined else schedule.status %}
+        <select name="status">
+            <option value="active" {% if selected_status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if selected_status == "inactive" %}selected{% endif %}>Inactive</option>
+        </select>
+    </label>
+    {% endif %}
+    <button class="button primary" type="submit" {% if missing_dependencies %}disabled{% endif %}>
+        {{ "Save Schedule" if is_edit else "Create Schedule" }}
+    </button>
+</form>
+{% endblock %}

@@ -13,6 +13,7 @@ class Teacher(Base):
     last_name = Column(String(100), nullable=False)
     email = Column(String(255), unique=True, nullable=True)
     department = Column(String(100), nullable=True)
+    status = Column(String(30), default="active", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     weekly_schedules = relationship("WeeklySchedule", back_populates="teacher")

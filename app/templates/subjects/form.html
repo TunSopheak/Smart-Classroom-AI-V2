@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% set is_edit = subject is not none %}
+{% block title %}{{ "Edit Subject" if is_edit else "Add Subject" }} - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Academic Core</p>
+        <h2>{{ "Edit Subject" if is_edit else "Add Subject" }}</h2>
+    </div>
+    <a class="button" href="/subjects">Back</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<form class="form-panel" method="post" action="{{ action }}">
+    <label>
+        Subject Code
+        <input name="code" value="{{ form.code if form.code is defined else (subject.code if is_edit else '') }}" placeholder="CN001">
+    </label>
+    <label>
+        Subject Name
+        <input name="name" value="{{ form.name if form.name is defined else (subject.name if is_edit else '') }}" placeholder="Computer Networks">
+    </label>
+    <label>
+        Description
+        <textarea name="description" rows="4" placeholder="Short description">{{ form.description if form.description is defined and form.description else (subject.description if is_edit and subject.description else '') }}</textarea>
+    </label>
+    {% if is_edit %}
+    <label>
+        Status
+        {% set selected_status = form.status if form.status is defined else subject.status %}
+        <select name="status">
+            <option value="active" {% if selected_status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if selected_status == "inactive" %}selected{% endif %}>Inactive</option>
+        </select>
+    </label>
+    {% endif %}
+    <button class="button primary" type="submit">{{ "Save Subject" if is_edit else "Create Subject" }}</button>
+</form>
+{% endblock %}

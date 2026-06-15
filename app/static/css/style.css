@@ -261,7 +261,8 @@ label {
 }
 
 input,
-select {
+select,
+textarea {
     width: 100%;
     min-height: 42px;
     padding: 8px 10px;
@@ -270,6 +271,15 @@ select {
     border: 1px solid var(--line);
     border-radius: 8px;
     font: inherit;
+}
+
+textarea {
+    resize: vertical;
+}
+
+button:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
 }
 
 .status {

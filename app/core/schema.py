@@ -9,12 +9,12 @@ def ensure_development_schema():
         return
 
     inspector = inspect(engine)
-    if "class_groups" not in inspector.get_table_names():
+    tables = inspector.get_table_names()
+    if "class_groups" not in tables:
         return
 
-    columns = {column["name"] for column in inspector.get_columns("class_groups")}
-
     with engine.begin() as connection:
+        columns = {column["name"] for column in inspector.get_columns("class_groups")}
         if "class_code" not in columns:
             connection.execute(text("ALTER TABLE class_groups ADD COLUMN class_code VARCHAR(50)"))
             connection.execute(
@@ -26,3 +26,17 @@ def ensure_development_schema():
             connection.execute(
                 text("ALTER TABLE class_groups ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'active'")
             )
+
+        if "teachers" in tables:
+            teacher_columns = {column["name"] for column in inspector.get_columns("teachers")}
+            if "status" not in teacher_columns:
+                connection.execute(
+                    text("ALTER TABLE teachers ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'active'")
+                )
+
+        if "subjects" in tables:
+            subject_columns = {column["name"] for column in inspector.get_columns("subjects")}
+            if "status" not in subject_columns:
+                connection.execute(
+                    text("ALTER TABLE subjects ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'active'")
+                )

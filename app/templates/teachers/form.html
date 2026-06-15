@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% set is_edit = teacher is not none %}
+{% block title %}{{ "Edit Teacher" if is_edit else "Add Teacher" }} - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Academic Core</p>
+        <h2>{{ "Edit Teacher" if is_edit else "Add Teacher" }}</h2>
+    </div>
+    <a class="button" href="/teachers">Back</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<form class="form-panel" method="post" action="{{ action }}">
+    <label>
+        Teacher Code
+        <input name="teacher_code" value="{{ form.teacher_code if form.teacher_code is defined else (teacher.teacher_code if is_edit else '') }}" placeholder="T001">
+    </label>
+    <label>
+        First Name
+        <input name="first_name" value="{{ form.first_name if form.first_name is defined else (teacher.first_name if is_edit else '') }}" placeholder="Sok">
+    </label>
+    <label>
+        Last Name
+        <input name="last_name" value="{{ form.last_name if form.last_name is defined else (teacher.last_name if is_edit else '') }}" placeholder="Dara">
+    </label>
+    <label>
+        Email
+        <input name="email" value="{{ form.email if form.email is defined and form.email else (teacher.email if is_edit and teacher.email else '') }}" placeholder="teacher@example.com">
+    </label>
+    <label>
+        Department
+        <input name="department" value="{{ form.department if form.department is defined and form.department else (teacher.department if is_edit and teacher.department else '') }}" placeholder="Computer Networking">
+    </label>
+    {% if is_edit %}
+    <label>
+        Status
+        {% set selected_status = form.status if form.status is defined else teacher.status %}
+        <select name="status">
+            <option value="active" {% if selected_status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if selected_status == "inactive" %}selected{% endif %}>Inactive</option>
+        </select>
+    </label>
+    {% endif %}
+    <button class="button primary" type="submit">{{ "Save Teacher" if is_edit else "Create Teacher" }}</button>
+</form>
+{% endblock %}

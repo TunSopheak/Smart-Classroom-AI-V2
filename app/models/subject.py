@@ -11,6 +11,7 @@ class Subject(Base):
     code = Column(String(50), unique=True, nullable=False, index=True)
     name = Column(String(150), nullable=False)
     description = Column(String(500), nullable=True)
+    status = Column(String(30), default="active", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     weekly_schedules = relationship("WeeklySchedule", back_populates="subject")
