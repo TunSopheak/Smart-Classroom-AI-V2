@@ -12,10 +12,34 @@ SCHEDULED = "scheduled"
 ACTIVE = "active"
 CLOSED = "closed"
 CANCELLED = "cancelled"
+SESSION_STATUSES = [SCHEDULED, ACTIVE, CLOSED, CANCELLED]
 
 
-def list_sessions(db: DatabaseSession) -> list[ClassroomSession]:
-    return (
+def cleanup_stale_active_sessions(db: DatabaseSession, today: date | None = None) -> int:
+    today = today or date.today()
+    stale_sessions = (
+        db.query(ClassroomSession)
+        .filter(
+            ClassroomSession.status == ACTIVE,
+            ClassroomSession.session_date < today,
+        )
+        .all()
+    )
+    for session in stale_sessions:
+        session.status = CLOSED
+
+    if stale_sessions:
+        db.commit()
+    return len(stale_sessions)
+
+
+def list_sessions(
+    db: DatabaseSession,
+    view: str = "today",
+    selected_date: date | None = None,
+    status: str | None = None,
+) -> list[ClassroomSession]:
+    query = (
         db.query(ClassroomSession)
         .options(
             joinedload(ClassroomSession.teacher),
@@ -23,9 +47,47 @@ def list_sessions(db: DatabaseSession) -> list[ClassroomSession]:
             joinedload(ClassroomSession.class_group),
             joinedload(ClassroomSession.weekly_schedule),
         )
-        .order_by(ClassroomSession.session_date.desc(), ClassroomSession.start_time.asc())
-        .all()
     )
+
+    if view == "today":
+        query = query.filter(ClassroomSession.session_date == date.today())
+    elif view == "date" and selected_date is not None:
+        query = query.filter(ClassroomSession.session_date == selected_date)
+
+    if status in SESSION_STATUSES:
+        query = query.filter(ClassroomSession.status == status)
+
+    return query.order_by(ClassroomSession.session_date.desc(), ClassroomSession.start_time.asc()).all()
+
+
+def parse_filter_date(value: str | None) -> date | None:
+    if not value:
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
+
+
+def normalize_session_view(view: str | None) -> str:
+    return view if view in {"today", "all", "date"} else "today"
+
+
+def normalize_session_status(status: str | None) -> str | None:
+    return status if status in SESSION_STATUSES else None
+
+
+def session_filter_label(view: str, selected_date: date | None, status: str | None) -> str:
+    if view == "all":
+        label = "All Sessions"
+    elif view == "date" and selected_date is not None:
+        label = f"Sessions for {selected_date.isoformat()}"
+    else:
+        label = "Today's Sessions"
+
+    if status:
+        label = f"{label} - {status.capitalize()}"
+    return label
 
 
 def get_session(db: DatabaseSession, session_id: int) -> ClassroomSession | None:
@@ -87,6 +149,7 @@ def active_schedules_for_day(db: DatabaseSession, day_name: str) -> list[WeeklyS
 
 def generate_sessions_for_date(db: DatabaseSession, target_date: date | None = None) -> tuple[int, int, str | None]:
     target_date = target_date or date.today()
+    cleanup_stale_active_sessions(db, today=target_date)
     day_name = target_date.strftime("%A")
     schedules = active_schedules_for_day(db, day_name)
 
@@ -166,9 +229,13 @@ def close_session(db: DatabaseSession, session: ClassroomSession) -> tuple[Class
     if session.status == CLOSED:
         return session, "This session is already closed."
 
+    from app.services import attendance_service
+
     session.status = CLOSED
+    absent_count = attendance_service.create_absent_records_for_session(db, session)
     db.commit()
     db.refresh(session)
+    session.auto_absent_count = absent_count
     return session, None
 
 

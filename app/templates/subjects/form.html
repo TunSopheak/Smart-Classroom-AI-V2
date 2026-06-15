@@ -15,13 +15,22 @@
 {% include "partials/messages.html" %}
 
 <form class="form-panel" method="post" action="{{ action }}">
+    {% if not is_edit %}
+    <div class="helper-note">
+        Subject code is generated automatically, for example SUB0001.
+    </div>
+    {% endif %}
+    {% if is_edit %}
     <label>
         Subject Code
         <input name="code" value="{{ form.code if form.code is defined else (subject.code if is_edit else '') }}" placeholder="CN001">
+        <small>Existing subjects keep their code. New subjects generate codes automatically.</small>
     </label>
+    {% endif %}
     <label>
         Subject Name
         <input name="name" value="{{ form.name if form.name is defined else (subject.name if is_edit else '') }}" placeholder="Computer Networks">
+        <small>Subject name is the academic identity. The system assigns the next SUB code.</small>
     </label>
     <label>
         Description

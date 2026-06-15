@@ -38,6 +38,10 @@
             {% endif %}
         </strong>
     </article>
+    <article class="summary-card">
+        <span>QR Value</span>
+        <strong>{{ student.student_code }}</strong>
+    </article>
 </section>
 
 <section class="split-layout">
@@ -69,17 +73,26 @@
         </div>
     </div>
 
-    <form class="form-panel compact" method="post" action="/students/{{ student.id }}/enroll">
-        <h3>Enroll in Class</h3>
-        <label>
-            Class
-            <select name="class_group_id">
-                {% for class_group in classes %}
-                <option value="{{ class_group.id }}">{{ class_group.class_code }} - {{ class_group.name }}</option>
-                {% endfor %}
-            </select>
-        </label>
-        <button class="button primary" type="submit">Enroll</button>
-    </form>
+    <div class="side-stack">
+        <section class="form-panel compact">
+            <h3>Student QR</h3>
+            <p class="muted">QR Value: {{ student.student_code }}</p>
+            <img class="qr-image" src="/students/{{ student.id }}/qr" alt="QR code for {{ student.student_code }}">
+            <a class="button" href="/students/{{ student.id }}/qr" download="{{ student.student_code }}-qr.png">Download QR</a>
+        </section>
+
+        <form class="form-panel compact" method="post" action="/students/{{ student.id }}/enroll">
+            <h3>Enroll in Class</h3>
+            <label>
+                Class
+                <select name="class_group_id">
+                    {% for class_group in classes %}
+                    <option value="{{ class_group.id }}">{{ class_group.class_code }} - {{ class_group.name }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <button class="button primary" type="submit">Enroll</button>
+        </form>
+    </div>
 </section>
 {% endblock %}

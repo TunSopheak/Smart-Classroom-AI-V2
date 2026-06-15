@@ -15,6 +15,35 @@
 
 {% include "partials/messages.html" %}
 
+<form class="form-panel inline-form session-filters" method="get" action="/sessions">
+    <label>
+        View
+        <select name="view" id="session-view">
+            <option value="today" {% if filters.view == "today" %}selected{% endif %}>Today</option>
+            <option value="all" {% if filters.view == "all" %}selected{% endif %}>All Sessions</option>
+            <option value="date" {% if filters.view == "date" %}selected{% endif %}>Custom Date</option>
+        </select>
+    </label>
+    <label>
+        Date
+        <input name="session_date" type="date" value="{{ filters.session_date }}">
+    </label>
+    <label>
+        Status
+        <select name="status">
+            <option value="">All statuses</option>
+            {% for item in statuses %}
+            <option value="{{ item }}" {% if filters.status == item %}selected{% endif %}>{{ item.capitalize() }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <button class="button primary" type="submit">Apply</button>
+    <a class="button" href="/sessions">Today</a>
+    <a class="button" href="/sessions?view=all">All Sessions</a>
+</form>
+
+<p class="filter-label">{{ filter_label }}</p>
+
 <section class="table-panel">
     <table>
         <thead>
@@ -58,7 +87,13 @@
             </tr>
             {% else %}
             <tr>
-                <td colspan="8" class="empty">No sessions generated yet.</td>
+                <td colspan="8" class="empty">
+                    {% if filters.view == "today" %}
+                    No sessions for today. Generate today's sessions from active schedules.
+                    {% else %}
+                    No sessions match the selected filters.
+                    {% endif %}
+                </td>
             </tr>
             {% endfor %}
         </tbody>

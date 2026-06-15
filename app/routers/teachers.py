@@ -71,6 +71,8 @@ async def create_teacher(
     db: Session = Depends(get_db),
 ):
     form = teacher_form_payload(teacher_code, first_name, last_name, email, department)
+    if not form["teacher_code"]:
+        form["teacher_code"] = academic_service.generate_next_teacher_code(db)
     try:
         payload = TeacherCreate(**form)
     except ValidationError:
@@ -80,7 +82,7 @@ async def create_teacher(
             {
                 "teacher": None,
                 "form": form,
-                "error": "Teacher code, first name, and last name are required.",
+                "error": "First name and last name are required.",
                 "action": "/teachers/new",
             },
             status_code=400,

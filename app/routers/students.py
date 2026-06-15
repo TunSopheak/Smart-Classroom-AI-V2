@@ -1,7 +1,8 @@
 from urllib.parse import urlencode
+from io import BytesIO
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sqlalchemy.orm import Session
@@ -62,13 +63,15 @@ async def create_student(
     db: Session = Depends(get_db),
 ):
     form = student_form_payload(student_code, first_name, last_name, email)
+    if not form["student_code"]:
+        form["student_code"] = academic_service.generate_next_student_code(db)
     try:
         payload = StudentCreate(**form)
     except ValidationError:
         return templates.TemplateResponse(
             request,
             "students/form.html",
-            {"student": None, "form": form, "error": "Student ID, first name, and last name are required.", "action": "/students/new"},
+            {"student": None, "form": form, "error": "First name and last name are required.", "action": "/students/new"},
             status_code=400,
         )
 
@@ -81,7 +84,32 @@ async def create_student(
             status_code=400,
         )
 
-    return redirect_with(f"/students/{student.id}", message="Student created successfully.")
+    return redirect_with(f"/students/{student.id}", message=f"Student created successfully with ID {student.student_code}.")
+
+
+@router.get("/{student_id}/qr")
+async def student_qr_code(student_id: int, db: Session = Depends(get_db)):
+    student = academic_service.get_student(db, student_id)
+    if student is None:
+        return PlainTextResponse("Student not found.", status_code=404)
+
+    try:
+        import qrcode
+    except ImportError:
+        return PlainTextResponse(
+            "QR generation is not available. Install qrcode[pil] from requirements.txt.",
+            status_code=503,
+        )
+
+    image = qrcode.make(student.student_code)
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    filename = f"{student.student_code}-qr.png"
+    return Response(
+        content=buffer.getvalue(),
+        media_type="image/png",
+        headers={"Content-Disposition": f'inline; filename="{filename}"'},
+    )
 
 
 @router.get("/{student_id}")

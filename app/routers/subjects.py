@@ -60,13 +60,15 @@ async def create_subject(
     db: Session = Depends(get_db),
 ):
     form = subject_form_payload(code, name, description)
+    if not form["code"] and form["name"]:
+        form["code"] = academic_service.generate_subject_code(db)
     try:
         payload = SubjectCreate(**form)
     except ValidationError:
         return templates.TemplateResponse(
             request,
             "subjects/form.html",
-            {"subject": None, "form": form, "error": "Subject code and name are required.", "action": "/subjects/new"},
+            {"subject": None, "form": form, "error": "Subject name is required.", "action": "/subjects/new"},
             status_code=400,
         )
 
@@ -79,7 +81,7 @@ async def create_subject(
             status_code=400,
         )
 
-    return redirect_with("/subjects", message="Subject created successfully.")
+    return redirect_with("/subjects", message=f"Subject created successfully with code {subject.code}.")
 
 
 @router.get("/{subject_id}/edit")

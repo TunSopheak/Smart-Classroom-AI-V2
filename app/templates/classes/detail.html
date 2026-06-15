@@ -21,6 +21,18 @@
 
 <section class="summary-grid">
     <article class="summary-card">
+        <span>System Class Code</span>
+        <strong>{{ class_group.class_code }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Display Group</span>
+        <strong>{{ class_group.group_code or "-" }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Department</span>
+        <strong>{{ class_group.department or "-" }}</strong>
+    </article>
+    <article class="summary-card">
         <span>Status</span>
         <strong class="status {{ class_group.status }}">{{ class_group.status }}</strong>
     </article>

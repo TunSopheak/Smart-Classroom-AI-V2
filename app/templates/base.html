@@ -12,16 +12,30 @@
             <p class="eyebrow">Version 2</p>
             <h1>Smart Classroom AI Monitoring</h1>
         </div>
-        <nav aria-label="Main navigation">
-            <a href="/dashboard">Dashboard</a>
-            <a href="/classes">Classes</a>
-            <a href="/students">Students</a>
-            <a href="/enrollments">Enrollments</a>
-            <a href="/teachers">Teachers</a>
-            <a href="/subjects">Subjects</a>
-            <a href="/schedules">Schedules</a>
-            <a href="/sessions">Sessions</a>
-            <a href="/docs">API Docs</a>
+        <nav class="main-nav" aria-label="Main navigation">
+            <div class="nav-group">
+                <a href="/dashboard">Dashboard</a>
+                <a href="/qr-scanner">QR Scanner</a>
+                <a href="/attendance">Attendance</a>
+                <a href="/sessions">Sessions</a>
+            </div>
+            <details class="nav-menu">
+                <summary>Academic</summary>
+                <div class="nav-menu-panel">
+                    <a href="/classes">Classes</a>
+                    <a href="/students">Students</a>
+                    <a href="/enrollments">Enrollments</a>
+                    <a href="/teachers">Teachers</a>
+                    <a href="/subjects">Subjects</a>
+                    <a href="/schedules">Schedules</a>
+                </div>
+            </details>
+            <details class="nav-menu">
+                <summary>System</summary>
+                <div class="nav-menu-panel">
+                    <a href="/docs">API Docs</a>
+                </div>
+            </details>
         </nav>
     </header>
 
@@ -30,5 +44,6 @@
     </main>
 
     <script src="{{ url_for('static', path='js/app.js') }}"></script>
+    {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -15,21 +15,37 @@
 {% include "partials/messages.html" %}
 
 <form class="form-panel" method="post" action="{{ action }}">
+    <div class="helper-note">
+        M4 is a display group code. The system generates a unique class code using department, group code, academic year, and semester.
+    </div>
+    {% if is_edit %}
     <label>
-        Class Code
-        <input name="class_code" value="{{ form.class_code if form.class_code is defined else (class_group.class_code if is_edit else '') }}" placeholder="M4">
+        System Class Code
+        <input name="class_code" value="{{ form.class_code if form.class_code is defined else class_group.class_code }}" placeholder="CS-M4-2025-2026-S1">
+        <small>Leave as-is unless you intentionally need to correct the generated code.</small>
     </label>
+    {% endif %}
     <label>
         Class Name
-        <input name="name" value="{{ form.name if form.name is defined else (class_group.name if is_edit else '') }}" placeholder="Mathematics 4">
+        <input name="name" value="{{ form.name if form.name is defined else (class_group.name if is_edit else '') }}" placeholder="Computer Science M4 2025-2026 Semester 1">
+        <small>Optional on add. If blank, the system creates a readable name from the fields below.</small>
+    </label>
+    <label>
+        Department
+        <input name="department" value="{{ form.department if form.department is defined and form.department else (class_group.department if is_edit and class_group.department else 'Computer Science') }}" placeholder="Computer Science">
+    </label>
+    <label>
+        Display Group Code
+        <input name="group_code" value="{{ form.group_code if form.group_code is defined and form.group_code else (class_group.group_code if is_edit and class_group.group_code else '') }}" placeholder="M4">
+        <small>Examples: M4, A1, E2. This can be reused across departments.</small>
     </label>
     <label>
         Academic Year
-        <input name="academic_year" value="{{ form.academic_year if form.academic_year is defined and form.academic_year else (class_group.academic_year if is_edit and class_group.academic_year else '') }}" placeholder="2026">
+        <input name="academic_year" value="{{ form.academic_year if form.academic_year is defined and form.academic_year else (class_group.academic_year if is_edit and class_group.academic_year else '') }}" placeholder="2025-2026">
     </label>
     <label>
         Semester
-        <input name="semester" value="{{ form.semester if form.semester is defined and form.semester else (class_group.semester if is_edit and class_group.semester else '') }}" placeholder="Semester 1">
+        <input name="semester" value="{{ form.semester if form.semester is defined and form.semester else (class_group.semester if is_edit and class_group.semester else '') }}" placeholder="1">
     </label>
     {% if is_edit %}
     <label>

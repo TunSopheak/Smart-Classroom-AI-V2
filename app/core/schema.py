@@ -27,6 +27,15 @@ def ensure_development_schema():
                 text("ALTER TABLE class_groups ADD COLUMN status VARCHAR(30) NOT NULL DEFAULT 'active'")
             )
 
+        if "department" not in columns:
+            connection.execute(text("ALTER TABLE class_groups ADD COLUMN department VARCHAR(100)"))
+
+        if "group_code" not in columns:
+            connection.execute(text("ALTER TABLE class_groups ADD COLUMN group_code VARCHAR(50)"))
+            connection.execute(
+                text("UPDATE class_groups SET group_code = class_code WHERE group_code IS NULL OR group_code = ''")
+            )
+
         if "teachers" in tables:
             teacher_columns = {column["name"] for column in inspector.get_columns("teachers")}
             if "status" not in teacher_columns:
@@ -164,3 +173,48 @@ def ensure_development_schema():
                 connection.execute(
                     text("ALTER TABLE sessions ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP")
                 )
+
+        if "attendance" in tables:
+            attendance_columns = {column["name"] for column in inspector.get_columns("attendance")}
+
+            if "class_group_id" not in attendance_columns:
+                connection.execute(text("ALTER TABLE attendance ADD COLUMN class_group_id INTEGER"))
+                connection.execute(
+                    text(
+                        """
+                        UPDATE attendance
+                        SET class_group_id = (
+                            SELECT class_group_id
+                            FROM sessions
+                            WHERE sessions.id = attendance.session_id
+                        )
+                        WHERE class_group_id IS NULL
+                        """
+                    )
+                )
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_attendance_class_group_id ON attendance (class_group_id)"))
+
+            if "schedule_id" not in attendance_columns:
+                connection.execute(text("ALTER TABLE attendance ADD COLUMN schedule_id INTEGER"))
+                connection.execute(
+                    text(
+                        """
+                        UPDATE attendance
+                        SET schedule_id = (
+                            SELECT schedule_id
+                            FROM sessions
+                            WHERE sessions.id = attendance.session_id
+                        )
+                        WHERE schedule_id IS NULL
+                        """
+                    )
+                )
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_attendance_schedule_id ON attendance (schedule_id)"))
+
+            if "source" not in attendance_columns:
+                connection.execute(text("ALTER TABLE attendance ADD COLUMN source VARCHAR(30) NOT NULL DEFAULT 'manual'"))
+                if "method" in attendance_columns:
+                    connection.execute(text("UPDATE attendance SET source = method WHERE source IS NULL OR source = ''"))
+
+            if "note" not in attendance_columns:
+                connection.execute(text("ALTER TABLE attendance ADD COLUMN note VARCHAR(500)"))

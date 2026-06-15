@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Attendance - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Attendance History</p>
+        <h2>Attendance</h2>
+    </div>
+    <a class="button primary" href="/attendance/scan">QR Scanner</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<form class="form-panel inline-form attendance-filters" method="get" action="/attendance">
+    <label>
+        Class
+        <select name="class_group_id">
+            <option value="">All classes</option>
+            {% for class_group in classes %}
+            <option value="{{ class_group.id }}" {% if filters.class_group_id|string == class_group.id|string %}selected{% endif %}>
+                {{ class_group.class_code }} - {{ class_group.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Session
+        <select name="session_id">
+            <option value="">All sessions</option>
+            {% for session in sessions %}
+            <option value="{{ session.id }}" {% if filters.session_id|string == session.id|string %}selected{% endif %}>
+                {{ session.session_date.strftime("%Y-%m-%d") }} | {{ session.subject.code }} | {{ session.class_group.class_code }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Student
+        <input name="student_search" value="{{ filters.student_search }}" placeholder="Student ID or name">
+    </label>
+    <label>
+        Status
+        <select name="status">
+            <option value="">All statuses</option>
+            {% for item in statuses %}
+            <option value="{{ item }}" {% if filters.status == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <button class="button primary" type="submit">Filter</button>
+</form>
+
+<section class="table-panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Class</th>
+                <th>Subject</th>
+                <th>Teacher</th>
+                <th>Session Date</th>
+                <th>Time</th>
+                <th>Status</th>
+                <th>Source</th>
+                <th>Recorded At</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <td>{{ record.student.student_code }} - {{ record.student.first_name }} {{ record.student.last_name }}</td>
+                <td>{{ record.session.class_group.class_code }} - {{ record.session.class_group.name }}</td>
+                <td>{{ record.session.subject.code }} - {{ record.session.subject.name }}</td>
+                <td>{{ record.session.teacher.teacher_code }} - {{ record.session.teacher.first_name }} {{ record.session.teacher.last_name }}</td>
+                <td>{{ record.session.session_date.strftime("%Y-%m-%d") }}</td>
+                <td>{{ record.session.start_time.strftime("%H:%M") }} - {{ record.session.end_time.strftime("%H:%M") }}</td>
+                <td><span class="status {{ record.status }}">{{ record.status }}</span></td>
+                <td>{{ record.source }}</td>
+                <td>{{ record.recorded_at.strftime("%Y-%m-%d %H:%M") if record.recorded_at else "-" }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="9" class="empty">No attendance records yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

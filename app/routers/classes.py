@@ -19,10 +19,20 @@ def redirect_with(path: str, **params: str) -> RedirectResponse:
     return RedirectResponse(f"{path}?{urlencode(params)}", status_code=303)
 
 
-def class_form_payload(class_code: str, name: str, academic_year: str, semester: str, status: str = "active"):
+def class_form_payload(
+    class_code: str,
+    name: str,
+    department: str,
+    group_code: str,
+    academic_year: str,
+    semester: str,
+    status: str = "active",
+):
     return {
         "class_code": class_code.strip(),
         "name": name.strip(),
+        "department": department.strip() or None,
+        "group_code": group_code.strip() or None,
         "academic_year": academic_year.strip() or None,
         "semester": semester.strip() or None,
         "status": status,
@@ -56,18 +66,36 @@ async def create_class(
     request: Request,
     class_code: str = Form(""),
     name: str = Form(""),
+    department: str = Form("Computer Science"),
+    group_code: str = Form(""),
     academic_year: str = Form(""),
     semester: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    form = class_form_payload(class_code, name, academic_year, semester)
+    if not department.strip() or not group_code.strip() or not academic_year.strip() or not semester.strip():
+        form = class_form_payload("", name, department, group_code, academic_year, semester)
+        return templates.TemplateResponse(
+            request,
+            "classes/form.html",
+            {
+                "class_group": None,
+                "form": form,
+                "error": "Department, display group code, academic year, and semester are required.",
+                "action": "/classes/new",
+            },
+            status_code=400,
+        )
+
+    generated_code = academic_service.generate_class_code(department, group_code, academic_year, semester)
+    generated_name = name.strip() or academic_service.default_class_name(department, group_code, academic_year, semester)
+    form = class_form_payload(generated_code, generated_name, department, group_code, academic_year, semester)
     try:
         payload = ClassGroupCreate(**form)
     except ValidationError:
         return templates.TemplateResponse(
             request,
             "classes/form.html",
-            {"class_group": None, "form": form, "error": "Class code and name are required.", "action": "/classes/new"},
+            {"class_group": None, "form": form, "error": "Department, group code, academic year, and semester are required.", "action": "/classes/new"},
             status_code=400,
         )
 
@@ -127,6 +155,8 @@ async def update_class(
     class_id: int,
     class_code: str = Form(""),
     name: str = Form(""),
+    department: str = Form(""),
+    group_code: str = Form(""),
     academic_year: str = Form(""),
     semester: str = Form(""),
     status: str = Form("active"),
@@ -136,7 +166,9 @@ async def update_class(
     if class_group is None:
         return redirect_with("/classes", error="Class not found.")
 
-    form = class_form_payload(class_code, name, academic_year, semester, status)
+    generated_code = class_code.strip() or academic_service.generate_class_code(department, group_code, academic_year, semester)
+    generated_name = name.strip() or academic_service.default_class_name(department, group_code, academic_year, semester)
+    form = class_form_payload(generated_code, generated_name, department, group_code, academic_year, semester, status)
     try:
         payload = ClassGroupUpdate(**form)
     except ValidationError:

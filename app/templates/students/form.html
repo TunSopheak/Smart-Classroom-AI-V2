@@ -15,10 +15,17 @@
 {% include "partials/messages.html" %}
 
 <form class="form-panel" method="post" action="{{ action }}">
+    {% if not is_edit %}
+    <div class="helper-note">
+        Student ID will be generated automatically, such as STU0001.
+    </div>
+    {% endif %}
+    {% if is_edit %}
     <label>
         Student ID
         <input name="student_code" value="{{ form.student_code if form.student_code is defined else (student.student_code if is_edit else '') }}" placeholder="STU0001">
     </label>
+    {% endif %}
     <label>
         First Name
         <input name="first_name" value="{{ form.first_name if form.first_name is defined else (student.first_name if is_edit else '') }}" placeholder="Sophea">

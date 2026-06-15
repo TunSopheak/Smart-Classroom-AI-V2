@@ -1,4 +1,5 @@
 from datetime import time
+import re
 
 from sqlalchemy import and_, func
 from sqlalchemy.orm import Session, joinedload
@@ -35,6 +36,73 @@ def clean_optional(value: str | None) -> str | None:
     return value or None
 
 
+def next_code(existing_codes: list[str], prefix: str, width: int) -> str:
+    pattern = re.compile(rf"^{re.escape(prefix)}(\d+)$", re.IGNORECASE)
+    highest = 0
+    for code in existing_codes:
+        match = pattern.match(code or "")
+        if match:
+            highest = max(highest, int(match.group(1)))
+    return f"{prefix}{highest + 1:0{width}d}"
+
+
+def generate_next_student_code(db: Session) -> str:
+    codes = [row[0] for row in db.query(Student.student_code).all()]
+    return next_code(codes, "STU", 4)
+
+
+def generate_next_teacher_code(db: Session) -> str:
+    codes = [row[0] for row in db.query(Teacher.teacher_code).all()]
+    return next_code(codes, "T", 3)
+
+
+def department_prefix(department: str | None) -> str:
+    department = clean_optional(department) or "Computer Science"
+    known = {
+        "computer science": "CS",
+        "mathematics": "MATH",
+        "math": "MATH",
+        "information systems": "IS",
+        "information system": "IS",
+        "applied statistics": "AS",
+    }
+    lowered = department.lower()
+    if lowered in known:
+        return known[lowered]
+
+    words = re.findall(r"[A-Za-z0-9]+", department.upper())
+    if len(words) >= 2:
+        return "".join(word[0] for word in words[:2])
+    return (words[0][:4] if words else "CLS").upper()
+
+
+def normalize_semester(semester: str | None) -> str:
+    semester = clean_optional(semester) or "1"
+    match = re.search(r"\d+", semester)
+    return match.group(0) if match else semester.upper().removeprefix("S")
+
+
+def generate_class_code(department: str | None, group_code: str | None, academic_year: str | None, semester: str | None) -> str:
+    prefix = department_prefix(department)
+    group = (clean_optional(group_code) or "M4").upper()
+    year = clean_optional(academic_year) or "2025-2026"
+    sem = normalize_semester(semester)
+    return f"{prefix}-{group}-{year}-S{sem}"
+
+
+def default_class_name(department: str | None, group_code: str | None, academic_year: str | None, semester: str | None) -> str:
+    department = clean_optional(department) or "Computer Science"
+    group = (clean_optional(group_code) or "M4").upper()
+    year = clean_optional(academic_year) or "2025-2026"
+    sem = normalize_semester(semester)
+    return f"{department} {group} {year} Semester {sem}"
+
+
+def generate_subject_code(db: Session) -> str:
+    codes = [row[0] for row in db.query(Subject.code).filter(Subject.code.ilike("SUB%")).all()]
+    return next_code(codes, "SUB", 4)
+
+
 def list_classes(db: Session) -> list[ClassGroup]:
     return db.query(ClassGroup).order_by(ClassGroup.name.asc()).all()
 
@@ -63,14 +131,18 @@ def find_class_by_name(db: Session, name: str, exclude_id: int | None = None) ->
 
 
 def create_class(db: Session, payload: ClassGroupCreate) -> tuple[ClassGroup | None, str | None]:
-    if find_class_by_code(db, payload.class_code):
+    class_code = payload.class_code.strip()
+    class_name = payload.name.strip()
+    if find_class_by_code(db, class_code):
         return None, "Class code already exists. Please choose a different code."
-    if find_class_by_name(db, payload.name):
+    if find_class_by_name(db, class_name):
         return None, "Class name already exists. Please choose a different name."
 
     class_group = ClassGroup(
-        class_code=payload.class_code.strip(),
-        name=payload.name.strip(),
+        class_code=class_code,
+        name=class_name,
+        department=clean_optional(payload.department),
+        group_code=clean_optional(payload.group_code),
         academic_year=clean_optional(payload.academic_year),
         semester=clean_optional(payload.semester),
         status=ACTIVE,
@@ -89,6 +161,8 @@ def update_class(db: Session, class_group: ClassGroup, payload: ClassGroupUpdate
 
     class_group.class_code = payload.class_code.strip()
     class_group.name = payload.name.strip()
+    class_group.department = clean_optional(payload.department)
+    class_group.group_code = clean_optional(payload.group_code)
     class_group.academic_year = clean_optional(payload.academic_year)
     class_group.semester = clean_optional(payload.semester)
     class_group.status = payload.status
@@ -149,13 +223,14 @@ def find_student_by_email(db: Session, email: str | None, exclude_id: int | None
 
 
 def create_student(db: Session, payload: StudentCreate) -> tuple[Student | None, str | None]:
-    if find_student_by_code(db, payload.student_code):
+    student_code = payload.student_code.strip() if payload.student_code else generate_next_student_code(db)
+    if find_student_by_code(db, student_code):
         return None, "Student ID already exists. Please choose a different ID."
     if find_student_by_email(db, payload.email):
         return None, "Student email already exists. Please choose a different email."
 
     student = Student(
-        student_code=payload.student_code.strip(),
+        student_code=student_code,
         first_name=payload.first_name.strip(),
         last_name=payload.last_name.strip(),
         email=clean_optional(payload.email),
@@ -283,13 +358,14 @@ def find_teacher_by_email(db: Session, email: str | None, exclude_id: int | None
 
 
 def create_teacher(db: Session, payload: TeacherCreate) -> tuple[Teacher | None, str | None]:
-    if find_teacher_by_code(db, payload.teacher_code):
+    teacher_code = payload.teacher_code.strip() if payload.teacher_code else generate_next_teacher_code(db)
+    if find_teacher_by_code(db, teacher_code):
         return None, "Teacher code already exists. Please choose a different code."
     if find_teacher_by_email(db, payload.email):
         return None, "Teacher email already exists. Please choose a different email."
 
     teacher = Teacher(
-        teacher_code=payload.teacher_code.strip(),
+        teacher_code=teacher_code,
         first_name=payload.first_name.strip(),
         last_name=payload.last_name.strip(),
         email=clean_optional(payload.email),
@@ -341,12 +417,22 @@ def find_subject_by_code(db: Session, code: str, exclude_id: int | None = None) 
     return query.first()
 
 
+def find_subject_by_name(db: Session, name: str, exclude_id: int | None = None) -> Subject | None:
+    query = db.query(Subject).filter(func.lower(Subject.name) == name.strip().lower())
+    if exclude_id is not None:
+        query = query.filter(Subject.id != exclude_id)
+    return query.first()
+
+
 def create_subject(db: Session, payload: SubjectCreate) -> tuple[Subject | None, str | None]:
-    if find_subject_by_code(db, payload.code):
+    code = payload.code.strip() if payload.code else generate_subject_code(db)
+    if find_subject_by_code(db, code):
         return None, "Subject code already exists. Please choose a different code."
+    if find_subject_by_name(db, payload.name):
+        return None, "Subject name already exists. Please choose a different name."
 
     subject = Subject(
-        code=payload.code.strip(),
+        code=code,
         name=payload.name.strip(),
         description=clean_optional(payload.description),
         status=ACTIVE,
@@ -360,6 +446,8 @@ def create_subject(db: Session, payload: SubjectCreate) -> tuple[Subject | None,
 def update_subject(db: Session, subject: Subject, payload: SubjectUpdate) -> tuple[Subject | None, str | None]:
     if find_subject_by_code(db, payload.code, exclude_id=subject.id):
         return None, "Subject code already exists. Please choose a different code."
+    if find_subject_by_name(db, payload.name, exclude_id=subject.id):
+        return None, "Subject name already exists. Please choose a different name."
 
     subject.code = payload.code.strip()
     subject.name = payload.name.strip()

@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class ClassGroupCreate(BaseModel):
     class_code: str = Field(min_length=1, max_length=50)
     name: str = Field(min_length=1, max_length=100)
+    department: str | None = Field(default=None, max_length=100)
+    group_code: str | None = Field(default=None, max_length=50)
     academic_year: str | None = Field(default=None, max_length=20)
     semester: str | None = Field(default=None, max_length=20)
 
@@ -50,12 +52,13 @@ class TeacherUpdate(TeacherCreate):
 
 
 class SubjectCreate(BaseModel):
-    code: str = Field(min_length=1, max_length=50)
+    code: str | None = Field(default=None, max_length=50)
     name: str = Field(min_length=1, max_length=150)
     description: str | None = Field(default=None, max_length=500)
 
 
 class SubjectUpdate(SubjectCreate):
+    code: str = Field(min_length=1, max_length=50)
     status: str = Field(default="active", pattern="^(active|inactive)$")
 
 
@@ -79,3 +82,7 @@ class SessionGenerate(BaseModel):
 
 class SessionStatusUpdate(BaseModel):
     status: str = Field(pattern="^(scheduled|active|closed|cancelled)$")
+
+
+class AttendanceScan(BaseModel):
+    student_code: str = Field(min_length=1, max_length=50)

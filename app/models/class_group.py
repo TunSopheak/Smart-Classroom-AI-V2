@@ -9,6 +9,8 @@ class ClassGroup(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     class_code = Column(String(50), unique=True, nullable=False, index=True)
+    department = Column(String(100), nullable=True)
+    group_code = Column(String(50), nullable=True)
     name = Column(String(100), unique=True, nullable=False)
     academic_year = Column(String(20), nullable=True)
     semester = Column(String(20), nullable=True)

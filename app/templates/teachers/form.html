@@ -15,10 +15,17 @@
 {% include "partials/messages.html" %}
 
 <form class="form-panel" method="post" action="{{ action }}">
+    {% if not is_edit %}
+    <div class="helper-note">
+        Teacher code will be generated automatically, such as T001.
+    </div>
+    {% endif %}
+    {% if is_edit %}
     <label>
         Teacher Code
         <input name="teacher_code" value="{{ form.teacher_code if form.teacher_code is defined else (teacher.teacher_code if is_edit else '') }}" placeholder="T001">
     </label>
+    {% endif %}
     <label>
         First Name
         <input name="first_name" value="{{ form.first_name if form.first_name is defined else (teacher.first_name if is_edit else '') }}" placeholder="Sok">
@@ -33,7 +40,8 @@
     </label>
     <label>
         Department
-        <input name="department" value="{{ form.department if form.department is defined and form.department else (teacher.department if is_edit and teacher.department else '') }}" placeholder="Computer Networking">
+        <input name="department" value="{{ form.department if form.department is defined and form.department else (teacher.department if is_edit and teacher.department else '') }}" placeholder="Computer Science">
+        <small>This is the teacher department. Teaching subjects are assigned through Weekly Schedules.</small>
     </label>
     {% if is_edit %}
     <label>
