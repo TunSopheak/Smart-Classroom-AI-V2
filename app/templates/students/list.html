@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Students - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Academic Core</p>
+        <h2>Students</h2>
+    </div>
+    <a class="button primary" href="/students/new">Add Student</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<section class="table-panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Student ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Current Class</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for student in students %}
+            {% set current = current_enrollments.get(student.id) %}
+            <tr>
+                <td>{{ student.student_code }}</td>
+                <td>{{ student.first_name }} {{ student.last_name }}</td>
+                <td>{{ student.email or "-" }}</td>
+                <td>
+                    {% if current %}
+                    <a href="/classes/{{ current.class_group.id }}">{{ current.class_group.class_code }}</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td><span class="status {{ student.status }}">{{ student.status }}</span></td>
+                <td class="actions">
+                    <a href="/students/{{ student.id }}">View</a>
+                    <a href="/students/{{ student.id }}/edit">Edit</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="empty">No students yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

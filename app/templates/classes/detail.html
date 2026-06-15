@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}{{ class_group.class_code }} - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Class Details</p>
+        <h2>{{ class_group.class_code }} - {{ class_group.name }}</h2>
+    </div>
+    <div class="button-row">
+        <a class="button" href="/classes">Classes</a>
+        <a class="button" href="/classes/{{ class_group.id }}/edit">Edit</a>
+        <form method="post" action="/classes/{{ class_group.id }}/toggle">
+            <button class="button" type="submit">{{ "Deactivate" if class_group.status == "active" else "Activate" }}</button>
+        </form>
+    </div>
+</section>
+
+{% include "partials/messages.html" %}
+
+<section class="summary-grid">
+    <article class="summary-card">
+        <span>Status</span>
+        <strong class="status {{ class_group.status }}">{{ class_group.status }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Academic Year</span>
+        <strong>{{ class_group.academic_year or "-" }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Semester</span>
+        <strong>{{ class_group.semester or "-" }}</strong>
+    </article>
+</section>
+
+<section class="split-layout">
+    <div>
+        <h3>Members</h3>
+        <div class="table-panel">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Student ID</th>
+                        <th>Name</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for student in members %}
+                    <tr>
+                        <td><a href="/students/{{ student.id }}">{{ student.student_code }}</a></td>
+                        <td>{{ student.first_name }} {{ student.last_name }}</td>
+                        <td><span class="status {{ student.status }}">{{ student.status }}</span></td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="3" class="empty">No active members yet.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <form class="form-panel compact" method="post" action="/classes/{{ class_group.id }}/enroll">
+        <h3>Enroll Student</h3>
+        <label>
+            Student
+            <select name="student_id">
+                {% for student in students %}
+                <option value="{{ student.id }}">{{ student.student_code }} - {{ student.first_name }} {{ student.last_name }}</option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="button primary" type="submit">Enroll</button>
+    </form>
+</section>
+{% endblock %}

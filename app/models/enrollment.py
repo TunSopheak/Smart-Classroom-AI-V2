@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import relationship
 
 from app.core.database import Base
@@ -6,9 +6,6 @@ from app.core.database import Base
 
 class Enrollment(Base):
     __tablename__ = "enrollments"
-    __table_args__ = (
-        UniqueConstraint("student_id", "class_group_id", name="uq_student_class_enrollment"),
-    )
 
     id = Column(Integer, primary_key=True, index=True)
     student_id = Column(Integer, ForeignKey("students.id"), nullable=False)

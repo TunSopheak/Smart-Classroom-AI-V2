@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% set is_edit = student is not none %}
+{% block title %}{{ "Edit Student" if is_edit else "Add Student" }} - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Academic Core</p>
+        <h2>{{ "Edit Student" if is_edit else "Add Student" }}</h2>
+    </div>
+    <a class="button" href="{{ '/students/' ~ student.id if is_edit else '/students' }}">Back</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<form class="form-panel" method="post" action="{{ action }}">
+    <label>
+        Student ID
+        <input name="student_code" value="{{ form.student_code if form.student_code is defined else (student.student_code if is_edit else '') }}" placeholder="STU0001">
+    </label>
+    <label>
+        First Name
+        <input name="first_name" value="{{ form.first_name if form.first_name is defined else (student.first_name if is_edit else '') }}" placeholder="Sophea">
+    </label>
+    <label>
+        Last Name
+        <input name="last_name" value="{{ form.last_name if form.last_name is defined else (student.last_name if is_edit else '') }}" placeholder="Chan">
+    </label>
+    <label>
+        Email
+        <input name="email" value="{{ form.email if form.email is defined and form.email else (student.email if is_edit and student.email else '') }}" placeholder="student@example.com">
+    </label>
+    {% if is_edit %}
+    <label>
+        Status
+        {% set selected_status = form.status if form.status is defined else student.status %}
+        <select name="status">
+            <option value="active" {% if selected_status == "active" %}selected{% endif %}>Active</option>
+            <option value="inactive" {% if selected_status == "inactive" %}selected{% endif %}>Inactive</option>
+        </select>
+    </label>
+    {% endif %}
+    <button class="button primary" type="submit">{{ "Save Student" if is_edit else "Create Student" }}</button>
+</form>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Classes - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Academic Core</p>
+        <h2>Classes</h2>
+    </div>
+    <a class="button primary" href="/classes/new">Add Class</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<section class="table-panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Code</th>
+                <th>Name</th>
+                <th>Academic Year</th>
+                <th>Semester</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for class_group in classes %}
+            <tr>
+                <td>{{ class_group.class_code }}</td>
+                <td>{{ class_group.name }}</td>
+                <td>{{ class_group.academic_year or "-" }}</td>
+                <td>{{ class_group.semester or "-" }}</td>
+                <td><span class="status {{ class_group.status }}">{{ class_group.status }}</span></td>
+                <td class="actions">
+                    <a href="/classes/{{ class_group.id }}">View</a>
+                    <a href="/classes/{{ class_group.id }}/edit">Edit</a>
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="6" class="empty">No classes yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

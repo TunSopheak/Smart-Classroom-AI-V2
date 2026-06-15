@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}Enrollments - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Academic Core</p>
+        <h2>Enrollments</h2>
+    </div>
+</section>
+
+{% include "partials/messages.html" %}
+
+<form class="form-panel inline-form" method="post" action="/enrollments">
+    <label>
+        Student
+        <select name="student_id">
+            {% for student in students %}
+            <option value="{{ student.id }}">{{ student.student_code }} - {{ student.first_name }} {{ student.last_name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Class
+        <select name="class_group_id">
+            {% for class_group in classes %}
+            <option value="{{ class_group.id }}">{{ class_group.class_code }} - {{ class_group.name }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <button class="button primary" type="submit">Enroll</button>
+</form>
+
+<section class="table-panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Class</th>
+                <th>Status</th>
+                <th>Enrolled At</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for enrollment in enrollments %}
+            <tr>
+                <td><a href="/students/{{ enrollment.student.id }}">{{ enrollment.student.student_code }}</a></td>
+                <td><a href="/classes/{{ enrollment.class_group.id }}">{{ enrollment.class_group.class_code }}</a></td>
+                <td><span class="status {{ enrollment.status }}">{{ enrollment.status }}</span></td>
+                <td>{{ enrollment.enrolled_at.strftime("%Y-%m-%d %H:%M") if enrollment.enrolled_at else "-" }}</td>
+                <td>
+                    {% if enrollment.status == "active" %}
+                    <form method="post" action="/enrollments/{{ enrollment.id }}/deactivate">
+                        <button class="link-button" type="submit">Deactivate</button>
+                    </form>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty">No enrollment history yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

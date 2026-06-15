@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
 from app.core.database import Base, engine
+from app.core.schema import ensure_development_schema
 from app.models import (
     ai_event,
     attendance,
@@ -20,6 +21,7 @@ from app.routers import (
     classes,
     dashboard,
     devices,
+    enrollments,
     schedules,
     sessions,
     students,
@@ -28,6 +30,7 @@ from app.routers import (
 )
 
 Base.metadata.create_all(bind=engine)
+ensure_development_schema()
 
 app = FastAPI(
     title="Smart Classroom AI Monitoring V2",
@@ -40,6 +43,7 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 app.include_router(dashboard.router)
 app.include_router(students.router)
 app.include_router(classes.router)
+app.include_router(enrollments.router)
 app.include_router(teachers.router)
 app.include_router(subjects.router)
 app.include_router(schedules.router)

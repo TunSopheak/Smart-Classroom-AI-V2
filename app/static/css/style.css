@@ -7,6 +7,11 @@
     --line: #dce3ed;
     --accent: #1f7a6d;
     --accent-strong: #155b51;
+    --danger: #b42318;
+    --success-bg: #e9f7ef;
+    --success-text: #17633a;
+    --error-bg: #fff0ed;
+    --error-text: #9b1c12;
 }
 
 * {
@@ -34,7 +39,8 @@ body {
 
 .site-header h1,
 .dashboard-hero h2,
-.module-card h3 {
+.module-card h3,
+.page-heading h2 {
     margin: 0;
 }
 
@@ -44,6 +50,7 @@ body {
 
 .site-header nav {
     display: flex;
+    flex-wrap: wrap;
     gap: 16px;
 }
 
@@ -119,6 +126,214 @@ main {
     color: var(--muted);
 }
 
+.card-links,
+.actions,
+.button-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.card-links {
+    margin-top: 16px;
+}
+
+.page-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.page-heading h2 {
+    font-size: 2rem;
+}
+
+.button,
+button.button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 14px;
+    color: var(--accent-strong);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.button.primary {
+    color: var(--surface);
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+.notice {
+    margin: 0 0 18px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    font-weight: 700;
+}
+
+.notice.success {
+    color: var(--success-text);
+    background: var(--success-bg);
+}
+
+.notice.error {
+    color: var(--error-text);
+    background: var(--error-bg);
+}
+
+.table-panel,
+.form-panel,
+.summary-card {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+.table-panel {
+    overflow-x: auto;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th,
+td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+}
+
+th {
+    color: var(--muted);
+    font-size: 0.82rem;
+    text-transform: uppercase;
+}
+
+tr:last-child td {
+    border-bottom: 0;
+}
+
+.empty {
+    color: var(--muted);
+    text-align: center;
+}
+
+.form-panel {
+    display: grid;
+    gap: 16px;
+    max-width: 640px;
+    padding: 20px;
+}
+
+.form-panel.compact {
+    max-width: none;
+}
+
+.form-panel h3 {
+    margin: 0;
+}
+
+.inline-form {
+    align-items: end;
+    grid-template-columns: repeat(2, minmax(180px, 1fr)) auto;
+    max-width: none;
+    margin-bottom: 18px;
+}
+
+label {
+    display: grid;
+    gap: 6px;
+    color: var(--muted);
+    font-weight: 700;
+}
+
+input,
+select {
+    width: 100%;
+    min-height: 42px;
+    padding: 8px 10px;
+    color: var(--text);
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    font: inherit;
+}
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: capitalize;
+}
+
+.status.active {
+    color: var(--success-text);
+    background: var(--success-bg);
+}
+
+.status.inactive {
+    color: var(--muted);
+    background: #eef2f6;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+    margin-bottom: 28px;
+}
+
+.summary-card {
+    display: grid;
+    gap: 8px;
+    padding: 16px;
+}
+
+.summary-card span {
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.split-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+    gap: 20px;
+    align-items: start;
+}
+
+.split-layout h3 {
+    margin: 0 0 12px;
+}
+
+.link-button {
+    padding: 0;
+    color: var(--danger);
+    background: transparent;
+    border: 0;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+
 @media (max-width: 680px) {
     .site-header {
         align-items: flex-start;
@@ -127,5 +342,19 @@ main {
 
     .site-header nav {
         flex-wrap: wrap;
+    }
+
+    .page-heading,
+    .split-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .page-heading {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .inline-form {
+        grid-template-columns: 1fr;
     }
 }
