@@ -15,6 +15,65 @@
 
 <div id="scan-result" aria-live="polite"></div>
 
+{% if active_sessions %}
+<section class="form-panel compact">
+    <div class="page-heading compact-heading">
+        <div>
+            <p class="eyebrow">Active Sessions</p>
+            <h3>Select Attendance Session</h3>
+        </div>
+    </div>
+    <form class="filter-form" method="get" action="/attendance/scan">
+        <label>
+            Scan attendance for
+            <select name="session_id" onchange="this.form.submit()">
+                <option value="">Choose an active session</option>
+                {% for session in active_sessions %}
+                <option value="{{ session.id }}" {% if selected_session_id and selected_session_id|string == session.id|string %}selected{% endif %}>
+                    {{ session.class_group.class_code }} | {{ session.subject.code }} | {{ session.teacher.teacher_code }} | {{ session.room }} | {{ session.start_time.strftime("%H:%M") }}-{{ session.end_time.strftime("%H:%M") }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="button" type="submit">Select</button>
+    </form>
+    <div class="session-choice-grid">
+        {% for session in active_sessions %}
+        <a class="summary-card session-choice {% if selected_session and selected_session.id == session.id %}selected{% endif %}" href="/attendance/scan?session_id={{ session.id }}">
+            <span>{{ session.start_time.strftime("%H:%M") }} - {{ session.end_time.strftime("%H:%M") }} | {{ session.room }}</span>
+            <strong>{{ session.class_group.class_code }} - {{ session.subject.name }}</strong>
+            <small>{{ session.teacher.teacher_code }} - {{ session.teacher.first_name }} {{ session.teacher.last_name }}</small>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if selection_error %}
+<div class="notice {% if active_sessions %}info{% else %}error{% endif %}">{{ selection_error }}</div>
+{% endif %}
+
+{% if selected_session %}
+<section class="summary-grid">
+    <article class="summary-card">
+        <span>Scanning For</span>
+        <strong>{{ selected_session.class_group.class_code }} - {{ selected_session.class_group.name }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Subject</span>
+        <strong>{{ selected_session.subject.code }} - {{ selected_session.subject.name }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Teacher</span>
+        <strong>{{ selected_session.teacher.teacher_code }} - {{ selected_session.teacher.first_name }} {{ selected_session.teacher.last_name }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Room / Time</span>
+        <strong>{{ selected_session.room }} | {{ selected_session.start_time.strftime("%H:%M") }} - {{ selected_session.end_time.strftime("%H:%M") }}</strong>
+    </article>
+</section>
+{% endif %}
+
 <section class="split-layout">
     <section class="scanner-panel scanner-primary">
         <div class="page-heading compact-heading">
@@ -28,6 +87,9 @@
             </div>
         </div>
         <p class="muted">Start or generate an active session before scanning.</p>
+        {% if selected_session %}
+        <p class="muted"><strong>Scanning for:</strong> {{ selected_session.class_group.class_code }} / {{ selected_session.subject.name }} / {{ selected_session.teacher.teacher_code }} / {{ selected_session.room }} / {{ selected_session.start_time.strftime("%H:%M") }}-{{ selected_session.end_time.strftime("%H:%M") }}</p>
+        {% endif %}
         <p id="scanner-status" class="muted">Camera is stopped. Use manual input only if camera scanning fails.</p>
         <div class="voice-controls">
             <label class="inline-check">
@@ -57,10 +119,10 @@
     <aside class="form-panel compact">
         <h3>Active Sessions</h3>
         {% for session in active_sessions %}
-        <div class="mini-record">
+        <a class="mini-record session-choice {% if selected_session and selected_session.id == session.id %}selected{% endif %}" href="/attendance/scan?session_id={{ session.id }}">
             <strong>{{ session.subject.code }} - {{ session.class_group.class_code }}</strong>
             <span>{{ session.teacher.teacher_code }} | {{ session.start_time.strftime("%H:%M") }} - {{ session.end_time.strftime("%H:%M") }} | {{ session.room }}</span>
-        </div>
+        </a>
         {% else %}
         <p class="muted">No active sessions are available right now.</p>
         {% endfor %}
@@ -71,6 +133,7 @@
     <form id="attendance-scan-form" class="form-panel compact" method="post" action="/attendance/scan">
         <h3>Backup Manual Input</h3>
         <p class="muted">Use manual input only if camera scanning fails.</p>
+        <input id="session-id-input" type="hidden" name="session_id" value="{{ selected_session.id if selected_session else '' }}">
         <label>
             Student ID / QR Value
             <input id="student-code-input" name="student_code" value="{{ form.student_code if form.student_code is defined else '' }}" placeholder="STU0001">
@@ -88,6 +151,7 @@
     const stopButton = document.getElementById("stop-camera");
     const statusText = document.getElementById("scanner-status");
     const input = document.getElementById("student-code-input");
+    const sessionInput = document.getElementById("session-id-input");
     const form = document.getElementById("attendance-scan-form");
     const resultBox = document.getElementById("scan-result");
     const voiceToggle = document.getElementById("voice-enabled");
@@ -101,6 +165,7 @@
     let isRunning = false;
     let lastScanAt = 0;
     const cooldownMs = 2500;
+    const selectedSessionId = sessionInput?.value || "";
 
     function setStatus(message) {
         statusText.textContent = message;
@@ -155,6 +220,12 @@
         if (text.includes("no active session")) {
             return "No active session";
         }
+        if (text.includes("select an active session")) {
+            return "Select an active session";
+        }
+        if (text.includes("no longer active")) {
+            return "Selected session is no longer active";
+        }
         if (text.includes("not actively enrolled")) {
             return "Student not enrolled in this class";
         }
@@ -192,6 +263,7 @@
     async function submitScan(value) {
         const body = new URLSearchParams();
         body.set("student_code", value);
+        body.set("session_id", selectedSessionId);
         const response = await fetch(form.action, {
             method: "POST",
             body,
@@ -217,6 +289,12 @@
     }
 
     startButton.addEventListener("click", async () => {
+        if (!selectedSessionId) {
+            const message = "Please select an active session before scanning attendance.";
+            showResult(message, true);
+            setStatus(message);
+            return;
+        }
         if (!window.Html5Qrcode) {
             setStatus("Camera scanner library is unavailable. Use manual input.");
             return;
@@ -257,6 +335,15 @@
 
     stopButton.addEventListener("click", () => {
         stopScanner();
+    });
+
+    form.addEventListener("submit", (event) => {
+        if (!selectedSessionId) {
+            event.preventDefault();
+            const message = "Please select an active session before scanning attendance.";
+            showResult(message, true);
+            setStatus(message);
+        }
     });
 
     const savedVoice = localStorage.getItem("qrVoiceEnabled");

@@ -519,6 +519,46 @@ def schedule_conflict(
     return query.first()
 
 
+def teacher_schedule_conflict(
+    db: Session,
+    teacher_id: int,
+    day_of_week: str,
+    start_time: time,
+    end_time: time,
+    exclude_id: int | None = None,
+) -> WeeklySchedule | None:
+    query = db.query(WeeklySchedule).filter(
+        WeeklySchedule.teacher_id == teacher_id,
+        func.lower(WeeklySchedule.day_of_week) == day_of_week.strip().lower(),
+        WeeklySchedule.status == ACTIVE,
+        WeeklySchedule.start_time < end_time,
+        WeeklySchedule.end_time > start_time,
+    )
+    if exclude_id is not None:
+        query = query.filter(WeeklySchedule.id != exclude_id)
+    return query.first()
+
+
+def room_schedule_conflict(
+    db: Session,
+    room: str,
+    day_of_week: str,
+    start_time: time,
+    end_time: time,
+    exclude_id: int | None = None,
+) -> WeeklySchedule | None:
+    query = db.query(WeeklySchedule).filter(
+        func.lower(WeeklySchedule.room) == room.strip().lower(),
+        func.lower(WeeklySchedule.day_of_week) == day_of_week.strip().lower(),
+        WeeklySchedule.status == ACTIVE,
+        WeeklySchedule.start_time < end_time,
+        WeeklySchedule.end_time > start_time,
+    )
+    if exclude_id is not None:
+        query = query.filter(WeeklySchedule.id != exclude_id)
+    return query.first()
+
+
 def validate_schedule_payload(
     db: Session,
     payload: WeeklyScheduleCreate | WeeklyScheduleUpdate,
@@ -554,6 +594,28 @@ def validate_schedule_payload(
             f"{conflict.day_of_week} from {conflict.start_time.strftime('%H:%M')} "
             f"to {conflict.end_time.strftime('%H:%M')}."
         )
+
+    teacher_conflict = teacher_schedule_conflict(
+        db,
+        teacher.id,
+        payload.day_of_week,
+        start,
+        end,
+        exclude_id=exclude_id,
+    )
+    if teacher_conflict is not None:
+        return start, end, "This teacher already has another class during this time."
+
+    room_conflict = room_schedule_conflict(
+        db,
+        payload.room,
+        payload.day_of_week,
+        start,
+        end,
+        exclude_id=exclude_id,
+    )
+    if room_conflict is not None:
+        return start, end, "This room is already used by another class during this time."
 
     return start, end, None
 

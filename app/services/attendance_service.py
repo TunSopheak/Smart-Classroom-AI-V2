@@ -33,6 +33,44 @@ def list_active_sessions(db: DatabaseSession) -> list[ClassroomSession]:
     )
 
 
+def get_active_session_by_id(db: DatabaseSession, session_id: int) -> ClassroomSession | None:
+    return (
+        db.query(ClassroomSession)
+        .options(
+            joinedload(ClassroomSession.teacher),
+            joinedload(ClassroomSession.subject),
+            joinedload(ClassroomSession.class_group),
+        )
+        .filter(ClassroomSession.id == session_id, ClassroomSession.status == ACTIVE)
+        .first()
+    )
+
+
+def resolve_scan_session(
+    db: DatabaseSession,
+    session_id: int | str | None,
+) -> tuple[ClassroomSession | None, list[ClassroomSession], str | None]:
+    active_sessions = list_active_sessions(db)
+    if not active_sessions:
+        return None, active_sessions, "No active session is available for attendance scanning."
+
+    if session_id is not None and str(session_id).strip():
+        try:
+            selected_id = int(session_id)
+        except (TypeError, ValueError):
+            return None, active_sessions, "Please select a valid active session."
+
+        selected = get_active_session_by_id(db, selected_id)
+        if selected is None:
+            return None, active_sessions, "Selected session is no longer active."
+        return selected, active_sessions, None
+
+    if len(active_sessions) == 1:
+        return active_sessions[0], active_sessions, None
+
+    return None, active_sessions, "Please select an active session before scanning attendance."
+
+
 def find_student_by_qr_value(db: DatabaseSession, qr_value: str) -> Student | None:
     return db.query(Student).filter(Student.student_code == qr_value.strip()).first()
 
@@ -66,12 +104,13 @@ def attendance_status_for_time(session: ClassroomSession, recorded_at: datetime)
 def scan_student(
     db: DatabaseSession,
     qr_value: str,
+    session_id: int | str | None = None,
     source: str = QR,
     recorded_at: datetime | None = None,
 ) -> tuple[Attendance | None, str | None]:
-    active_sessions = list_active_sessions(db)
-    if not active_sessions:
-        return None, "No active session is available for attendance scanning."
+    session, _, session_error = resolve_scan_session(db, session_id)
+    if session_error:
+        return None, session_error
 
     student = find_student_by_qr_value(db, qr_value)
     if student is None:
@@ -79,15 +118,9 @@ def scan_student(
     if student.status != ACTIVE:
         return None, "This student is inactive and cannot be marked present."
 
-    eligible_sessions = [
-        session
-        for session in active_sessions
-        if active_enrollment_for_class(db, student.id, session.class_group_id) is not None
-    ]
-    if not eligible_sessions:
+    if active_enrollment_for_class(db, student.id, session.class_group_id) is None:
         return None, "This student is not actively enrolled in the active session class."
 
-    session = eligible_sessions[0]
     duplicate = existing_attendance(db, session.id, student.id)
     if duplicate is not None:
         return None, "Attendance was already recorded for this student and session."

@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+
+{% block title %}AI Monitoring - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Session-linked Demo</p>
+        <h2>AI Monitoring</h2>
+    </div>
+    <a class="button" href="/sessions">Sessions</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<div class="helper-note">
+    Version 2 currently logs AI monitoring events linked to active sessions. Advanced automatic detection such as phone usage, sleeping, and attention scoring are future improvements.
+</div>
+
+{% if active_sessions %}
+<section class="form-panel compact">
+    <div class="page-heading compact-heading">
+        <div>
+            <p class="eyebrow">Active Sessions</p>
+            <h3>Select Session</h3>
+        </div>
+    </div>
+    <form class="filter-form" method="get" action="/ai-monitoring">
+        <label>
+            Monitor
+            <select name="session_id" onchange="this.form.submit()">
+                <option value="">Choose an active session</option>
+                {% for session in active_sessions %}
+                <option value="{{ session.id }}" {% if selected_session_id and selected_session_id|string == session.id|string %}selected{% endif %}>
+                    {{ session.class_group.class_code }} | {{ session.subject.code }} | {{ session.teacher.teacher_code }} | {{ session.room }} | {{ session.start_time.strftime("%H:%M") }}-{{ session.end_time.strftime("%H:%M") }}
+                </option>
+                {% endfor %}
+            </select>
+        </label>
+        <button class="button" type="submit">Select</button>
+    </form>
+    <div class="session-choice-grid">
+        {% for session in active_sessions %}
+        <a class="summary-card session-choice {% if active_session and active_session.id == session.id %}selected{% endif %}" href="/ai-monitoring?session_id={{ session.id }}">
+            <span>{{ session.start_time.strftime("%H:%M") }} - {{ session.end_time.strftime("%H:%M") }} | {{ session.room }}</span>
+            <strong>{{ session.class_group.class_code }} - {{ session.subject.name }}</strong>
+            <small>{{ session.teacher.teacher_code }} - {{ session.teacher.first_name }} {{ session.teacher.last_name }}</small>
+        </a>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if selection_error %}
+<div class="notice {% if active_sessions %}info{% else %}error{% endif %}">{{ selection_error }}</div>
+{% endif %}
+
+{% if active_session %}
+<section class="summary-grid ai-context">
+    <article class="summary-card">
+        <span>Class</span>
+        <strong>{{ active_session.class_group.class_code }} - {{ active_session.class_group.name }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Subject</span>
+        <strong>{{ active_session.subject.code }} - {{ active_session.subject.name }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Teacher</span>
+        <strong>{{ active_session.teacher.teacher_code }} - {{ active_session.teacher.first_name }} {{ active_session.teacher.last_name }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Room</span>
+        <strong>{{ active_session.room }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Date / Time</span>
+        <strong>{{ active_session.session_date.strftime("%Y-%m-%d") }} | {{ active_session.start_time.strftime("%H:%M") }} - {{ active_session.end_time.strftime("%H:%M") }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Monitoring Status</span>
+        <strong id="monitoring-status" class="status scheduled">stopped</strong>
+    </article>
+</section>
+
+<section class="split-layout">
+    <section class="scanner-panel scanner-primary">
+        <div class="page-heading compact-heading">
+            <div>
+                <p class="eyebrow">Browser Camera</p>
+                <h3>Live Preview</h3>
+            </div>
+            <div class="button-row">
+                <button id="start-camera" class="button primary" type="button">Start Camera</button>
+                <button id="stop-camera" class="button" type="button" disabled>Stop Camera</button>
+            </div>
+        </div>
+        <p id="camera-status" class="muted">Camera stopped.</p>
+        <video id="ai-video" class="camera-preview" autoplay muted playsinline></video>
+    </section>
+
+    <section class="form-panel compact">
+        <h3>Demo Event Controls</h3>
+        <p class="muted">Logging events for {{ active_session.class_group.class_code }} in {{ active_session.room }}.</p>
+        <form method="post" action="/ai-monitoring/events/monitoring_started?session_id={{ active_session.id }}">
+            <button class="button primary" type="submit">Start Monitoring</button>
+        </form>
+        <form method="post" action="/ai-monitoring/events/face_detected?session_id={{ active_session.id }}">
+            <button class="button" type="submit">Log Face Detected</button>
+        </form>
+        <form method="post" action="/ai-monitoring/events/attention_warning?session_id={{ active_session.id }}">
+            <button class="button" type="submit">Log Attention Warning</button>
+        </form>
+        <form method="post" action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}">
+            <button class="button" type="submit">Log Phone Usage Warning</button>
+        </form>
+        <form method="post" action="/ai-monitoring/events/monitoring_stopped?session_id={{ active_session.id }}">
+            <button class="button" type="submit">Stop Monitoring</button>
+        </form>
+    </section>
+</section>
+{% endif %}
+
+<section class="table-panel ai-events">
+    <table>
+        <thead>
+            <tr>
+                <th>Detected At</th>
+                <th>Event</th>
+                <th>Severity</th>
+                <th>Message</th>
+                <th>Session</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>{{ event.detected_at.strftime("%Y-%m-%d %H:%M") if event.detected_at else "-" }}</td>
+                <td>{{ event.event_type.replace("_", " ") }}</td>
+                <td><span class="status {{ event.severity }}">{{ event.severity }}</span></td>
+                <td>{{ event.message or event.description or "-" }}</td>
+                <td>
+                    {% if event.session %}
+                    {{ event.session.subject.code }} | {{ event.session.class_group.class_code }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5" class="empty">No AI monitoring events yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(() => {
+    const startButton = document.getElementById("start-camera");
+    const stopButton = document.getElementById("stop-camera");
+    const statusText = document.getElementById("camera-status");
+    const video = document.getElementById("ai-video");
+    const monitoringStatus = document.getElementById("monitoring-status");
+    let stream = null;
+
+    if (!startButton || !stopButton || !video) {
+        return;
+    }
+
+    function setStatus(message) {
+        statusText.textContent = message;
+    }
+
+    startButton.addEventListener("click", async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+            setStatus("Camera is not supported in this browser.");
+            return;
+        }
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = stream;
+            startButton.disabled = true;
+            stopButton.disabled = false;
+            monitoringStatus.textContent = "camera ready";
+            monitoringStatus.className = "status active";
+            setStatus("Camera ready.");
+        } catch (error) {
+            setStatus("Camera permission denied or unavailable.");
+        }
+    });
+
+    stopButton.addEventListener("click", () => {
+        if (stream) {
+            stream.getTracks().forEach((track) => track.stop());
+            stream = null;
+        }
+        video.srcObject = null;
+        startButton.disabled = false;
+        stopButton.disabled = true;
+        monitoringStatus.textContent = "stopped";
+        monitoringStatus.className = "status scheduled";
+        setStatus("Camera stopped.");
+    });
+})();
+</script>
+{% endblock %}

@@ -218,3 +218,78 @@ def ensure_development_schema():
 
             if "note" not in attendance_columns:
                 connection.execute(text("ALTER TABLE attendance ADD COLUMN note VARCHAR(500)"))
+
+        if "ai_events" in tables:
+            ai_columns = {column["name"] for column in inspector.get_columns("ai_events")}
+
+            if "class_group_id" not in ai_columns:
+                connection.execute(text("ALTER TABLE ai_events ADD COLUMN class_group_id INTEGER"))
+                connection.execute(
+                    text(
+                        """
+                        UPDATE ai_events
+                        SET class_group_id = (
+                            SELECT class_group_id
+                            FROM sessions
+                            WHERE sessions.id = ai_events.session_id
+                        )
+                        WHERE class_group_id IS NULL
+                        """
+                    )
+                )
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_ai_events_class_group_id ON ai_events (class_group_id)"))
+
+            if "teacher_id" not in ai_columns:
+                connection.execute(text("ALTER TABLE ai_events ADD COLUMN teacher_id INTEGER"))
+                connection.execute(
+                    text(
+                        """
+                        UPDATE ai_events
+                        SET teacher_id = (
+                            SELECT teacher_id
+                            FROM sessions
+                            WHERE sessions.id = ai_events.session_id
+                        )
+                        WHERE teacher_id IS NULL
+                        """
+                    )
+                )
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_ai_events_teacher_id ON ai_events (teacher_id)"))
+
+            if "subject_id" not in ai_columns:
+                connection.execute(text("ALTER TABLE ai_events ADD COLUMN subject_id INTEGER"))
+                connection.execute(
+                    text(
+                        """
+                        UPDATE ai_events
+                        SET subject_id = (
+                            SELECT subject_id
+                            FROM sessions
+                            WHERE sessions.id = ai_events.session_id
+                        )
+                        WHERE subject_id IS NULL
+                        """
+                    )
+                )
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_ai_events_subject_id ON ai_events (subject_id)"))
+
+            if "schedule_id" not in ai_columns:
+                connection.execute(text("ALTER TABLE ai_events ADD COLUMN schedule_id INTEGER"))
+                connection.execute(
+                    text(
+                        """
+                        UPDATE ai_events
+                        SET schedule_id = (
+                            SELECT schedule_id
+                            FROM sessions
+                            WHERE sessions.id = ai_events.session_id
+                        )
+                        WHERE schedule_id IS NULL
+                        """
+                    )
+                )
+                connection.execute(text("CREATE INDEX IF NOT EXISTS ix_ai_events_schedule_id ON ai_events (schedule_id)"))
+
+            if "message" not in ai_columns:
+                connection.execute(text("ALTER TABLE ai_events ADD COLUMN message TEXT"))
+                connection.execute(text("UPDATE ai_events SET message = description WHERE message IS NULL"))

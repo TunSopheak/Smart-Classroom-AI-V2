@@ -143,14 +143,19 @@ async def export_attendance_pdf(
 async def scan_form(
     request: Request,
     db: DatabaseSession = Depends(get_db),
+    session_id: str | None = None,
     message: str | None = None,
     error: str | None = None,
 ):
+    selected_session, active_sessions, selection_error = attendance_service.resolve_scan_session(db, session_id)
     return templates.TemplateResponse(
         request,
         "attendance/scan.html",
         {
-            "active_sessions": attendance_service.list_active_sessions(db),
+            "active_sessions": active_sessions,
+            "selected_session": selected_session,
+            "selected_session_id": str(selected_session.id) if selected_session else session_id,
+            "selection_error": selection_error,
             "message": message,
             "error": error,
             "form": {},
@@ -162,9 +167,11 @@ async def scan_form(
 async def scan_student(
     request: Request,
     student_code: str = Form(""),
+    session_id: str = Form(""),
     db: DatabaseSession = Depends(get_db),
 ):
-    form = {"student_code": student_code.strip()}
+    form = {"student_code": student_code.strip(), "session_id": session_id.strip()}
+    selected_session, active_sessions, selection_error = attendance_service.resolve_scan_session(db, form["session_id"])
     try:
         payload = AttendanceScan(**form)
     except ValidationError:
@@ -172,7 +179,10 @@ async def scan_student(
             request,
             "attendance/scan.html",
             {
-                "active_sessions": attendance_service.list_active_sessions(db),
+                "active_sessions": active_sessions,
+                "selected_session": selected_session,
+                "selected_session_id": str(selected_session.id) if selected_session else form["session_id"],
+                "selection_error": selection_error,
                 "message": None,
                 "error": "Enter a student ID or QR value.",
                 "form": form,
@@ -180,13 +190,16 @@ async def scan_student(
             status_code=400,
         )
 
-    attendance, error = attendance_service.scan_student(db, payload.student_code)
+    attendance, error = attendance_service.scan_student(db, payload.student_code, session_id=form["session_id"])
     if error:
         return templates.TemplateResponse(
             request,
             "attendance/scan.html",
             {
-                "active_sessions": attendance_service.list_active_sessions(db),
+                "active_sessions": active_sessions,
+                "selected_session": selected_session,
+                "selected_session_id": str(selected_session.id) if selected_session else form["session_id"],
+                "selection_error": selection_error,
                 "message": None,
                 "error": error,
                 "form": form,
@@ -197,6 +210,7 @@ async def scan_student(
     return redirect_with(
         "/attendance/scan",
         message=f"{attendance.student.student_code} marked {attendance.status}.",
+        session_id=str(attendance.session_id),
     )
 
 
@@ -204,16 +218,18 @@ async def scan_student(
 async def qr_scanner_alias(
     request: Request,
     db: DatabaseSession = Depends(get_db),
+    session_id: str | None = None,
     message: str | None = None,
     error: str | None = None,
 ):
-    return await scan_form(request, db, message, error)
+    return await scan_form(request, db, session_id, message, error)
 
 
 @qr_router.post("/qr-scanner")
 async def qr_scanner_post_alias(
     request: Request,
     student_code: str = Form(""),
+    session_id: str = Form(""),
     db: DatabaseSession = Depends(get_db),
 ):
-    return await scan_student(request, student_code, db)
+    return await scan_student(request, student_code, session_id, db)
