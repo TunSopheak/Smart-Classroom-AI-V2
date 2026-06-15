@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+
+{% block title %}AI Events - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">AI Monitoring Report</p>
+        <h2>AI Events</h2>
+    </div>
+    <a class="button primary" href="/ai-monitoring">AI Monitoring</a>
+</section>
+
+{% include "partials/messages.html" %}
+
+<form class="form-panel inline-form ai-event-filters" method="get" action="/ai-events">
+    <label>
+        Class
+        <select name="class_group_id">
+            <option value="">All classes</option>
+            {% for class_group in classes %}
+            <option value="{{ class_group.id }}" {% if filters.class_group_id|string == class_group.id|string %}selected{% endif %}>
+                {{ class_group.class_code }} - {{ class_group.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Session
+        <select name="session_id">
+            <option value="">All sessions</option>
+            {% for session in sessions %}
+            <option value="{{ session.id }}" {% if filters.session_id|string == session.id|string %}selected{% endif %}>
+                {{ session.session_date.strftime("%Y-%m-%d") }} | {{ session.subject.code }} | {{ session.class_group.class_code }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Subject
+        <select name="subject_id">
+            <option value="">All subjects</option>
+            {% for subject in subjects %}
+            <option value="{{ subject.id }}" {% if filters.subject_id|string == subject.id|string %}selected{% endif %}>
+                {{ subject.code }} - {{ subject.name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Teacher
+        <select name="teacher_id">
+            <option value="">All teachers</option>
+            {% for teacher in teachers %}
+            <option value="{{ teacher.id }}" {% if filters.teacher_id|string == teacher.id|string %}selected{% endif %}>
+                {{ teacher.teacher_code }} - {{ teacher.first_name }} {{ teacher.last_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Event Type
+        <select name="event_type">
+            <option value="">All event types</option>
+            {% for item in event_types %}
+            <option value="{{ item }}" {% if filters.event_type == item %}selected{% endif %}>{{ item.replace("_", " ") }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Severity
+        <select name="severity">
+            <option value="">All severities</option>
+            {% for item in severities %}
+            <option value="{{ item }}" {% if filters.severity == item %}selected{% endif %}>{{ item }}</option>
+            {% endfor %}
+        </select>
+    </label>
+    <label>
+        Date
+        <input name="date" type="date" value="{{ filters.date }}">
+    </label>
+    <button class="button primary" type="submit">Filter</button>
+</form>
+
+<div class="export-actions">
+    <a class="button" href="/ai-events/export.csv?{{ export_query }}">Export CSV</a>
+    <a class="button" href="/ai-events/export.pdf?{{ export_query }}">Export PDF</a>
+</div>
+
+<section class="summary-grid">
+    <article class="summary-card">
+        <span>Total AI Events</span>
+        <strong>{{ summary.total }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Info Events</span>
+        <strong>{{ summary.info }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Warning Events</span>
+        <strong>{{ summary.warning }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Critical Events</span>
+        <strong>{{ summary.critical }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Face Detected</span>
+        <strong>{{ summary.face_detected }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Attention Warnings</span>
+        <strong>{{ summary.attention_warning }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Phone Usage Warnings</span>
+        <strong>{{ summary.phone_usage_warning }}</strong>
+    </article>
+</section>
+
+<section class="table-panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Detected At</th>
+                <th>Class</th>
+                <th>Subject</th>
+                <th>Teacher</th>
+                <th>Session Date/Time</th>
+                <th>Event Type</th>
+                <th>Severity</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in events %}
+            <tr>
+                <td>{{ event.detected_at.strftime("%Y-%m-%d %H:%M") if event.detected_at else "-" }}</td>
+                <td>
+                    {% if event.session %}
+                    {{ event.session.class_group.class_code }} - {{ event.session.class_group.name }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if event.session %}
+                    {{ event.session.subject.code }} - {{ event.session.subject.name }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if event.session %}
+                    {{ event.session.teacher.teacher_code }} - {{ event.session.teacher.first_name }} {{ event.session.teacher.last_name }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>
+                    {% if event.session %}
+                    {{ event.session.session_date.strftime("%Y-%m-%d") }} | {{ event.session.start_time.strftime("%H:%M") }} - {{ event.session.end_time.strftime("%H:%M") }}
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+                <td>{{ event.event_type.replace("_", " ") }}</td>
+                <td><span class="status {{ event.severity }}">{{ event.severity }}</span></td>
+                <td>{{ event.message or event.description or "-" }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="empty">No AI monitoring events match the selected filters.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

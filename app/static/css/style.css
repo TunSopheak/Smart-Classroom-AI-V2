@@ -526,6 +526,11 @@ a.mini-record {
     grid-template-columns: minmax(140px, 1fr) minmax(160px, 1fr) minmax(150px, 1fr) auto auto auto;
 }
 
+.ai-event-filters {
+    grid-template-columns: repeat(4, minmax(150px, 1fr));
+    max-width: none;
+}
+
 .filter-label {
     margin: 0 0 14px;
     color: var(--muted);
@@ -727,6 +732,10 @@ a.mini-record {
     }
 
     .session-filters {
+        grid-template-columns: 1fr;
+    }
+
+    .ai-event-filters {
         grid-template-columns: 1fr;
     }
 }

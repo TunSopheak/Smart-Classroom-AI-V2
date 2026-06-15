@@ -17,6 +17,7 @@ from app.models import (
 )
 from app.routers import (
     ai_monitoring,
+    ai_reports,
     attendance as attendance_router,
     classes,
     dashboard,
@@ -51,4 +52,5 @@ app.include_router(sessions.router)
 app.include_router(attendance_router.router)
 app.include_router(attendance_router.qr_router)
 app.include_router(ai_monitoring.router)
+app.include_router(ai_reports.router)
 app.include_router(devices.router)

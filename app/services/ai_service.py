@@ -1,3 +1,4 @@
+from sqlalchemy import func
 from sqlalchemy.orm import Session as DatabaseSession
 from sqlalchemy.orm import joinedload
 
@@ -107,6 +108,56 @@ def recent_events(db: DatabaseSession, session_id: int | None = None, limit: int
     if session_id is not None:
         query = query.filter(AIEvent.session_id == session_id)
     return query.limit(limit).all()
+
+
+def list_ai_events(
+    db: DatabaseSession,
+    class_group_id: int | None = None,
+    session_id: int | None = None,
+    subject_id: int | None = None,
+    teacher_id: int | None = None,
+    event_type: str | None = None,
+    severity: str | None = None,
+    detected_date=None,
+) -> list[AIEvent]:
+    query = (
+        db.query(AIEvent)
+        .options(
+            joinedload(AIEvent.session).joinedload(ClassroomSession.teacher),
+            joinedload(AIEvent.session).joinedload(ClassroomSession.subject),
+            joinedload(AIEvent.session).joinedload(ClassroomSession.class_group),
+        )
+        .order_by(AIEvent.detected_at.desc())
+    )
+
+    if class_group_id:
+        query = query.filter(AIEvent.class_group_id == class_group_id)
+    if session_id:
+        query = query.filter(AIEvent.session_id == session_id)
+    if subject_id:
+        query = query.filter(AIEvent.subject_id == subject_id)
+    if teacher_id:
+        query = query.filter(AIEvent.teacher_id == teacher_id)
+    if event_type:
+        query = query.filter(AIEvent.event_type == event_type)
+    if severity:
+        query = query.filter(AIEvent.severity == severity)
+    if detected_date:
+        query = query.filter(func.date(AIEvent.detected_at) == detected_date.isoformat())
+
+    return query.all()
+
+
+def ai_event_summary(events: list[AIEvent]) -> dict[str, int]:
+    return {
+        "total": len(events),
+        "info": sum(1 for event in events if event.severity == INFO),
+        "warning": sum(1 for event in events if event.severity == WARNING),
+        "critical": sum(1 for event in events if event.severity == CRITICAL),
+        "face_detected": sum(1 for event in events if event.event_type == "face_detected"),
+        "attention_warning": sum(1 for event in events if event.event_type == "attention_warning"),
+        "phone_usage_warning": sum(1 for event in events if event.event_type == "phone_usage_warning"),
+    }
 
 
 def log_event(db: DatabaseSession, event_type: str, session_id: int | str | None) -> tuple[AIEvent | None, str | None]:
