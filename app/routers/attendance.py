@@ -1,14 +1,14 @@
 from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 from pydantic import ValidationError
 from sqlalchemy.orm import Session as DatabaseSession
 
 from app.core.database import get_db
 from app.schemas.academic import AttendanceScan
-from app.services import academic_service, attendance_service, session_service
+from app.services import academic_service, attendance_service, report_service, session_service
 
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
@@ -29,6 +29,48 @@ def optional_int(value: str | None) -> int | None:
         return None
 
 
+def attendance_filter_context(
+    db: DatabaseSession,
+    class_group_id: str | None,
+    session_id: str | None,
+    student_search: str | None,
+    status: str | None,
+):
+    selected_class_group_id = optional_int(class_group_id)
+    selected_session_id = optional_int(session_id)
+    clean_status = status or None
+    clean_search = student_search or None
+
+    records = attendance_service.list_attendance_records(
+        db,
+        class_group_id=selected_class_group_id,
+        session_id=selected_session_id,
+        student_search=clean_search,
+        status=clean_status,
+    )
+
+    class_label = None
+    session_label = None
+    if selected_class_group_id:
+        class_group = academic_service.get_class(db, selected_class_group_id)
+        if class_group:
+            class_label = f"{class_group.class_code} - {class_group.name}"
+    if selected_session_id:
+        session = session_service.get_session(db, selected_session_id)
+        if session:
+            session_label = f"{session.session_date.strftime('%Y-%m-%d')} | {session.subject.code} | {session.class_group.class_code}"
+
+    filters = {
+        "class_group_id": selected_class_group_id or "",
+        "session_id": selected_session_id or "",
+        "student_search": clean_search or "",
+        "status": clean_status or "",
+        "class_group_label": class_label,
+        "session_label": session_label,
+    }
+    return records, filters
+
+
 @router.get("")
 async def attendance_history(
     request: Request,
@@ -40,32 +82,60 @@ async def attendance_history(
     message: str | None = None,
     error: str | None = None,
 ):
-    selected_class_group_id = optional_int(class_group_id)
-    selected_session_id = optional_int(session_id)
+    records, filters = attendance_filter_context(db, class_group_id, session_id, student_search, status)
 
     return templates.TemplateResponse(
         request,
         "attendance/list.html",
         {
-            "records": attendance_service.list_attendance_records(
-                db,
-                class_group_id=selected_class_group_id,
-                session_id=selected_session_id,
-                student_search=student_search,
-                status=status,
-            ),
+            "records": records,
             "classes": academic_service.list_classes(db),
             "sessions": session_service.list_sessions(db, view="all"),
             "statuses": ["present", "late", "absent", "permission"],
-            "filters": {
-                "class_group_id": selected_class_group_id or "",
-                "session_id": selected_session_id or "",
-                "student_search": student_search or "",
-                "status": status or "",
-            },
+            "filters": filters,
             "message": message,
             "error": error,
         },
+    )
+
+
+@router.get("/export.csv")
+async def export_attendance_csv(
+    db: DatabaseSession = Depends(get_db),
+    class_group_id: str | None = None,
+    session_id: str | None = None,
+    student_search: str | None = None,
+    status: str | None = None,
+):
+    records, _ = attendance_filter_context(db, class_group_id, session_id, student_search, status)
+    return Response(
+        content=report_service.build_attendance_csv(records),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="attendance-report.csv"'},
+    )
+
+
+@router.get("/export.pdf")
+async def export_attendance_pdf(
+    db: DatabaseSession = Depends(get_db),
+    class_group_id: str | None = None,
+    session_id: str | None = None,
+    student_search: str | None = None,
+    status: str | None = None,
+):
+    records, filters = attendance_filter_context(db, class_group_id, session_id, student_search, status)
+    try:
+        pdf = report_service.build_attendance_pdf(records, filters)
+    except ImportError:
+        return redirect_with(
+            "/attendance",
+            error="PDF export is unavailable. Install reportlab from requirements.txt.",
+        )
+
+    return Response(
+        content=pdf,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="attendance-report.pdf"'},
     )
 
 

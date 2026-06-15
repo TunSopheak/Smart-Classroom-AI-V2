@@ -52,6 +52,11 @@
     <button class="button primary" type="submit">Filter</button>
 </form>
 
+<div class="export-actions">
+    <a class="button" href="/attendance/export.csv?class_group_id={{ filters.class_group_id }}&session_id={{ filters.session_id }}&student_search={{ filters.student_search | urlencode }}&status={{ filters.status }}">Export CSV</a>
+    <a class="button" href="/attendance/export.pdf?class_group_id={{ filters.class_group_id }}&session_id={{ filters.session_id }}&student_search={{ filters.student_search | urlencode }}&status={{ filters.status }}">Export PDF</a>
+</div>
+
 <section class="table-panel">
     <table>
         <thead>
