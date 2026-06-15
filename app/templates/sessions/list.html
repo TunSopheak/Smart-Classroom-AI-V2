@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Sessions - Smart Classroom V2{% endblock %}
+
+{% block content %}
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Session Engine</p>
+        <h2>Sessions</h2>
+    </div>
+    <form method="post" action="/sessions/generate-today">
+        <button class="button primary" type="submit">Generate Today's Sessions</button>
+    </form>
+</section>
+
+{% include "partials/messages.html" %}
+
+<section class="table-panel">
+    <table>
+        <thead>
+            <tr>
+                <th>Teacher</th>
+                <th>Subject</th>
+                <th>Class</th>
+                <th>Date</th>
+                <th>Time</th>
+                <th>Room</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for session in sessions %}
+            <tr>
+                <td>{{ session.teacher.teacher_code }} - {{ session.teacher.first_name }} {{ session.teacher.last_name }}</td>
+                <td>{{ session.subject.code }} - {{ session.subject.name }}</td>
+                <td>{{ session.class_group.class_code }} - {{ session.class_group.name }}</td>
+                <td>{{ session.session_date.strftime("%Y-%m-%d") }}</td>
+                <td>{{ session.start_time.strftime("%H:%M") }} - {{ session.end_time.strftime("%H:%M") }}</td>
+                <td>{{ session.room }}</td>
+                <td><span class="status {{ session.status }}">{{ session.status }}</span></td>
+                <td class="actions">
+                    {% if session.status == "scheduled" %}
+                    <form method="post" action="/sessions/{{ session.id }}/start">
+                        <button class="link-button" type="submit">Start</button>
+                    </form>
+                    <form method="post" action="/sessions/{{ session.id }}/cancel">
+                        <button class="link-button" type="submit">Cancel</button>
+                    </form>
+                    {% elif session.status == "active" %}
+                    <form method="post" action="/sessions/{{ session.id }}/close">
+                        <button class="link-button" type="submit">Close</button>
+                    </form>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="8" class="empty">No sessions generated yet.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</section>
+{% endblock %}

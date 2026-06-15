@@ -71,3 +71,11 @@ class WeeklyScheduleCreate(BaseModel):
 
 class WeeklyScheduleUpdate(WeeklyScheduleCreate):
     status: str = Field(default="active", pattern="^(active|inactive)$")
+
+
+class SessionGenerate(BaseModel):
+    session_date: str | None = None
+
+
+class SessionStatusUpdate(BaseModel):
+    status: str = Field(pattern="^(scheduled|active|closed|cancelled)$")

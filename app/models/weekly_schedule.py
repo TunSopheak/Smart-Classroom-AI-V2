@@ -21,4 +21,4 @@ class WeeklySchedule(Base):
     teacher = relationship("Teacher", back_populates="weekly_schedules")
     subject = relationship("Subject", back_populates="weekly_schedules")
     class_group = relationship("ClassGroup", back_populates="weekly_schedules")
-    sessions = relationship("Session", back_populates="weekly_schedule")
+    sessions = relationship("Session", back_populates="weekly_schedule", foreign_keys="Session.schedule_id")

@@ -303,6 +303,21 @@ button:disabled {
     background: #eef2f6;
 }
 
+.status.scheduled {
+    color: #5c4b12;
+    background: #fff7d6;
+}
+
+.status.closed {
+    color: var(--muted);
+    background: #eef2f6;
+}
+
+.status.cancelled {
+    color: var(--error-text);
+    background: var(--error-bg);
+}
+
 .summary-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
