@@ -20,6 +20,10 @@
     Version 2 currently logs AI monitoring events linked to active sessions. Advanced automatic detection such as phone usage, sleeping, and attention scoring are future improvements.
 </div>
 
+<div class="helper-note">
+    Automatic detection in this version is limited to basic face detection. Phone usage, sleeping, and attention scoring remain future improvements.
+</div>
+
 {% if active_sessions %}
 <section class="form-panel compact">
     <div class="page-heading compact-heading">
@@ -84,7 +88,31 @@
         <span>Monitoring Status</span>
         <strong id="monitoring-status" class="status scheduled">stopped</strong>
     </article>
+    <article class="summary-card">
+        <span>QR Present Count</span>
+        <strong id="qr-present-count">{{ occupancy.qr_present_count }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Detected Student Count</span>
+        <strong id="detected-count">{{ occupancy.detected_count_label }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Difference</span>
+        <strong id="count-difference">{{ occupancy.difference_label }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Occupancy Status</span>
+        <strong id="occupancy-status" class="status inactive">{{ occupancy.occupancy_status }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Classroom Light Status</span>
+        <strong id="light-status" class="status info">{{ occupancy.light_status }}</strong>
+    </article>
 </section>
+
+<div class="helper-note">
+    Demo auto-off threshold: {{ occupancy.auto_off_seconds }} seconds. Real rule: 5 minutes.
+</div>
 
 <section class="split-layout">
     <section class="scanner-panel scanner-primary">
@@ -96,29 +124,33 @@
             <div class="button-row">
                 <button id="start-camera" class="button primary" type="button">Start Camera</button>
                 <button id="stop-camera" class="button" type="button" disabled>Stop Camera</button>
+                <button id="start-detection" class="button" type="button" disabled>Start Detection</button>
+                <button id="stop-detection" class="button" type="button" disabled>Stop Detection</button>
             </div>
         </div>
         <p id="camera-status" class="muted">Camera stopped.</p>
+        <p id="detection-status" class="muted">Detection stopped.</p>
         <video id="ai-video" class="camera-preview" autoplay muted playsinline></video>
     </section>
 
     <section class="form-panel compact">
-        <h3>Demo Event Controls</h3>
-        <p class="muted">Logging events for {{ active_session.class_group.class_code }} in {{ active_session.room }}.</p>
+        <h3>Demo Testing Controls</h3>
+        <p class="muted">These buttons use the same backend occupancy logic as camera detection.</p>
+        <div class="button-row">
+            <button class="button" type="button" data-demo-count="0">Set Detected Count: 0</button>
+            <button class="button" type="button" data-demo-count="1">Set Detected Count: 1</button>
+            <button class="button" type="button" data-demo-count="5">Set Detected Count: 5</button>
+        </div>
+        <p id="occupancy-message" class="muted"></p>
+        <h3>Manual Session Events</h3>
         <form method="post" action="/ai-monitoring/events/monitoring_started?session_id={{ active_session.id }}">
-            <button class="button primary" type="submit">Start Monitoring</button>
+            <button class="button primary" type="submit">Log Manual Monitoring Started</button>
         </form>
         <form method="post" action="/ai-monitoring/events/face_detected?session_id={{ active_session.id }}">
-            <button class="button" type="submit">Log Face Detected</button>
-        </form>
-        <form method="post" action="/ai-monitoring/events/attention_warning?session_id={{ active_session.id }}">
-            <button class="button" type="submit">Log Attention Warning</button>
-        </form>
-        <form method="post" action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}">
-            <button class="button" type="submit">Log Phone Usage Warning</button>
+            <button class="button" type="submit">Log Manual Face Detected</button>
         </form>
         <form method="post" action="/ai-monitoring/events/monitoring_stopped?session_id={{ active_session.id }}">
-            <button class="button" type="submit">Stop Monitoring</button>
+            <button class="button" type="submit">Log Manual Monitoring Stopped</button>
         </form>
     </section>
 </section>
@@ -165,17 +197,135 @@
 (() => {
     const startButton = document.getElementById("start-camera");
     const stopButton = document.getElementById("stop-camera");
+    const startDetectionButton = document.getElementById("start-detection");
+    const stopDetectionButton = document.getElementById("stop-detection");
     const statusText = document.getElementById("camera-status");
+    const detectionStatus = document.getElementById("detection-status");
     const video = document.getElementById("ai-video");
     const monitoringStatus = document.getElementById("monitoring-status");
+    const qrPresentCount = document.getElementById("qr-present-count");
+    const detectedCount = document.getElementById("detected-count");
+    const countDifference = document.getElementById("count-difference");
+    const occupancyStatus = document.getElementById("occupancy-status");
+    const lightStatus = document.getElementById("light-status");
+    const occupancyMessage = document.getElementById("occupancy-message");
+    const demoButtons = document.querySelectorAll("[data-demo-count]");
+    const selectedSessionId = "{{ active_session.id if active_session else '' }}";
     let stream = null;
+    let detector = null;
+    let detectionRunning = false;
+    let detectionTimer = null;
+    let statusTimer = null;
+    const detectionIntervalMs = 1200;
+    const statusIntervalMs = 1000;
 
-    if (!startButton || !stopButton || !video) {
+    if (!startButton || !stopButton || !startDetectionButton || !stopDetectionButton || !video) {
         return;
     }
 
     function setStatus(message) {
         statusText.textContent = message;
+    }
+
+    function setDetectionStatus(message) {
+        detectionStatus.textContent = message;
+    }
+
+    function faceDetectionSupported() {
+        return "FaceDetector" in window;
+    }
+
+    function statusClass(value) {
+        if (value === "Occupied" || value === "ON") {
+            return "status active";
+        }
+        if (value === "Empty" || value === "OFF") {
+            return "status warning";
+        }
+        return "status info";
+    }
+
+    function renderOccupancy(occupancy) {
+        if (!occupancy) {
+            return;
+        }
+        qrPresentCount.textContent = occupancy.qr_present_count;
+        detectedCount.textContent = occupancy.detected_count_label;
+        countDifference.textContent = occupancy.difference_label;
+        occupancyStatus.textContent = occupancy.occupancy_status;
+        occupancyStatus.className = statusClass(occupancy.occupancy_status);
+        lightStatus.textContent = occupancy.light_status;
+        lightStatus.className = statusClass(occupancy.light_status);
+    }
+
+    async function postDetectedCount(count) {
+        const body = new URLSearchParams();
+        body.set("session_id", selectedSessionId);
+        body.set("detected_count", String(count));
+        const response = await fetch("/ai-monitoring/occupancy", {
+            method: "POST",
+            body,
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        });
+        const result = await response.json();
+        if (!result.ok) {
+            const message = result.message || "Occupancy update was not saved.";
+            setDetectionStatus(message);
+            occupancyMessage.textContent = message;
+            return false;
+        }
+        renderOccupancy(result.occupancy);
+        occupancyMessage.textContent = "Detected count updated.";
+        return true;
+    }
+
+    async function refreshOccupancy() {
+        if (!selectedSessionId) {
+            return;
+        }
+        const params = new URLSearchParams({ session_id: selectedSessionId });
+        const response = await fetch(`/ai-monitoring/occupancy/status?${params.toString()}`);
+        const result = await response.json();
+        if (result.ok) {
+            renderOccupancy(result.occupancy);
+        } else if (result.message) {
+            occupancyMessage.textContent = result.message;
+        }
+    }
+
+    function startStatusPolling() {
+        if (!statusTimer) {
+            statusTimer = window.setInterval(refreshOccupancy, statusIntervalMs);
+        }
+    }
+
+    async function detectFaces() {
+        if (!detectionRunning || !detector || !video.srcObject) {
+            return;
+        }
+
+        try {
+            const faces = await detector.detect(video);
+            await postDetectedCount(faces.length);
+            setDetectionStatus(faces.length > 0 ? `${faces.length} student face(s) detected.` : "No students detected.");
+        } catch (error) {
+            setDetectionStatus("Detection error. Try restarting camera detection.");
+        }
+
+        if (detectionRunning) {
+            detectionTimer = window.setTimeout(detectFaces, detectionIntervalMs);
+        }
+    }
+
+    function stopDetection(message = "Detection stopped.") {
+        detectionRunning = false;
+        if (detectionTimer) {
+            window.clearTimeout(detectionTimer);
+            detectionTimer = null;
+        }
+        startDetectionButton.disabled = !stream;
+        stopDetectionButton.disabled = true;
+        setDetectionStatus(message);
     }
 
     startButton.addEventListener("click", async () => {
@@ -188,15 +338,23 @@
             video.srcObject = stream;
             startButton.disabled = true;
             stopButton.disabled = false;
+            startDetectionButton.disabled = !faceDetectionSupported();
             monitoringStatus.textContent = "camera ready";
             monitoringStatus.className = "status active";
             setStatus("Camera ready.");
+            setDetectionStatus(
+                faceDetectionSupported()
+                    ? "Detection ready."
+                    : "Automatic face counting is not supported in this browser."
+            );
         } catch (error) {
             setStatus("Camera permission denied or unavailable.");
+            setDetectionStatus("Camera permission denied.");
         }
     });
 
     stopButton.addEventListener("click", () => {
+        stopDetection("Detection stopped.");
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             stream = null;
@@ -204,10 +362,64 @@
         video.srcObject = null;
         startButton.disabled = false;
         stopButton.disabled = true;
+        startDetectionButton.disabled = true;
         monitoringStatus.textContent = "stopped";
         monitoringStatus.className = "status scheduled";
         setStatus("Camera stopped.");
     });
+
+    startDetectionButton.addEventListener("click", async () => {
+        if (!selectedSessionId) {
+            setDetectionStatus("Please select an active session to monitor.");
+            return;
+        }
+        if (!stream) {
+            setDetectionStatus("Start camera before detection.");
+            return;
+        }
+        if (!faceDetectionSupported()) {
+            setDetectionStatus("Automatic face counting is not supported in this browser.");
+            return;
+        }
+
+        try {
+            detector = detector || new FaceDetector({ fastMode: true });
+            detectionRunning = true;
+            startDetectionButton.disabled = true;
+            stopDetectionButton.disabled = false;
+            monitoringStatus.textContent = "detecting";
+            monitoringStatus.className = "status active";
+            setDetectionStatus("Detecting...");
+            startStatusPolling();
+            await detectFaces();
+        } catch (error) {
+            detectionRunning = false;
+            startDetectionButton.disabled = false;
+            stopDetectionButton.disabled = true;
+            setDetectionStatus("Automatic face counting is not supported in this browser.");
+        }
+    });
+
+    stopDetectionButton.addEventListener("click", () => {
+        stopDetection();
+        if (stream) {
+            monitoringStatus.textContent = "camera ready";
+            monitoringStatus.className = "status active";
+        }
+    });
+
+    demoButtons.forEach((button) => {
+        button.addEventListener("click", async () => {
+            if (!selectedSessionId) {
+                occupancyMessage.textContent = "Please select an active session to monitor.";
+                return;
+            }
+            startStatusPolling();
+            await postDetectedCount(Number(button.dataset.demoCount));
+        });
+    });
+
+    startStatusPolling();
 })();
 </script>
 {% endblock %}

@@ -1,7 +1,7 @@
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Request
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, Form, Request
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session as DatabaseSession
 
@@ -26,6 +26,7 @@ async def ai_monitoring_page(
     error: str | None = None,
 ):
     selected_session, active_sessions, selection_error = ai_service.resolve_selected_session(db, session_id)
+    occupancy = ai_service.occupancy_context(db, selected_session) if selected_session else None
     return templates.TemplateResponse(
         request,
         "ai_monitoring/index.html",
@@ -35,6 +36,7 @@ async def ai_monitoring_page(
             "selected_session_id": str(selected_session.id) if selected_session else session_id,
             "selection_error": selection_error,
             "events": ai_service.recent_events(db, selected_session.id if selected_session else None),
+            "occupancy": occupancy,
             "message": message,
             "error": error,
         },
@@ -53,3 +55,37 @@ async def log_ai_event(event_type: str, session_id: str | None = None, db: Datab
         message=f"AI event logged: {event.event_type.replace('_', ' ')}.",
         session_id=str(event.session_id),
     )
+
+
+@router.post("/auto-event")
+async def log_auto_ai_event(session_id: str = Form(""), db: DatabaseSession = Depends(get_db)):
+    event, error = ai_service.log_auto_face_detected(db, session_id)
+    if error:
+        return JSONResponse({"ok": False, "message": error}, status_code=400)
+
+    return {
+        "ok": True,
+        "message": event.message or "Face detected by camera.",
+        "event_type": event.event_type,
+        "severity": event.severity,
+    }
+
+
+@router.post("/occupancy")
+async def update_occupancy_count(
+    session_id: str = Form(""),
+    detected_count: int = Form(...),
+    db: DatabaseSession = Depends(get_db),
+):
+    occupancy, error = ai_service.update_detected_count(db, session_id, detected_count)
+    if error:
+        return JSONResponse({"ok": False, "message": error}, status_code=400)
+    return {"ok": True, "occupancy": occupancy}
+
+
+@router.get("/occupancy/status")
+async def occupancy_status(session_id: str = "", db: DatabaseSession = Depends(get_db)):
+    occupancy, error = ai_service.occupancy_context_for_session_id(db, session_id)
+    if error:
+        return JSONResponse({"ok": False, "message": error}, status_code=400)
+    return {"ok": True, "occupancy": occupancy}
