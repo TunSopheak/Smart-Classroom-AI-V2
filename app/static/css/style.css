@@ -705,6 +705,12 @@ a.mini-record {
     margin-bottom: 0;
 }
 
+.backend-ai-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 14px;
+}
+
 .metric-card {
     min-height: 112px;
     align-content: space-between;
@@ -812,6 +818,26 @@ a.mini-record {
     gap: 10px;
 }
 
+.detection-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+    color: var(--muted);
+}
+
+.detection-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 28px;
+    padding: 0 10px;
+    color: var(--accent-strong);
+    background: #e8f4ff;
+    border-radius: 999px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
 .monitor-events-section {
     margin-top: 24px;
 }
@@ -915,6 +941,7 @@ a.mini-record {
 
     .session-detail-grid,
     .monitor-status-grid,
+    .backend-ai-grid,
     .monitor-grid,
     .manual-demo-grid,
     .control-card {

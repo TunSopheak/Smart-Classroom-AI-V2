@@ -159,6 +159,41 @@
     <section class="monitor-section">
         <div class="section-heading">
             <div>
+                <p class="eyebrow">Backend AI Engine</p>
+                <h3>YOLO / OpenCV Analysis</h3>
+            </div>
+            <strong id="backend-model-status" class="status scheduled">Not started</strong>
+        </div>
+        <p class="helper-note compact-note">Backend AI Engine is a prototype using YOLO/OpenCV. Accuracy depends on model, camera angle, lighting, and hardware performance.</p>
+        <div class="backend-ai-grid">
+            <article class="summary-card metric-card">
+                <span>Backend Person Count</span>
+                <strong id="backend-person-count">-</strong>
+            </article>
+            <article class="summary-card metric-card">
+                <span>Backend Phone Count</span>
+                <strong id="backend-phone-count">-</strong>
+            </article>
+        </div>
+        <div class="control-card">
+            <div>
+                <strong>Detected Objects</strong>
+                <p id="backend-ai-message" class="monitor-message">Backend AI analysis is not started.</p>
+                <div id="backend-detections" class="detection-list">No backend detections yet.</div>
+            </div>
+            <div class="control-status">
+                <div class="button-row">
+                    <button id="start-backend-ai" class="button" type="button" disabled>Start Backend AI Analysis</button>
+                    <button id="stop-backend-ai" class="button" type="button" disabled>Stop Backend AI Analysis</button>
+                </div>
+            </div>
+        </div>
+
+    </section>
+
+    <section class="monitor-section">
+        <div class="section-heading">
+            <div>
                 <p class="eyebrow">E. Prototype Detection</p>
                 <h3>Phone and Attention</h3>
             </div>
@@ -312,6 +347,8 @@
     const stopPhoneDetectionButton = document.getElementById("stop-phone-detection");
     const startAttentionDetectionButton = document.getElementById("start-attention-detection");
     const stopAttentionDetectionButton = document.getElementById("stop-attention-detection");
+    const startBackendAiButton = document.getElementById("start-backend-ai");
+    const stopBackendAiButton = document.getElementById("stop-backend-ai");
     const startAllMonitoringButton = document.getElementById("start-all-monitoring");
     const stopAllMonitoringButton = document.getElementById("stop-all-monitoring");
     const statusText = document.getElementById("camera-status");
@@ -322,6 +359,11 @@
     const attentionDetectionStatus = document.getElementById("attention-detection-status");
     const attentionDetectionMessage = document.getElementById("attention-detection-message");
     const attentionConfidence = document.getElementById("attention-confidence");
+    const backendModelStatus = document.getElementById("backend-model-status");
+    const backendPersonCount = document.getElementById("backend-person-count");
+    const backendPhoneCount = document.getElementById("backend-phone-count");
+    const backendAiMessage = document.getElementById("backend-ai-message");
+    const backendDetections = document.getElementById("backend-detections");
     const video = document.getElementById("ai-video");
     const monitoringStatus = document.getElementById("monitoring-status");
     const qrPresentCount = document.getElementById("qr-present-count");
@@ -340,9 +382,11 @@
     let detectionRunning = false;
     let phoneDetectionRunning = false;
     let attentionDetectionRunning = false;
+    let backendAiRunning = false;
     let detectionTimer = null;
     let phoneDetectionTimer = null;
     let attentionDetectionTimer = null;
+    let backendAiTimer = null;
     let statusTimer = null;
     let phoneCooldownUntil = 0;
     let attentionCooldownUntil = 0;
@@ -351,6 +395,7 @@
     const detectionIntervalMs = 1200;
     const phoneDetectionIntervalMs = 1500;
     const attentionDetectionIntervalMs = 500;
+    const backendAiIntervalMs = 2500;
     const attentionAwayThresholdMs = 5000;
     const attentionYawThreshold = 0.18;
     const statusIntervalMs = 1000;
@@ -378,6 +423,12 @@
         attentionDetectionStatus.textContent = message;
         attentionDetectionStatus.className = className;
         attentionDetectionMessage.textContent = message;
+    }
+
+    function setBackendAiStatus(message, className = "status info") {
+        backendModelStatus.textContent = message;
+        backendModelStatus.className = className;
+        backendAiMessage.textContent = message;
     }
 
     function phoneCooldownRemainingSeconds() {
@@ -453,6 +504,72 @@
             lightStatusCopy.textContent = occupancy.light_status;
             lightStatusCopy.className = statusClass(occupancy.light_status);
         }
+    }
+
+    function renderBackendDetections(detections) {
+        if (!detections || detections.length === 0) {
+            backendDetections.textContent = "No objects detected.";
+            return;
+        }
+
+        backendDetections.innerHTML = "";
+        detections.slice(0, 8).forEach((item) => {
+            const badge = document.createElement("span");
+            badge.className = "detection-badge";
+            badge.textContent = `${item.label} ${Math.round(item.confidence * 100)}%`;
+            backendDetections.appendChild(badge);
+        });
+    }
+
+    function captureVideoFrame() {
+        if (!video.videoWidth || !video.videoHeight) {
+            return null;
+        }
+
+        const canvas = document.createElement("canvas");
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d");
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        return canvas.toDataURL("image/jpeg", 0.72);
+    }
+
+    async function postBackendFrame() {
+        const frameData = captureVideoFrame();
+        if (!frameData) {
+            backendAiMessage.textContent = "Camera frame is not ready yet.";
+            return false;
+        }
+
+        const body = new URLSearchParams();
+        body.set("session_id", selectedSessionId);
+        body.set("frame_data", frameData);
+        const response = await fetch("/ai-monitoring/analyze-frame", {
+            method: "POST",
+            body,
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        });
+        const result = await response.json();
+        if (!result.ok) {
+            setBackendAiStatus(result.message || "Backend AI analysis is unavailable.", "status warning");
+            return false;
+        }
+
+        backendPersonCount.textContent = result.person_count;
+        backendPhoneCount.textContent = result.phone_count;
+        renderBackendDetections(result.detections);
+        if (result.occupancy) {
+            renderOccupancy(result.occupancy);
+        }
+
+        if (result.available) {
+            backendModelStatus.textContent = "Model active";
+            backendModelStatus.className = "status active";
+            backendAiMessage.textContent = result.event_message || result.message || "Backend AI analysis completed.";
+        } else {
+            setBackendAiStatus(result.message || "Backend YOLO model is unavailable.", "status warning");
+        }
+        return result.available;
     }
 
     async function postDetectedCount(count) {
@@ -602,6 +719,10 @@
             startAttentionDetectionButton.click();
         }
 
+        if (!startBackendAiButton.disabled) {
+            startBackendAiButton.click();
+        }
+
         monitoringStatus.textContent = "monitoring";
         monitoringStatus.className = "status active";
     }
@@ -623,6 +744,12 @@
             stopDetectionButton.click();
         } else {
             stopDetection("Detection stopped.");
+        }
+
+        if (!stopBackendAiButton.disabled) {
+            stopBackendAiButton.click();
+        } else {
+            stopBackendAi("Not started");
         }
 
         if (!stopButton.disabled) {
@@ -832,6 +959,29 @@
         }
     }
 
+    async function analyzeBackendFrameLoop() {
+        if (!backendAiRunning || !video.srcObject) {
+            return;
+        }
+
+        await postBackendFrame();
+
+        if (backendAiRunning) {
+            backendAiTimer = window.setTimeout(analyzeBackendFrameLoop, backendAiIntervalMs);
+        }
+    }
+
+    function stopBackendAi(message = "Not started") {
+        backendAiRunning = false;
+        if (backendAiTimer) {
+            window.clearTimeout(backendAiTimer);
+            backendAiTimer = null;
+        }
+        startBackendAiButton.disabled = !stream;
+        stopBackendAiButton.disabled = true;
+        setBackendAiStatus(message, message === "Not started" ? "status scheduled" : "status info");
+    }
+
     startButton.addEventListener("click", async () => {
         if (!navigator.mediaDevices?.getUserMedia) {
             setStatus("Camera is not supported in this browser.");
@@ -845,6 +995,7 @@
             startDetectionButton.disabled = !faceDetectionSupported();
             startPhoneDetectionButton.disabled = false;
             startAttentionDetectionButton.disabled = false;
+            startBackendAiButton.disabled = false;
             stopAllMonitoringButton.disabled = false;
             monitoringStatus.textContent = "camera ready";
             monitoringStatus.className = "status active";
@@ -864,6 +1015,7 @@
         stopDetection("Detection stopped.");
         stopPhoneDetection("Not started");
         stopAttentionDetection("Not started");
+        stopBackendAi("Not started");
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             stream = null;
@@ -874,6 +1026,7 @@
         startDetectionButton.disabled = true;
         startPhoneDetectionButton.disabled = true;
         startAttentionDetectionButton.disabled = true;
+        startBackendAiButton.disabled = true;
         startAllMonitoringButton.disabled = false;
         stopAllMonitoringButton.disabled = true;
         monitoringStatus.textContent = "stopped";
@@ -975,6 +1128,27 @@
 
     stopAttentionDetectionButton.addEventListener("click", () => {
         stopAttentionDetection("Not started");
+    });
+
+    startBackendAiButton.addEventListener("click", async () => {
+        if (!selectedSessionId) {
+            setBackendAiStatus("Please select an active session to monitor.", "status warning");
+            return;
+        }
+        if (!stream) {
+            setBackendAiStatus("Start camera before backend AI analysis.", "status warning");
+            return;
+        }
+
+        backendAiRunning = true;
+        startBackendAiButton.disabled = true;
+        stopBackendAiButton.disabled = false;
+        setBackendAiStatus("Analyzing frames", "status info");
+        await analyzeBackendFrameLoop();
+    });
+
+    stopBackendAiButton.addEventListener("click", () => {
+        stopBackendAi("Not started");
     });
 
     startAllMonitoringButton.addEventListener("click", startAllMonitoring);
