@@ -145,7 +145,7 @@ def build_ai_events_pdf(
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import LongTable, Paragraph, SimpleDocTemplate, Spacer, TableStyle
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
@@ -156,13 +156,14 @@ def build_ai_events_pdf(
         topMargin=0.36 * inch,
         bottomMargin=0.42 * inch,
     )
+    doc.allowSplitting = 1
     styles = getSampleStyleSheet()
     table_style = ParagraphStyle(
         "AIEventTableCell",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=6.4,
-        leading=7.4,
+        fontSize=6.1,
+        leading=7.2,
         wordWrap="CJK",
         splitLongWords=True,
     )
@@ -211,19 +212,19 @@ def build_ai_events_pdf(
             row = ai_event_row(event)
             table_data.append([Paragraph(pdf_text(value), table_style) for value in row])
 
-        table = Table(
+        table = LongTable(
             table_data,
             repeatRows=1,
             colWidths=[
-                0.72 * inch,
-                1.18 * inch,
-                1.22 * inch,
-                1.28 * inch,
                 0.7 * inch,
-                0.76 * inch,
-                0.86 * inch,
-                0.58 * inch,
-                3.24 * inch,
+                1.12 * inch,
+                1.14 * inch,
+                1.18 * inch,
+                0.62 * inch,
+                0.68 * inch,
+                0.78 * inch,
+                0.52 * inch,
+                4.2 * inch,
             ],
         )
         table.setStyle(
@@ -232,7 +233,7 @@ def build_ai_events_pdf(
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f7a6d")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 6.4),
+                    ("FONTSIZE", (0, 0), (-1, -1), 6.1),
                     ("TOPPADDING", (0, 0), (-1, -1), 3),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                     ("LEFTPADDING", (0, 0), (-1, -1), 3),

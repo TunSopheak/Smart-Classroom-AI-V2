@@ -155,6 +155,35 @@ def occupancy_status_for_count(detected_count: int | None) -> str:
     return EMPTY
 
 
+def occupancy_empty_cooldown_ready(state: dict, now: datetime) -> bool:
+    last_empty_at = state.get("last_occupancy_empty_at")
+    return last_empty_at is None or (now - last_empty_at).total_seconds() >= OCCUPANCY_EMPTY_COOLDOWN_SECONDS
+
+
+def log_occupancy_empty_if_ready(db: DatabaseSession, active_session: ClassroomSession, state: dict, now: datetime) -> AIEvent | None:
+    if not occupancy_empty_cooldown_ready(state, now):
+        return None
+
+    event = create_event(db, active_session, "occupancy_empty", WARNING, EVENTS["occupancy_empty"][1])
+    state["last_occupancy_empty_at"] = now
+    return event
+
+
+def log_light_change(
+    db: DatabaseSession,
+    active_session: ClassroomSession,
+    state: dict,
+    event_type: str,
+    new_status: str,
+    severity: str,
+) -> AIEvent | None:
+    if state["light_status"] == new_status:
+        return None
+
+    state["light_status"] = new_status
+    return create_event(db, active_session, event_type, severity, EVENTS[event_type][1])
+
+
 def occupancy_context(db: DatabaseSession, active_session: ClassroomSession) -> dict:
     state = evaluate_light_auto_off(db, active_session)
     detected_count = state.get("detected_count")
@@ -192,21 +221,12 @@ def update_detected_count(
     if detected_count == 0:
         if state["zero_since"] is None:
             state["zero_since"] = now
-        last_empty_at = state.get("last_occupancy_empty_at")
-        empty_cooldown_ready = (
-            last_empty_at is None
-            or (now - last_empty_at).total_seconds() >= OCCUPANCY_EMPTY_COOLDOWN_SECONDS
-        )
-        if empty_cooldown_ready:
-            create_event(db, active_session, "occupancy_empty", WARNING, EVENTS["occupancy_empty"][1])
-            state["last_occupancy_empty_at"] = now
+        log_occupancy_empty_if_ready(db, active_session, state, now)
         if previous_light == LIGHT_ON:
             state["light_status"] = LIGHT_AUTO
     else:
         state["zero_since"] = None
-        state["light_status"] = LIGHT_ON
-        if previous_light != LIGHT_ON:
-            create_event(db, active_session, "light_auto_on", INFO, EVENTS["light_auto_on"][1])
+        log_light_change(db, active_session, state, "light_auto_on", LIGHT_ON, INFO)
 
     return occupancy_context(db, active_session), None
 
@@ -215,9 +235,8 @@ def evaluate_light_auto_off(db: DatabaseSession, active_session: ClassroomSessio
     state = _occupancy_states.setdefault(active_session.id, default_occupancy_state())
     if state["detected_count"] == 0 and state["zero_since"]:
         elapsed = (datetime.utcnow() - state["zero_since"]).total_seconds()
-        if elapsed >= DEMO_LIGHT_AUTO_OFF_SECONDS and state["light_status"] != LIGHT_OFF:
-            state["light_status"] = LIGHT_OFF
-            create_event(db, active_session, "light_auto_off", WARNING, EVENTS["light_auto_off"][1])
+        if elapsed >= DEMO_LIGHT_AUTO_OFF_SECONDS:
+            log_light_change(db, active_session, state, "light_auto_off", LIGHT_OFF, WARNING)
     return state
 
 
@@ -342,6 +361,27 @@ def log_event(db: DatabaseSession, event_type: str, session_id: int | str | None
         return None, session_error
     if event_type not in EVENTS:
         return None, "Unknown AI monitoring event."
+
+    state = _occupancy_states.setdefault(active_session.id, default_occupancy_state())
+    now = datetime.utcnow()
+
+    if event_type == "occupancy_empty":
+        event = log_occupancy_empty_if_ready(db, active_session, state, now)
+        if event is None:
+            return None, "Occupancy empty was logged recently. Waiting for cooldown."
+        return event, None
+
+    if event_type == "light_auto_off":
+        event = log_light_change(db, active_session, state, event_type, LIGHT_OFF, WARNING)
+        if event is None:
+            return None, "Classroom light is already OFF."
+        return event, None
+
+    if event_type == "light_auto_on":
+        event = log_light_change(db, active_session, state, event_type, LIGHT_ON, INFO)
+        if event is None:
+            return None, "Classroom light is already ON."
+        return event, None
 
     severity, message = EVENTS[event_type]
     return create_event(db, active_session, event_type, severity, message), None

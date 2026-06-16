@@ -207,7 +207,7 @@ async def export_ai_events_pdf(
             "date": "",
         }
         pdf_events = events[:50]
-        limited_note = "Showing latest 50 events" if len(events) > 50 else None
+        limited_note = "Showing latest 50 events. Use filters for a focused report."
 
     try:
         pdf = report_service.build_ai_events_pdf(
