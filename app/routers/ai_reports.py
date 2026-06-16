@@ -103,6 +103,10 @@ def export_query(filters: dict) -> str:
     return urlencode({key: filters.get(key, "") for key in keys})
 
 
+def has_explicit_filter(*values: str | None) -> bool:
+    return any(value is not None and value.strip() != "" for value in values)
+
+
 @router.get("")
 async def list_ai_events(
     request: Request,
@@ -177,9 +181,41 @@ async def export_ai_events_pdf(
     severity: str | None = None,
     date: str | None = None,
 ):
-    events, filters = ai_event_filter_context(db, class_group_id, session_id, subject_id, teacher_id, event_type, severity, date)
+    explicit_filter = has_explicit_filter(class_group_id, session_id, subject_id, teacher_id, event_type, severity, date)
+    if explicit_filter:
+        events, filters = ai_event_filter_context(
+            db,
+            class_group_id,
+            session_id,
+            subject_id,
+            teacher_id,
+            event_type,
+            severity,
+            date,
+        )
+        pdf_events = events
+        limited_note = None
+    else:
+        events = ai_service.list_ai_events(db)
+        filters = {
+            "class_group_id": "",
+            "session_id": "",
+            "subject_id": "",
+            "teacher_id": "",
+            "event_type": "",
+            "severity": "",
+            "date": "",
+        }
+        pdf_events = events[:50]
+        limited_note = "Showing latest 50 events" if len(events) > 50 else None
+
     try:
-        pdf = report_service.build_ai_events_pdf(events, filters, ai_service.ai_event_summary(events))
+        pdf = report_service.build_ai_events_pdf(
+            pdf_events,
+            filters,
+            ai_service.ai_event_summary(events),
+            note=limited_note,
+        )
     except ImportError:
         return redirect_with("/ai-events", error="PDF export is unavailable. Install reportlab from requirements.txt.")
 

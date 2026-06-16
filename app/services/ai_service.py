@@ -28,6 +28,7 @@ EVENTS = {
 AUTO_FACE_MESSAGE = "Face detected by camera."
 AUTO_FACE_COOLDOWN_SECONDS = 15
 DEMO_LIGHT_AUTO_OFF_SECONDS = 10
+OCCUPANCY_EMPTY_COOLDOWN_SECONDS = 60
 UNKNOWN = "Unknown"
 OCCUPIED = "Occupied"
 EMPTY = "Empty"
@@ -142,7 +143,7 @@ def default_occupancy_state() -> dict:
         "occupancy_status": UNKNOWN,
         "light_status": LIGHT_AUTO,
         "zero_since": None,
-        "occupancy_empty_logged": False,
+        "last_occupancy_empty_at": None,
     }
 
 
@@ -191,14 +192,18 @@ def update_detected_count(
     if detected_count == 0:
         if state["zero_since"] is None:
             state["zero_since"] = now
-        if not state["occupancy_empty_logged"]:
+        last_empty_at = state.get("last_occupancy_empty_at")
+        empty_cooldown_ready = (
+            last_empty_at is None
+            or (now - last_empty_at).total_seconds() >= OCCUPANCY_EMPTY_COOLDOWN_SECONDS
+        )
+        if empty_cooldown_ready:
             create_event(db, active_session, "occupancy_empty", WARNING, EVENTS["occupancy_empty"][1])
-            state["occupancy_empty_logged"] = True
+            state["last_occupancy_empty_at"] = now
         if previous_light == LIGHT_ON:
             state["light_status"] = LIGHT_AUTO
     else:
         state["zero_since"] = None
-        state["occupancy_empty_logged"] = False
         state["light_status"] = LIGHT_ON
         if previous_light != LIGHT_ON:
             create_event(db, active_session, "light_auto_on", INFO, EVENTS["light_auto_on"][1])

@@ -2,6 +2,7 @@ import csv
 from collections import Counter
 from datetime import datetime
 from io import BytesIO, StringIO
+from xml.sax.saxutils import escape
 
 from app.models.ai_event import AIEvent
 from app.models.attendance import Attendance
@@ -31,6 +32,10 @@ AI_EVENT_COLUMNS = [
     "Severity",
     "Message",
 ]
+
+
+def pdf_text(value) -> str:
+    return escape(str(value or ""))
 
 
 def attendance_row(record: Attendance) -> list[str]:
@@ -130,23 +135,43 @@ def ai_filter_summary(filters: dict) -> str:
     return "; ".join(parts) if parts else "No filters applied"
 
 
-def build_ai_events_pdf(events: list[AIEvent], filters: dict, summary: dict[str, int]) -> bytes:
+def build_ai_events_pdf(
+    events: list[AIEvent],
+    filters: dict,
+    summary: dict[str, int],
+    note: str | None = None,
+) -> bytes:
     from reportlab.lib import colors
-    from reportlab.lib.pagesizes import landscape, letter
-    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.pagesizes import A4, landscape
+    from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
     from reportlab.lib.units import inch
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
-        pagesize=landscape(letter),
-        rightMargin=0.4 * inch,
-        leftMargin=0.4 * inch,
-        topMargin=0.4 * inch,
-        bottomMargin=0.4 * inch,
+        pagesize=landscape(A4),
+        rightMargin=0.32 * inch,
+        leftMargin=0.32 * inch,
+        topMargin=0.36 * inch,
+        bottomMargin=0.42 * inch,
     )
     styles = getSampleStyleSheet()
+    table_style = ParagraphStyle(
+        "AIEventTableCell",
+        parent=styles["Normal"],
+        fontName="Helvetica",
+        fontSize=6.4,
+        leading=7.4,
+        wordWrap="CJK",
+        splitLongWords=True,
+    )
+    header_style = ParagraphStyle(
+        "AIEventTableHeader",
+        parent=table_style,
+        fontName="Helvetica-Bold",
+        textColor=colors.white,
+    )
     story = [
         Paragraph("Smart Classroom AI Monitoring V2", styles["Title"]),
         Paragraph("AI Monitoring Event Report", styles["Heading2"]),
@@ -163,19 +188,43 @@ def build_ai_events_pdf(events: list[AIEvent], filters: dict, summary: dict[str,
         ),
         Spacer(1, 0.18 * inch),
     ]
+    if note:
+        story.extend([Paragraph(note, styles["Italic"]), Spacer(1, 0.12 * inch)])
 
     if not events:
         story.append(Paragraph("No AI monitoring events match the selected filters.", styles["Normal"]))
     else:
-        table_data = [["Detected", "Class", "Subject", "Teacher", "Date", "Time", "Event", "Severity", "Message"]]
+        table_data = [
+            [
+                Paragraph("Detected", header_style),
+                Paragraph("Class", header_style),
+                Paragraph("Subject", header_style),
+                Paragraph("Teacher", header_style),
+                Paragraph("Date", header_style),
+                Paragraph("Time", header_style),
+                Paragraph("Event", header_style),
+                Paragraph("Severity", header_style),
+                Paragraph("Message", header_style),
+            ]
+        ]
         for event in events:
             row = ai_event_row(event)
-            table_data.append(row)
+            table_data.append([Paragraph(pdf_text(value), table_style) for value in row])
 
         table = Table(
             table_data,
             repeatRows=1,
-            colWidths=[0.9 * inch, 1.25 * inch, 1.25 * inch, 1.25 * inch, 0.75 * inch, 0.8 * inch, 0.95 * inch, 0.65 * inch, 1.45 * inch],
+            colWidths=[
+                0.72 * inch,
+                1.18 * inch,
+                1.22 * inch,
+                1.28 * inch,
+                0.7 * inch,
+                0.76 * inch,
+                0.86 * inch,
+                0.58 * inch,
+                3.24 * inch,
+            ],
         )
         table.setStyle(
             TableStyle(
@@ -183,8 +232,11 @@ def build_ai_events_pdf(events: list[AIEvent], filters: dict, summary: dict[str,
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f7a6d")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 7),
-                    ("BOTTOMPADDING", (0, 0), (-1, 0), 6),
+                    ("FONTSIZE", (0, 0), (-1, -1), 6.4),
+                    ("TOPPADDING", (0, 0), (-1, -1), 3),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 3),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 3),
                     ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#dce3ed")),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f6f8fb")]),
@@ -193,7 +245,17 @@ def build_ai_events_pdf(events: list[AIEvent], filters: dict, summary: dict[str,
         )
         story.append(table)
 
-    doc.build(story)
+    def add_page_number(canvas, document):
+        canvas.saveState()
+        canvas.setFont("Helvetica", 7)
+        canvas.drawRightString(
+            document.pagesize[0] - document.rightMargin,
+            0.2 * inch,
+            f"Page {document.page}",
+        )
+        canvas.restoreState()
+
+    doc.build(story, onFirstPage=add_page_number, onLaterPages=add_page_number)
     return buffer.getvalue()
 
 
