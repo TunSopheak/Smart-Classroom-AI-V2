@@ -67,123 +67,202 @@
 {% endif %}
 
 {% if active_session %}
-<section class="summary-grid ai-context">
-    <article class="summary-card">
-        <span>Class</span>
-        <strong>{{ active_session.class_group.class_code }} - {{ active_session.class_group.name }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Subject</span>
-        <strong>{{ active_session.subject.code }} - {{ active_session.subject.name }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Teacher</span>
-        <strong>{{ active_session.teacher.teacher_code }} - {{ active_session.teacher.first_name }} {{ active_session.teacher.last_name }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Room</span>
-        <strong>{{ active_session.room }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Date / Time</span>
-        <strong>{{ active_session.session_date.strftime("%Y-%m-%d") }} | {{ active_session.start_time.strftime("%H:%M") }} - {{ active_session.end_time.strftime("%H:%M") }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Monitoring Status</span>
+<section class="monitor-section selected-session-panel">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">A. Selected Active Session</p>
+            <h3>{{ active_session.class_group.class_code }} - {{ active_session.subject.name }}</h3>
+        </div>
         <strong id="monitoring-status" class="status scheduled">stopped</strong>
-    </article>
-    <article class="summary-card">
-        <span>QR Present Count</span>
-        <strong id="qr-present-count">{{ occupancy.qr_present_count }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Detected Student Count</span>
-        <strong id="detected-count">{{ occupancy.detected_count_label }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Difference</span>
-        <strong id="count-difference">{{ occupancy.difference_label }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Occupancy Status</span>
-        <strong id="occupancy-status" class="status inactive">{{ occupancy.occupancy_status }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Classroom Light Status</span>
-        <strong id="light-status" class="status info">{{ occupancy.light_status }}</strong>
-    </article>
-    <article class="summary-card">
-        <span>Phone Detection</span>
-        <strong id="phone-detection-status" class="status scheduled">Not started</strong>
-        <small id="phone-confidence" class="muted">Confidence unavailable</small>
-    </article>
-    <article class="summary-card">
-        <span>Attention Detection</span>
-        <strong id="attention-detection-status" class="status scheduled">Not started</strong>
-        <small id="attention-confidence" class="muted">Prototype estimate</small>
-    </article>
+    </div>
+    <div class="session-detail-grid">
+        <div><span>Class</span><strong>{{ active_session.class_group.class_code }} - {{ active_session.class_group.name }}</strong></div>
+        <div><span>Subject</span><strong>{{ active_session.subject.code }} - {{ active_session.subject.name }}</strong></div>
+        <div><span>Teacher</span><strong>{{ active_session.teacher.teacher_code }} - {{ active_session.teacher.first_name }} {{ active_session.teacher.last_name }}</strong></div>
+        <div><span>Room</span><strong>{{ active_session.room }}</strong></div>
+        <div><span>Date</span><strong>{{ active_session.session_date.strftime("%Y-%m-%d") }}</strong></div>
+        <div><span>Time</span><strong>{{ active_session.start_time.strftime("%H:%M") }} - {{ active_session.end_time.strftime("%H:%M") }}</strong></div>
+    </div>
 </section>
 
-<div class="helper-note">
-    Demo auto-off threshold: {{ occupancy.auto_off_seconds }} seconds. Real rule: 5 minutes.
-</div>
+<section class="monitor-section">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">B. Smart Classroom Status</p>
+            <h3>Live Classroom Snapshot</h3>
+        </div>
+    </div>
+    <div class="summary-grid monitor-status-grid">
+        <article class="summary-card metric-card">
+            <span>QR Present Count</span>
+            <strong id="qr-present-count">{{ occupancy.qr_present_count }}</strong>
+        </article>
+        <article class="summary-card metric-card">
+            <span>Detected Student Count</span>
+            <strong id="detected-count">{{ occupancy.detected_count_label }}</strong>
+        </article>
+        <article class="summary-card metric-card">
+            <span>Difference</span>
+            <strong id="count-difference">{{ occupancy.difference_label }}</strong>
+        </article>
+        <article class="summary-card metric-card">
+            <span>Occupancy</span>
+            <strong id="occupancy-status" class="status inactive">{{ occupancy.occupancy_status }}</strong>
+        </article>
+        <article class="summary-card metric-card">
+            <span>Light</span>
+            <strong id="light-status" class="status info">{{ occupancy.light_status }}</strong>
+        </article>
+    </div>
+</section>
 
-<section class="split-layout">
-    <section class="scanner-panel scanner-primary">
-        <div class="page-heading compact-heading">
+<section class="monitor-grid">
+    <section class="monitor-section camera-section">
+        <div class="section-heading">
             <div>
-                <p class="eyebrow">Browser Camera</p>
+                <p class="eyebrow">C. Camera Controls</p>
                 <h3>Live Preview</h3>
             </div>
             <div class="button-row">
                 <button id="start-camera" class="button primary" type="button">Start Camera</button>
                 <button id="stop-camera" class="button" type="button" disabled>Stop Camera</button>
-                <button id="start-detection" class="button" type="button" disabled>Start Detection</button>
-                <button id="stop-detection" class="button" type="button" disabled>Stop Detection</button>
-                <button id="start-phone-detection" class="button" type="button" disabled>Start Phone Detection</button>
-                <button id="stop-phone-detection" class="button" type="button" disabled>Stop Phone Detection</button>
-                <button id="start-attention-detection" class="button" type="button" disabled>Start Attention Detection</button>
-                <button id="stop-attention-detection" class="button" type="button" disabled>Stop Attention Detection</button>
             </div>
         </div>
-        <p id="camera-status" class="muted">Camera stopped.</p>
-        <p id="detection-status" class="muted">Detection stopped.</p>
-        <p id="phone-detection-message" class="muted">Phone detection is not started.</p>
-        <p id="attention-detection-message" class="muted">Attention detection is not started.</p>
-        <video id="ai-video" class="camera-preview" autoplay muted playsinline></video>
+        <p id="camera-status" class="monitor-message">Camera stopped.</p>
+        <video id="ai-video" class="camera-preview monitor-camera" autoplay muted playsinline></video>
     </section>
 
-    <section class="form-panel compact">
-        <h3>Demo Testing Controls</h3>
-        <p class="muted">These buttons use the same backend occupancy logic as camera detection.</p>
-        <div class="button-row">
-            <button class="button" type="button" data-demo-count="0">Set Detected Count: 0</button>
-            <button class="button" type="button" data-demo-count="1">Set Detected Count: 1</button>
-            <button class="button" type="button" data-demo-count="5">Set Detected Count: 5</button>
+    <section class="monitor-section">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">D. Real / Automatic Detection</p>
+                <h3>Face Count and Occupancy</h3>
+            </div>
+            <span class="status info">Browser API</span>
         </div>
-        <p id="occupancy-message" class="muted"></p>
-        <h3>Manual Demo Session Events</h3>
-        <p class="muted">Use these buttons when browser detection is unavailable or for report demos.</p>
-        <form method="post" action="/ai-monitoring/events/monitoring_started?session_id={{ active_session.id }}">
-            <button class="button primary" type="submit">Log Manual Monitoring Started</button>
-        </form>
-        <form method="post" action="/ai-monitoring/events/face_detected?session_id={{ active_session.id }}">
-            <button class="button" type="submit">Log Manual Face Detected</button>
-        </form>
-        <form method="post" action="/ai-monitoring/events/attention_warning?session_id={{ active_session.id }}">
-            <button class="button" type="submit">Log Manual Attention Warning (uses cooldown)</button>
-        </form>
-        <form method="post" action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}">
-            <button class="button" type="submit">Log Manual Phone Usage Warning</button>
-        </form>
-        <form method="post" action="/ai-monitoring/events/monitoring_stopped?session_id={{ active_session.id }}">
-            <button class="button" type="submit">Log Manual Monitoring Stopped</button>
-        </form>
+        <div class="control-card">
+            <div>
+                <strong>Face Detection / Count</strong>
+                <p id="detection-status" class="monitor-message">Detection stopped.</p>
+            </div>
+            <div class="button-row">
+                <button id="start-detection" class="button" type="button" disabled>Start Face Count</button>
+                <button id="stop-detection" class="button" type="button" disabled>Stop Face Count</button>
+            </div>
+        </div>
+        <div class="rule-list">
+            <div><span>Occupancy Detection</span><strong>Uses detected face count and QR attendance comparison.</strong></div>
+            <div><span>Light Auto-Off Rule</span><strong>Demo threshold: {{ occupancy.auto_off_seconds }} seconds. Real rule: 5 minutes.</strong></div>
+        </div>
+    </section>
+
+    <section class="monitor-section">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">E. Prototype Detection</p>
+                <h3>Phone and Attention</h3>
+            </div>
+            <span class="status warning">Prototype</span>
+        </div>
+        <p class="helper-note compact-note">Prototype detection may be inaccurate and depends on camera angle, lighting, and model support.</p>
+        <div class="control-card">
+            <div>
+                <strong>Phone Usage Detection Prototype</strong>
+                <p id="phone-detection-message" class="monitor-message">Phone detection is not started.</p>
+                <small id="phone-confidence" class="muted">Confidence unavailable</small>
+            </div>
+            <div class="control-status">
+                <strong id="phone-detection-status" class="status scheduled">Not started</strong>
+                <div class="button-row">
+                    <button id="start-phone-detection" class="button" type="button" disabled>Start Phone</button>
+                    <button id="stop-phone-detection" class="button" type="button" disabled>Stop Phone</button>
+                </div>
+            </div>
+        </div>
+        <div class="control-card">
+            <div>
+                <strong>Attention / Looking-Away Detection Prototype</strong>
+                <p id="attention-detection-message" class="monitor-message">Attention detection is not started.</p>
+                <small id="attention-confidence" class="muted">Prototype estimate</small>
+            </div>
+            <div class="control-status">
+                <strong id="attention-detection-status" class="status scheduled">Not started</strong>
+                <div class="button-row">
+                    <button id="start-attention-detection" class="button" type="button" disabled>Start Attention</button>
+                    <button id="stop-attention-detection" class="button" type="button" disabled>Stop Attention</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="monitor-section">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">F. Device / Light Status</p>
+                <h3>Demo Device State</h3>
+            </div>
+            <strong id="light-status-copy" class="status info">{{ occupancy.light_status }}</strong>
+        </div>
+        <p class="muted">This is a software demo state only. Raspberry Pi relay integration is not enabled yet.</p>
+        <div class="button-row monitor-all-controls">
+            <button id="start-all-monitoring" class="button primary" type="button">Start All Monitoring</button>
+            <button id="stop-all-monitoring" class="button" type="button" disabled>Stop All Monitoring</button>
+        </div>
     </section>
 </section>
+
+<details class="monitor-section manual-demo-panel">
+    <summary>
+        <span>
+            <span class="eyebrow">G. Manual Demo Controls</span>
+            <strong>Manual Demo Controls for Testing Only</strong>
+        </span>
+        <span class="status warning">Testing</span>
+    </summary>
+    <div class="manual-demo-grid">
+        <div>
+            <h4>Detected Count Demo</h4>
+            <p class="muted">These buttons use the same backend occupancy logic as camera detection.</p>
+            <div class="button-row">
+                <button class="button" type="button" data-demo-count="0">Set Detected Count: 0</button>
+                <button class="button" type="button" data-demo-count="1">Set Detected Count: 1</button>
+                <button class="button" type="button" data-demo-count="5">Set Detected Count: 5</button>
+            </div>
+            <p id="occupancy-message" class="monitor-message"></p>
+        </div>
+        <div>
+            <h4>Manual Event Logging</h4>
+            <p class="muted">Use these only when browser detection is unavailable or for report demos.</p>
+            <div class="manual-event-list">
+                <form method="post" action="/ai-monitoring/events/monitoring_started?session_id={{ active_session.id }}">
+                    <button class="button primary" type="submit">Log Manual Monitoring Started</button>
+                </form>
+                <form method="post" action="/ai-monitoring/events/face_detected?session_id={{ active_session.id }}">
+                    <button class="button" type="submit">Log Manual Face Detected</button>
+                </form>
+                <form method="post" action="/ai-monitoring/events/attention_warning?session_id={{ active_session.id }}">
+                    <button class="button" type="submit">Log Manual Attention Warning (uses cooldown)</button>
+                </form>
+                <form method="post" action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}">
+                    <button class="button" type="submit">Log Manual Phone Usage Warning</button>
+                </form>
+                <form method="post" action="/ai-monitoring/events/monitoring_stopped?session_id={{ active_session.id }}">
+                    <button class="button" type="submit">Log Manual Monitoring Stopped</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</details>
 {% endif %}
 
-<section class="table-panel ai-events">
+<section class="table-panel ai-events monitor-events-section">
+    <div class="table-heading">
+        <div>
+            <p class="eyebrow">H. Recent AI Events</p>
+            <h3>Newest First</h3>
+        </div>
+        <a class="button" href="/ai-events">View All AI Events</a>
+    </div>
     <table>
         <thead>
             <tr>
@@ -233,6 +312,8 @@
     const stopPhoneDetectionButton = document.getElementById("stop-phone-detection");
     const startAttentionDetectionButton = document.getElementById("start-attention-detection");
     const stopAttentionDetectionButton = document.getElementById("stop-attention-detection");
+    const startAllMonitoringButton = document.getElementById("start-all-monitoring");
+    const stopAllMonitoringButton = document.getElementById("stop-all-monitoring");
     const statusText = document.getElementById("camera-status");
     const detectionStatus = document.getElementById("detection-status");
     const phoneDetectionStatus = document.getElementById("phone-detection-status");
@@ -248,6 +329,7 @@
     const countDifference = document.getElementById("count-difference");
     const occupancyStatus = document.getElementById("occupancy-status");
     const lightStatus = document.getElementById("light-status");
+    const lightStatusCopy = document.getElementById("light-status-copy");
     const occupancyMessage = document.getElementById("occupancy-message");
     const demoButtons = document.querySelectorAll("[data-demo-count]");
     const selectedSessionId = "{{ active_session.id if active_session else '' }}";
@@ -367,6 +449,10 @@
         occupancyStatus.className = statusClass(occupancy.occupancy_status);
         lightStatus.textContent = occupancy.light_status;
         lightStatus.className = statusClass(occupancy.light_status);
+        if (lightStatusCopy) {
+            lightStatusCopy.textContent = occupancy.light_status;
+            lightStatusCopy.className = statusClass(occupancy.light_status);
+        }
     }
 
     async function postDetectedCount(count) {
@@ -466,6 +552,85 @@
         if (!statusTimer) {
             statusTimer = window.setInterval(refreshOccupancy, statusIntervalMs);
         }
+    }
+
+    function waitForCameraReady(timeoutMs = 4000) {
+        const startTime = Date.now();
+        return new Promise((resolve) => {
+            const check = () => {
+                if (stream || Date.now() - startTime >= timeoutMs) {
+                    resolve(Boolean(stream));
+                    return;
+                }
+                window.setTimeout(check, 100);
+            };
+            check();
+        });
+    }
+
+    async function startAllMonitoring() {
+        if (!selectedSessionId) {
+            setStatus("Please select an active session to monitor.");
+            return;
+        }
+
+        startAllMonitoringButton.disabled = true;
+        stopAllMonitoringButton.disabled = false;
+
+        if (!stream) {
+            startButton.click();
+            const ready = await waitForCameraReady();
+            if (!ready) {
+                setStatus("Camera could not start. Manual demo controls are still available.");
+                startAllMonitoringButton.disabled = false;
+                stopAllMonitoringButton.disabled = true;
+                return;
+            }
+        }
+
+        if (!startDetectionButton.disabled) {
+            startDetectionButton.click();
+        } else if (!faceDetectionSupported()) {
+            setDetectionStatus("Automatic face counting is not supported in this browser.");
+        }
+
+        if (!startPhoneDetectionButton.disabled) {
+            startPhoneDetectionButton.click();
+        }
+
+        if (!startAttentionDetectionButton.disabled) {
+            startAttentionDetectionButton.click();
+        }
+
+        monitoringStatus.textContent = "monitoring";
+        monitoringStatus.className = "status active";
+    }
+
+    function stopAllMonitoring() {
+        if (!stopAttentionDetectionButton.disabled) {
+            stopAttentionDetectionButton.click();
+        } else {
+            stopAttentionDetection("Not started");
+        }
+
+        if (!stopPhoneDetectionButton.disabled) {
+            stopPhoneDetectionButton.click();
+        } else {
+            stopPhoneDetection("Not started");
+        }
+
+        if (!stopDetectionButton.disabled) {
+            stopDetectionButton.click();
+        } else {
+            stopDetection("Detection stopped.");
+        }
+
+        if (!stopButton.disabled) {
+            stopButton.click();
+        }
+
+        startAllMonitoringButton.disabled = false;
+        stopAllMonitoringButton.disabled = true;
     }
 
     async function detectFaces() {
@@ -680,6 +845,7 @@
             startDetectionButton.disabled = !faceDetectionSupported();
             startPhoneDetectionButton.disabled = false;
             startAttentionDetectionButton.disabled = false;
+            stopAllMonitoringButton.disabled = false;
             monitoringStatus.textContent = "camera ready";
             monitoringStatus.className = "status active";
             setStatus("Camera ready.");
@@ -708,6 +874,8 @@
         startDetectionButton.disabled = true;
         startPhoneDetectionButton.disabled = true;
         startAttentionDetectionButton.disabled = true;
+        startAllMonitoringButton.disabled = false;
+        stopAllMonitoringButton.disabled = true;
         monitoringStatus.textContent = "stopped";
         monitoringStatus.className = "status scheduled";
         setStatus("Camera stopped.");
@@ -808,6 +976,9 @@
     stopAttentionDetectionButton.addEventListener("click", () => {
         stopAttentionDetection("Not started");
     });
+
+    startAllMonitoringButton.addEventListener("click", startAllMonitoring);
+    stopAllMonitoringButton.addEventListener("click", stopAllMonitoring);
 
     demoButtons.forEach((button) => {
         button.addEventListener("click", async () => {
