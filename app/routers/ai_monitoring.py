@@ -71,6 +71,20 @@ async def log_auto_ai_event(session_id: str = Form(""), db: DatabaseSession = De
     }
 
 
+@router.post("/phone-event")
+async def log_phone_usage_event(session_id: str = Form(""), db: DatabaseSession = Depends(get_db)):
+    event, error = ai_service.log_phone_usage_detected(db, session_id)
+    if error:
+        return JSONResponse({"ok": False, "message": error}, status_code=400)
+
+    return {
+        "ok": True,
+        "message": event.message or "Phone usage detected by camera prototype.",
+        "event_type": event.event_type,
+        "severity": event.severity,
+    }
+
+
 @router.post("/occupancy")
 async def update_occupancy_count(
     session_id: str = Form(""),

@@ -17,11 +17,11 @@
 {% include "partials/messages.html" %}
 
 <div class="helper-note">
-    Version 2 currently logs AI monitoring events linked to active sessions. Advanced automatic detection such as phone usage, sleeping, and attention scoring are future improvements.
+    Version 2 logs AI monitoring events linked to active sessions. Sleep detection, attention scoring, and noise/talking detection are future improvements.
 </div>
 
 <div class="helper-note">
-    Automatic detection in this version is limited to basic face detection. Phone usage, sleeping, and attention scoring remain future improvements.
+    Phone detection is a prototype and depends on camera angle, lighting, and model accuracy.
 </div>
 
 {% if active_sessions %}
@@ -108,6 +108,11 @@
         <span>Classroom Light Status</span>
         <strong id="light-status" class="status info">{{ occupancy.light_status }}</strong>
     </article>
+    <article class="summary-card">
+        <span>Phone Detection</span>
+        <strong id="phone-detection-status" class="status scheduled">Not started</strong>
+        <small id="phone-confidence" class="muted">Confidence unavailable</small>
+    </article>
 </section>
 
 <div class="helper-note">
@@ -126,10 +131,13 @@
                 <button id="stop-camera" class="button" type="button" disabled>Stop Camera</button>
                 <button id="start-detection" class="button" type="button" disabled>Start Detection</button>
                 <button id="stop-detection" class="button" type="button" disabled>Stop Detection</button>
+                <button id="start-phone-detection" class="button" type="button" disabled>Start Phone Detection</button>
+                <button id="stop-phone-detection" class="button" type="button" disabled>Stop Phone Detection</button>
             </div>
         </div>
         <p id="camera-status" class="muted">Camera stopped.</p>
         <p id="detection-status" class="muted">Detection stopped.</p>
+        <p id="phone-detection-message" class="muted">Phone detection is not started.</p>
         <video id="ai-video" class="camera-preview" autoplay muted playsinline></video>
     </section>
 
@@ -142,12 +150,16 @@
             <button class="button" type="button" data-demo-count="5">Set Detected Count: 5</button>
         </div>
         <p id="occupancy-message" class="muted"></p>
-        <h3>Manual Session Events</h3>
+        <h3>Manual Demo Session Events</h3>
+        <p class="muted">Use these buttons when browser detection is unavailable or for report demos.</p>
         <form method="post" action="/ai-monitoring/events/monitoring_started?session_id={{ active_session.id }}">
             <button class="button primary" type="submit">Log Manual Monitoring Started</button>
         </form>
         <form method="post" action="/ai-monitoring/events/face_detected?session_id={{ active_session.id }}">
             <button class="button" type="submit">Log Manual Face Detected</button>
+        </form>
+        <form method="post" action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}">
+            <button class="button" type="submit">Log Manual Phone Usage Warning</button>
         </form>
         <form method="post" action="/ai-monitoring/events/monitoring_stopped?session_id={{ active_session.id }}">
             <button class="button" type="submit">Log Manual Monitoring Stopped</button>
@@ -193,14 +205,21 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script>
 (() => {
     const startButton = document.getElementById("start-camera");
     const stopButton = document.getElementById("stop-camera");
     const startDetectionButton = document.getElementById("start-detection");
     const stopDetectionButton = document.getElementById("stop-detection");
+    const startPhoneDetectionButton = document.getElementById("start-phone-detection");
+    const stopPhoneDetectionButton = document.getElementById("stop-phone-detection");
     const statusText = document.getElementById("camera-status");
     const detectionStatus = document.getElementById("detection-status");
+    const phoneDetectionStatus = document.getElementById("phone-detection-status");
+    const phoneDetectionMessage = document.getElementById("phone-detection-message");
+    const phoneConfidence = document.getElementById("phone-confidence");
     const video = document.getElementById("ai-video");
     const monitoringStatus = document.getElementById("monitoring-status");
     const qrPresentCount = document.getElementById("qr-present-count");
@@ -213,11 +232,16 @@
     const selectedSessionId = "{{ active_session.id if active_session else '' }}";
     let stream = null;
     let detector = null;
+    let phoneModel = null;
     let detectionRunning = false;
+    let phoneDetectionRunning = false;
     let detectionTimer = null;
+    let phoneDetectionTimer = null;
     let statusTimer = null;
     const detectionIntervalMs = 1200;
+    const phoneDetectionIntervalMs = 1500;
     const statusIntervalMs = 1000;
+    const phoneConfidenceThreshold = 0.45;
 
     if (!startButton || !stopButton || !startDetectionButton || !stopDetectionButton || !video) {
         return;
@@ -229,6 +253,18 @@
 
     function setDetectionStatus(message) {
         detectionStatus.textContent = message;
+    }
+
+    function setPhoneDetectionStatus(message, className = "status info") {
+        phoneDetectionStatus.textContent = message;
+        phoneDetectionStatus.className = className;
+        phoneDetectionMessage.textContent = message;
+    }
+
+    function setPhoneConfidence(score) {
+        phoneConfidence.textContent = typeof score === "number"
+            ? `Confidence: ${Math.round(score * 100)}%`
+            : "Confidence unavailable";
     }
 
     function faceDetectionSupported() {
@@ -276,6 +312,23 @@
         }
         renderOccupancy(result.occupancy);
         occupancyMessage.textContent = "Detected count updated.";
+        return true;
+    }
+
+    async function postPhoneUsageWarning() {
+        const body = new URLSearchParams();
+        body.set("session_id", selectedSessionId);
+        const response = await fetch("/ai-monitoring/phone-event", {
+            method: "POST",
+            body,
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        });
+        const result = await response.json();
+        if (!result.ok) {
+            phoneDetectionMessage.textContent = result.message || "Phone warning was not logged.";
+            return false;
+        }
+        phoneDetectionMessage.textContent = result.message || "Phone usage warning logged.";
         return true;
     }
 
@@ -328,6 +381,62 @@
         setDetectionStatus(message);
     }
 
+    async function loadPhoneModel() {
+        if (phoneModel) {
+            return phoneModel;
+        }
+        if (!window.cocoSsd?.load) {
+            throw new Error("COCO-SSD is unavailable.");
+        }
+        setPhoneDetectionStatus("Loading model", "status info");
+        phoneModel = await window.cocoSsd.load();
+        return phoneModel;
+    }
+
+    async function detectPhones() {
+        if (!phoneDetectionRunning || !phoneModel || !video.srcObject) {
+            return;
+        }
+
+        try {
+            const predictions = await phoneModel.detect(video);
+            const phonePrediction = predictions
+                .filter((item) => item.class === "cell phone")
+                .sort((left, right) => right.score - left.score)[0];
+
+            if (phonePrediction && phonePrediction.score >= phoneConfidenceThreshold) {
+                setPhoneConfidence(phonePrediction.score);
+                setPhoneDetectionStatus("Phone detected", "status warning");
+                await postPhoneUsageWarning();
+            } else {
+                setPhoneConfidence(phonePrediction?.score);
+                setPhoneDetectionStatus("No phone detected", "status active");
+            }
+        } catch (error) {
+            stopPhoneDetection("Detection unavailable");
+            return;
+        }
+
+        if (phoneDetectionRunning) {
+            phoneDetectionTimer = window.setTimeout(detectPhones, phoneDetectionIntervalMs);
+        }
+    }
+
+    function stopPhoneDetection(message = "Not started") {
+        phoneDetectionRunning = false;
+        if (phoneDetectionTimer) {
+            window.clearTimeout(phoneDetectionTimer);
+            phoneDetectionTimer = null;
+        }
+        startPhoneDetectionButton.disabled = !stream;
+        stopPhoneDetectionButton.disabled = true;
+        setPhoneDetectionStatus(message, message === "Detection unavailable" ? "status warning" : "status scheduled");
+        if (message === "Detection unavailable") {
+            setPhoneConfidence(null);
+            phoneDetectionMessage.textContent = "Phone detection is unavailable. Manual demo logging is still available.";
+        }
+    }
+
     startButton.addEventListener("click", async () => {
         if (!navigator.mediaDevices?.getUserMedia) {
             setStatus("Camera is not supported in this browser.");
@@ -339,6 +448,7 @@
             startButton.disabled = true;
             stopButton.disabled = false;
             startDetectionButton.disabled = !faceDetectionSupported();
+            startPhoneDetectionButton.disabled = false;
             monitoringStatus.textContent = "camera ready";
             monitoringStatus.className = "status active";
             setStatus("Camera ready.");
@@ -355,6 +465,7 @@
 
     stopButton.addEventListener("click", () => {
         stopDetection("Detection stopped.");
+        stopPhoneDetection("Not started");
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             stream = null;
@@ -363,6 +474,7 @@
         startButton.disabled = false;
         stopButton.disabled = true;
         startDetectionButton.disabled = true;
+        startPhoneDetectionButton.disabled = true;
         monitoringStatus.textContent = "stopped";
         monitoringStatus.className = "status scheduled";
         setStatus("Camera stopped.");
@@ -406,6 +518,34 @@
             monitoringStatus.textContent = "camera ready";
             monitoringStatus.className = "status active";
         }
+    });
+
+    startPhoneDetectionButton.addEventListener("click", async () => {
+        if (!selectedSessionId) {
+            setPhoneDetectionStatus("Detection unavailable", "status warning");
+            phoneDetectionMessage.textContent = "Please select an active session to monitor.";
+            return;
+        }
+        if (!stream) {
+            setPhoneDetectionStatus("Detection unavailable", "status warning");
+            phoneDetectionMessage.textContent = "Start camera before phone detection.";
+            return;
+        }
+
+        try {
+            await loadPhoneModel();
+            phoneDetectionRunning = true;
+            startPhoneDetectionButton.disabled = true;
+            stopPhoneDetectionButton.disabled = false;
+            setPhoneDetectionStatus("Detecting phone", "status info");
+            await detectPhones();
+        } catch (error) {
+            stopPhoneDetection("Detection unavailable");
+        }
+    });
+
+    stopPhoneDetectionButton.addEventListener("click", () => {
+        stopPhoneDetection("Not started");
     });
 
     demoButtons.forEach((button) => {
