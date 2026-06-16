@@ -73,15 +73,51 @@ async def log_auto_ai_event(session_id: str = Form(""), db: DatabaseSession = De
 
 @router.post("/phone-event")
 async def log_phone_usage_event(session_id: str = Form(""), db: DatabaseSession = Depends(get_db)):
-    event, error = ai_service.log_phone_usage_detected(db, session_id)
+    event, error, cooldown_remaining_seconds = ai_service.log_phone_usage_detected(db, session_id)
     if error:
-        return JSONResponse({"ok": False, "message": error}, status_code=400)
+        cooldown_active = cooldown_remaining_seconds > 0
+        return JSONResponse(
+            {
+                "ok": False,
+                "message": error,
+                "cooldown_active": cooldown_active,
+                "cooldown_remaining_seconds": cooldown_remaining_seconds,
+            },
+            status_code=429 if cooldown_active else 400,
+        )
 
     return {
         "ok": True,
-        "message": event.message or "Phone usage detected by camera prototype.",
+        "message": "Phone warning logged. Waiting for cooldown.",
         "event_type": event.event_type,
         "severity": event.severity,
+        "cooldown_seconds": ai_service.PHONE_USAGE_COOLDOWN_SECONDS,
+        "cooldown_remaining_seconds": cooldown_remaining_seconds,
+    }
+
+
+@router.post("/attention-event")
+async def log_attention_warning_event(session_id: str = Form(""), db: DatabaseSession = Depends(get_db)):
+    event, error, cooldown_remaining_seconds = ai_service.log_attention_warning_detected(db, session_id)
+    if error:
+        cooldown_active = cooldown_remaining_seconds > 0
+        return JSONResponse(
+            {
+                "ok": False,
+                "message": error,
+                "cooldown_active": cooldown_active,
+                "cooldown_remaining_seconds": cooldown_remaining_seconds,
+            },
+            status_code=429 if cooldown_active else 400,
+        )
+
+    return {
+        "ok": True,
+        "message": "Attention warning logged. Waiting for cooldown.",
+        "event_type": event.event_type,
+        "severity": event.severity,
+        "cooldown_seconds": ai_service.ATTENTION_WARNING_COOLDOWN_SECONDS,
+        "cooldown_remaining_seconds": cooldown_remaining_seconds,
     }
 
 

@@ -17,11 +17,15 @@
 {% include "partials/messages.html" %}
 
 <div class="helper-note">
-    Version 2 logs AI monitoring events linked to active sessions. Sleep detection, attention scoring, and noise/talking detection are future improvements.
+    Version 2 logs AI monitoring events linked to active sessions. Sleep detection and noise/talking detection are future improvements.
 </div>
 
 <div class="helper-note">
     Phone detection is a prototype and depends on camera angle, lighting, and model accuracy.
+</div>
+
+<div class="helper-note">
+    Attention detection is a prototype estimate based on camera view and may be inaccurate. It does not prove student behavior.
 </div>
 
 {% if active_sessions %}
@@ -113,6 +117,11 @@
         <strong id="phone-detection-status" class="status scheduled">Not started</strong>
         <small id="phone-confidence" class="muted">Confidence unavailable</small>
     </article>
+    <article class="summary-card">
+        <span>Attention Detection</span>
+        <strong id="attention-detection-status" class="status scheduled">Not started</strong>
+        <small id="attention-confidence" class="muted">Prototype estimate</small>
+    </article>
 </section>
 
 <div class="helper-note">
@@ -133,11 +142,14 @@
                 <button id="stop-detection" class="button" type="button" disabled>Stop Detection</button>
                 <button id="start-phone-detection" class="button" type="button" disabled>Start Phone Detection</button>
                 <button id="stop-phone-detection" class="button" type="button" disabled>Stop Phone Detection</button>
+                <button id="start-attention-detection" class="button" type="button" disabled>Start Attention Detection</button>
+                <button id="stop-attention-detection" class="button" type="button" disabled>Stop Attention Detection</button>
             </div>
         </div>
         <p id="camera-status" class="muted">Camera stopped.</p>
         <p id="detection-status" class="muted">Detection stopped.</p>
         <p id="phone-detection-message" class="muted">Phone detection is not started.</p>
+        <p id="attention-detection-message" class="muted">Attention detection is not started.</p>
         <video id="ai-video" class="camera-preview" autoplay muted playsinline></video>
     </section>
 
@@ -157,6 +169,9 @@
         </form>
         <form method="post" action="/ai-monitoring/events/face_detected?session_id={{ active_session.id }}">
             <button class="button" type="submit">Log Manual Face Detected</button>
+        </form>
+        <form method="post" action="/ai-monitoring/events/attention_warning?session_id={{ active_session.id }}">
+            <button class="button" type="submit">Log Manual Attention Warning (uses cooldown)</button>
         </form>
         <form method="post" action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}">
             <button class="button" type="submit">Log Manual Phone Usage Warning</button>
@@ -207,6 +222,7 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 <script>
 (() => {
     const startButton = document.getElementById("start-camera");
@@ -215,11 +231,16 @@
     const stopDetectionButton = document.getElementById("stop-detection");
     const startPhoneDetectionButton = document.getElementById("start-phone-detection");
     const stopPhoneDetectionButton = document.getElementById("stop-phone-detection");
+    const startAttentionDetectionButton = document.getElementById("start-attention-detection");
+    const stopAttentionDetectionButton = document.getElementById("stop-attention-detection");
     const statusText = document.getElementById("camera-status");
     const detectionStatus = document.getElementById("detection-status");
     const phoneDetectionStatus = document.getElementById("phone-detection-status");
     const phoneDetectionMessage = document.getElementById("phone-detection-message");
     const phoneConfidence = document.getElementById("phone-confidence");
+    const attentionDetectionStatus = document.getElementById("attention-detection-status");
+    const attentionDetectionMessage = document.getElementById("attention-detection-message");
+    const attentionConfidence = document.getElementById("attention-confidence");
     const video = document.getElementById("ai-video");
     const monitoringStatus = document.getElementById("monitoring-status");
     const qrPresentCount = document.getElementById("qr-present-count");
@@ -233,13 +254,23 @@
     let stream = null;
     let detector = null;
     let phoneModel = null;
+    let attentionModel = null;
     let detectionRunning = false;
     let phoneDetectionRunning = false;
+    let attentionDetectionRunning = false;
     let detectionTimer = null;
     let phoneDetectionTimer = null;
+    let attentionDetectionTimer = null;
     let statusTimer = null;
+    let phoneCooldownUntil = 0;
+    let attentionCooldownUntil = 0;
+    let attentionAwaySince = null;
+    let latestAttentionLandmarks = null;
     const detectionIntervalMs = 1200;
     const phoneDetectionIntervalMs = 1500;
+    const attentionDetectionIntervalMs = 500;
+    const attentionAwayThresholdMs = 5000;
+    const attentionYawThreshold = 0.18;
     const statusIntervalMs = 1000;
     const phoneConfidenceThreshold = 0.45;
 
@@ -261,10 +292,54 @@
         phoneDetectionMessage.textContent = message;
     }
 
+    function setAttentionDetectionStatus(message, className = "status info") {
+        attentionDetectionStatus.textContent = message;
+        attentionDetectionStatus.className = className;
+        attentionDetectionMessage.textContent = message;
+    }
+
+    function phoneCooldownRemainingSeconds() {
+        return Math.max(0, Math.ceil((phoneCooldownUntil - Date.now()) / 1000));
+    }
+
+    function attentionCooldownRemainingSeconds() {
+        return Math.max(0, Math.ceil((attentionCooldownUntil - Date.now()) / 1000));
+    }
+
+    function phoneCooldownMessage(prefix) {
+        const remainingSeconds = phoneCooldownRemainingSeconds();
+        return remainingSeconds > 0
+            ? `${prefix} ${remainingSeconds} seconds remaining.`
+            : prefix;
+    }
+
+    function attentionCooldownMessage(prefix) {
+        const remainingSeconds = attentionCooldownRemainingSeconds();
+        return remainingSeconds > 0
+            ? `${prefix} ${remainingSeconds} seconds remaining.`
+            : prefix;
+    }
+
+    function setPhoneCooldown(seconds) {
+        const cooldownSeconds = Number(seconds) || 0;
+        phoneCooldownUntil = cooldownSeconds > 0 ? Date.now() + cooldownSeconds * 1000 : 0;
+    }
+
+    function setAttentionCooldown(seconds) {
+        const cooldownSeconds = Number(seconds) || 0;
+        attentionCooldownUntil = cooldownSeconds > 0 ? Date.now() + cooldownSeconds * 1000 : 0;
+    }
+
     function setPhoneConfidence(score) {
         phoneConfidence.textContent = typeof score === "number"
             ? `Confidence: ${Math.round(score * 100)}%`
             : "Confidence unavailable";
+    }
+
+    function setAttentionConfidence(score) {
+        attentionConfidence.textContent = typeof score === "number"
+            ? `Looking-away estimate: ${Math.round(score * 100)}%`
+            : "Prototype estimate";
     }
 
     function faceDetectionSupported() {
@@ -316,6 +391,12 @@
     }
 
     async function postPhoneUsageWarning() {
+        const remainingSeconds = phoneCooldownRemainingSeconds();
+        if (remainingSeconds > 0) {
+            phoneDetectionMessage.textContent = phoneCooldownMessage("Phone detected, but cooldown is active.");
+            return false;
+        }
+
         const body = new URLSearchParams();
         body.set("session_id", selectedSessionId);
         const response = await fetch("/ai-monitoring/phone-event", {
@@ -325,10 +406,45 @@
         });
         const result = await response.json();
         if (!result.ok) {
-            phoneDetectionMessage.textContent = result.message || "Phone warning was not logged.";
+            if (result.cooldown_active) {
+                setPhoneCooldown(result.cooldown_remaining_seconds);
+                phoneDetectionMessage.textContent = phoneCooldownMessage("Phone detected, but cooldown is active.");
+            } else {
+                phoneDetectionMessage.textContent = result.message || "Phone warning was not logged.";
+            }
             return false;
         }
-        phoneDetectionMessage.textContent = result.message || "Phone usage warning logged.";
+        setPhoneCooldown(result.cooldown_remaining_seconds || result.cooldown_seconds);
+        phoneDetectionMessage.textContent = phoneCooldownMessage(result.message || "Phone warning logged. Waiting for cooldown.");
+        return true;
+    }
+
+    async function postAttentionWarning() {
+        const remainingSeconds = attentionCooldownRemainingSeconds();
+        if (remainingSeconds > 0) {
+            attentionDetectionMessage.textContent = attentionCooldownMessage("Looking away detected, but cooldown is active.");
+            return false;
+        }
+
+        const body = new URLSearchParams();
+        body.set("session_id", selectedSessionId);
+        const response = await fetch("/ai-monitoring/attention-event", {
+            method: "POST",
+            body,
+            headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        });
+        const result = await response.json();
+        if (!result.ok) {
+            if (result.cooldown_active) {
+                setAttentionCooldown(result.cooldown_remaining_seconds);
+                attentionDetectionMessage.textContent = attentionCooldownMessage("Looking away detected, but cooldown is active.");
+            } else {
+                attentionDetectionMessage.textContent = result.message || "Attention warning was not logged.";
+            }
+            return false;
+        }
+        setAttentionCooldown(result.cooldown_remaining_seconds || result.cooldown_seconds);
+        attentionDetectionMessage.textContent = attentionCooldownMessage(result.message || "Attention warning logged. Waiting for cooldown.");
         return true;
     }
 
@@ -407,7 +523,11 @@
             if (phonePrediction && phonePrediction.score >= phoneConfidenceThreshold) {
                 setPhoneConfidence(phonePrediction.score);
                 setPhoneDetectionStatus("Phone detected", "status warning");
-                await postPhoneUsageWarning();
+                if (phoneCooldownRemainingSeconds() > 0) {
+                    phoneDetectionMessage.textContent = phoneCooldownMessage("Phone detected, but cooldown is active.");
+                } else {
+                    await postPhoneUsageWarning();
+                }
             } else {
                 setPhoneConfidence(phonePrediction?.score);
                 setPhoneDetectionStatus("No phone detected", "status active");
@@ -437,6 +557,116 @@
         }
     }
 
+    async function loadAttentionModel() {
+        if (attentionModel) {
+            return attentionModel;
+        }
+        if (!window.FaceMesh) {
+            throw new Error("FaceMesh is unavailable.");
+        }
+        setAttentionDetectionStatus("Loading model", "status info");
+        attentionModel = new window.FaceMesh({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+        });
+        attentionModel.setOptions({
+            maxNumFaces: 1,
+            refineLandmarks: false,
+            minDetectionConfidence: 0.5,
+            minTrackingConfidence: 0.5,
+        });
+        attentionModel.onResults((results) => {
+            latestAttentionLandmarks = results.multiFaceLandmarks?.[0] || null;
+        });
+        if (attentionModel.initialize) {
+            await attentionModel.initialize();
+        }
+        return attentionModel;
+    }
+
+    function estimateLookingAway(landmarks) {
+        if (!landmarks || !landmarks[1] || !landmarks[33] || !landmarks[263]) {
+            return null;
+        }
+
+        const nose = landmarks[1];
+        const leftEye = landmarks[33];
+        const rightEye = landmarks[263];
+        const eyeDistance = Math.abs(rightEye.x - leftEye.x);
+        if (eyeDistance < 0.04) {
+            return null;
+        }
+
+        const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+        const yawEstimate = Math.abs((nose.x - eyeCenterX) / eyeDistance);
+        const edgeEstimate = nose.x < 0.28 || nose.x > 0.72;
+        const lookingAway = yawEstimate > attentionYawThreshold || edgeEstimate;
+        return {
+            lookingAway,
+            score: Math.min(1, yawEstimate / 0.35),
+        };
+    }
+
+    async function detectAttention() {
+        if (!attentionDetectionRunning || !attentionModel || !video.srcObject) {
+            return;
+        }
+
+        try {
+            latestAttentionLandmarks = null;
+            await attentionModel.send({ image: video });
+            const estimate = estimateLookingAway(latestAttentionLandmarks);
+            if (!estimate) {
+                attentionAwaySince = null;
+                setAttentionConfidence(null);
+                setAttentionDetectionStatus("Detecting attention", "status info");
+                attentionDetectionMessage.textContent = "No reliable face landmarks found yet.";
+            } else if (estimate.lookingAway) {
+                const now = Date.now();
+                attentionAwaySince = attentionAwaySince || now;
+                const elapsedSeconds = Math.floor((now - attentionAwaySince) / 1000);
+                setAttentionConfidence(estimate.score);
+                setAttentionDetectionStatus("Looking away", "status warning");
+                if (elapsedSeconds >= attentionAwayThresholdMs / 1000) {
+                    if (attentionCooldownRemainingSeconds() > 0) {
+                        attentionDetectionMessage.textContent = attentionCooldownMessage("Looking away detected, but cooldown is active.");
+                    } else {
+                        await postAttentionWarning();
+                    }
+                } else {
+                    attentionDetectionMessage.textContent = `Looking away estimate for ${elapsedSeconds} seconds.`;
+                }
+            } else {
+                attentionAwaySince = null;
+                setAttentionConfidence(estimate.score);
+                setAttentionDetectionStatus("Looking forward", "status active");
+                attentionDetectionMessage.textContent = "Looking forward.";
+            }
+        } catch (error) {
+            stopAttentionDetection("Detection unavailable");
+            return;
+        }
+
+        if (attentionDetectionRunning) {
+            attentionDetectionTimer = window.setTimeout(detectAttention, attentionDetectionIntervalMs);
+        }
+    }
+
+    function stopAttentionDetection(message = "Not started") {
+        attentionDetectionRunning = false;
+        attentionAwaySince = null;
+        if (attentionDetectionTimer) {
+            window.clearTimeout(attentionDetectionTimer);
+            attentionDetectionTimer = null;
+        }
+        startAttentionDetectionButton.disabled = !stream;
+        stopAttentionDetectionButton.disabled = true;
+        setAttentionDetectionStatus(message, message === "Detection unavailable" ? "status warning" : "status scheduled");
+        if (message === "Detection unavailable") {
+            setAttentionConfidence(null);
+            attentionDetectionMessage.textContent = "Attention detection is unavailable. Manual demo logging is still available.";
+        }
+    }
+
     startButton.addEventListener("click", async () => {
         if (!navigator.mediaDevices?.getUserMedia) {
             setStatus("Camera is not supported in this browser.");
@@ -449,6 +679,7 @@
             stopButton.disabled = false;
             startDetectionButton.disabled = !faceDetectionSupported();
             startPhoneDetectionButton.disabled = false;
+            startAttentionDetectionButton.disabled = false;
             monitoringStatus.textContent = "camera ready";
             monitoringStatus.className = "status active";
             setStatus("Camera ready.");
@@ -466,6 +697,7 @@
     stopButton.addEventListener("click", () => {
         stopDetection("Detection stopped.");
         stopPhoneDetection("Not started");
+        stopAttentionDetection("Not started");
         if (stream) {
             stream.getTracks().forEach((track) => track.stop());
             stream = null;
@@ -475,6 +707,7 @@
         stopButton.disabled = true;
         startDetectionButton.disabled = true;
         startPhoneDetectionButton.disabled = true;
+        startAttentionDetectionButton.disabled = true;
         monitoringStatus.textContent = "stopped";
         monitoringStatus.className = "status scheduled";
         setStatus("Camera stopped.");
@@ -546,6 +779,34 @@
 
     stopPhoneDetectionButton.addEventListener("click", () => {
         stopPhoneDetection("Not started");
+    });
+
+    startAttentionDetectionButton.addEventListener("click", async () => {
+        if (!selectedSessionId) {
+            setAttentionDetectionStatus("Detection unavailable", "status warning");
+            attentionDetectionMessage.textContent = "Please select an active session to monitor.";
+            return;
+        }
+        if (!stream) {
+            setAttentionDetectionStatus("Detection unavailable", "status warning");
+            attentionDetectionMessage.textContent = "Start camera before attention detection.";
+            return;
+        }
+
+        try {
+            await loadAttentionModel();
+            attentionDetectionRunning = true;
+            startAttentionDetectionButton.disabled = true;
+            stopAttentionDetectionButton.disabled = false;
+            setAttentionDetectionStatus("Detecting attention", "status info");
+            await detectAttention();
+        } catch (error) {
+            stopAttentionDetection("Detection unavailable");
+        }
+    });
+
+    stopAttentionDetectionButton.addEventListener("click", () => {
+        stopAttentionDetection("Not started");
     });
 
     demoButtons.forEach((button) => {

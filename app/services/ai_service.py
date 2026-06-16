@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+from math import ceil
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session as DatabaseSession
@@ -17,7 +18,7 @@ EVENTS = {
     "monitoring_started": (INFO, "Monitoring started for the active session."),
     "monitoring_stopped": (INFO, "Monitoring stopped for the active session."),
     "face_detected": (INFO, "Demo event: face detected."),
-    "attention_warning": (WARNING, "Demo event: attention warning logged."),
+    "attention_warning": (WARNING, "Student may not be paying attention; looking away detected by prototype."),
     "phone_usage_warning": (WARNING, "Demo event: phone usage warning logged."),
     "no_event": (INFO, "Demo event: no event detected."),
     "occupancy_empty": (WARNING, "No students detected in the classroom."),
@@ -26,9 +27,11 @@ EVENTS = {
 }
 
 AUTO_FACE_MESSAGE = "Face detected by camera."
+AUTO_ATTENTION_MESSAGE = "Student may not be paying attention; looking away detected by prototype."
 AUTO_PHONE_MESSAGE = "Phone usage detected by camera prototype."
 AUTO_FACE_COOLDOWN_SECONDS = 15
-PHONE_USAGE_COOLDOWN_SECONDS = 30
+ATTENTION_WARNING_COOLDOWN_SECONDS = 60
+PHONE_USAGE_COOLDOWN_SECONDS = 60
 DEMO_LIGHT_AUTO_OFF_SECONDS = 10
 OCCUPANCY_EMPTY_COOLDOWN_SECONDS = 60
 UNKNOWN = "Unknown"
@@ -354,6 +357,43 @@ def latest_phone_usage_event(db: DatabaseSession, session_id: int) -> AIEvent | 
     )
 
 
+def latest_attention_warning_event(db: DatabaseSession, session_id: int) -> AIEvent | None:
+    return (
+        db.query(AIEvent)
+        .filter(
+            AIEvent.session_id == session_id,
+            AIEvent.event_type == "attention_warning",
+        )
+        .order_by(AIEvent.detected_at.desc())
+        .first()
+    )
+
+
+def cooldown_remaining_seconds(latest_event: AIEvent | None, cooldown_seconds: int) -> int:
+    if not latest_event or not latest_event.detected_at:
+        return 0
+
+    cooldown_until = latest_event.detected_at + timedelta(seconds=cooldown_seconds)
+    now = datetime.now(latest_event.detected_at.tzinfo) if latest_event.detected_at.tzinfo else datetime.utcnow()
+    return max(0, ceil((cooldown_until - now).total_seconds()))
+
+
+def phone_usage_cooldown_remaining(db: DatabaseSession, session_id: int) -> int:
+    return cooldown_remaining_seconds(latest_phone_usage_event(db, session_id), PHONE_USAGE_COOLDOWN_SECONDS)
+
+
+def attention_warning_cooldown_remaining(db: DatabaseSession, session_id: int) -> int:
+    return cooldown_remaining_seconds(latest_attention_warning_event(db, session_id), ATTENTION_WARNING_COOLDOWN_SECONDS)
+
+
+def phone_usage_cooldown_message(remaining_seconds: int) -> str:
+    return f"Phone detected, but cooldown is active. {remaining_seconds} seconds remaining."
+
+
+def attention_warning_cooldown_message(remaining_seconds: int) -> str:
+    return f"Looking away detected, but cooldown is active. {remaining_seconds} seconds remaining."
+
+
 def log_auto_face_detected(db: DatabaseSession, session_id: int | str | None) -> tuple[AIEvent | None, str | None]:
     active_session, session_error = get_session_for_event(db, session_id)
     if session_error:
@@ -369,19 +409,30 @@ def log_auto_face_detected(db: DatabaseSession, session_id: int | str | None) ->
     return create_event(db, active_session, "face_detected", INFO, AUTO_FACE_MESSAGE), None
 
 
-def log_phone_usage_detected(db: DatabaseSession, session_id: int | str | None) -> tuple[AIEvent | None, str | None]:
+def log_phone_usage_detected(db: DatabaseSession, session_id: int | str | None) -> tuple[AIEvent | None, str | None, int]:
     active_session, session_error = get_session_for_event(db, session_id)
     if session_error:
-        return None, session_error
+        return None, session_error, 0
 
-    latest_event = latest_phone_usage_event(db, active_session.id)
-    if latest_event and latest_event.detected_at:
-        cooldown_until = latest_event.detected_at + timedelta(seconds=PHONE_USAGE_COOLDOWN_SECONDS)
-        now = datetime.now(latest_event.detected_at.tzinfo) if latest_event.detected_at.tzinfo else datetime.utcnow()
-        if cooldown_until > now:
-            return None, "Phone usage warning was logged recently. Waiting for cooldown."
+    remaining_seconds = phone_usage_cooldown_remaining(db, active_session.id)
+    if remaining_seconds > 0:
+        return None, phone_usage_cooldown_message(remaining_seconds), remaining_seconds
 
-    return create_event(db, active_session, "phone_usage_warning", WARNING, AUTO_PHONE_MESSAGE), None
+    event = create_event(db, active_session, "phone_usage_warning", WARNING, AUTO_PHONE_MESSAGE)
+    return event, None, PHONE_USAGE_COOLDOWN_SECONDS
+
+
+def log_attention_warning_detected(db: DatabaseSession, session_id: int | str | None) -> tuple[AIEvent | None, str | None, int]:
+    active_session, session_error = get_session_for_event(db, session_id)
+    if session_error:
+        return None, session_error, 0
+
+    remaining_seconds = attention_warning_cooldown_remaining(db, active_session.id)
+    if remaining_seconds > 0:
+        return None, attention_warning_cooldown_message(remaining_seconds), remaining_seconds
+
+    event = create_event(db, active_session, "attention_warning", WARNING, AUTO_ATTENTION_MESSAGE)
+    return event, None, ATTENTION_WARNING_COOLDOWN_SECONDS
 
 
 def log_event(db: DatabaseSession, event_type: str, session_id: int | str | None) -> tuple[AIEvent | None, str | None]:
@@ -413,13 +464,16 @@ def log_event(db: DatabaseSession, event_type: str, session_id: int | str | None
         return event, None
 
     if event_type == "phone_usage_warning":
-        latest_event = latest_phone_usage_event(db, active_session.id)
-        if latest_event and latest_event.detected_at:
-            cooldown_until = latest_event.detected_at + timedelta(seconds=PHONE_USAGE_COOLDOWN_SECONDS)
-            now = datetime.now(latest_event.detected_at.tzinfo) if latest_event.detected_at.tzinfo else datetime.utcnow()
-            if cooldown_until > now:
-                return None, "Phone usage warning was logged recently. Waiting for cooldown."
+        remaining_seconds = phone_usage_cooldown_remaining(db, active_session.id)
+        if remaining_seconds > 0:
+            return None, phone_usage_cooldown_message(remaining_seconds)
         return create_event(db, active_session, event_type, WARNING, AUTO_PHONE_MESSAGE), None
+
+    if event_type == "attention_warning":
+        remaining_seconds = attention_warning_cooldown_remaining(db, active_session.id)
+        if remaining_seconds > 0:
+            return None, attention_warning_cooldown_message(remaining_seconds)
+        return create_event(db, active_session, event_type, WARNING, AUTO_ATTENTION_MESSAGE), None
 
     severity, message = EVENTS[event_type]
     return create_event(db, active_session, event_type, severity, message), None

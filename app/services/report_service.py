@@ -183,6 +183,7 @@ def build_ai_events_pdf(
             "Summary: "
             f"Total {summary['total']} | Info {summary['info']} | Warning {summary['warning']} | "
             f"Critical {summary['critical']} | Face Detected {summary['face_detected']} | "
+            f"Attention Warnings {summary['attention_warning']} | "
             f"Phone Usage Warnings {summary['phone_usage_warning']} | "
             f"Empty Occupancy {summary['occupancy_empty']} | Light Auto Off {summary['light_auto_off']} | "
             f"Light Auto On {summary['light_auto_on']}",
