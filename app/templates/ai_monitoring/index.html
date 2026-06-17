@@ -493,11 +493,18 @@ endblock %} {% block content %}
         <th>Event</th>
         <th>Severity</th>
         <th>Message</th>
+        <th>Snapshot</th>
         <th>Session</th>
       </tr>
     </thead>
     <tbody>
       {% for event in events %}
+      {% set snapshot_url = none %}
+      {% set event_message = event.message or event.description or "-" %}
+      {% if event.description and "Snapshot:" in event.description %}
+      {% set snapshot_url = event.description.split("Snapshot:", 1)[1].strip().split()[0] %}
+      {% set event_message = event.description.split("Snapshot:", 1)[0].strip() or event.message or "-" %}
+      {% endif %}
       <tr>
         <td>
           {{ event.detected_at.strftime("%Y-%m-%d %H:%M") if event.detected_at
@@ -507,7 +514,14 @@ endblock %} {% block content %}
         <td>
           <span class="status {{ event.severity }}">{{ event.severity }}</span>
         </td>
-        <td>{{ event.message or event.description or "-" }}</td>
+        <td>{{ event_message }}</td>
+        <td>
+          {% if snapshot_url %}
+          <a class="button" href="{{ snapshot_url }}" target="_blank" rel="noopener">View Snapshot</a>
+          {% else %}
+          -
+          {% endif %}
+        </td>
         <td>
           {% if event.session %} {{ event.session.subject.code }} | {{
           event.session.class_group.class_code }} {% else %} - {% endif %}
@@ -515,7 +529,7 @@ endblock %} {% block content %}
       </tr>
       {% else %}
       <tr>
-        <td colspan="5" class="empty">No AI monitoring events yet.</td>
+        <td colspan="6" class="empty">No AI monitoring events yet.</td>
       </tr>
       {% endfor %}
     </tbody>
@@ -649,6 +663,25 @@ endblock %} {% block content %}
       backendModelStatus.textContent = message;
       backendModelStatus.className = className;
       backendAiMessage.textContent = message;
+    }
+
+    function showBackendAiMessage(message, snapshotUrl = null) {
+      backendAiMessage.textContent = message;
+
+      if (!snapshotUrl) {
+        return;
+      }
+
+      const separator = document.createTextNode(" ");
+      const snapshotLink = document.createElement("a");
+      snapshotLink.href = snapshotUrl;
+      snapshotLink.target = "_blank";
+      snapshotLink.rel = "noopener";
+      snapshotLink.className = "snapshot-link";
+      snapshotLink.textContent = "View Snapshot";
+
+      backendAiMessage.appendChild(separator);
+      backendAiMessage.appendChild(snapshotLink);
     }
 
     function phoneCooldownRemainingSeconds() {
@@ -915,10 +948,11 @@ endblock %} {% block content %}
       if (result.available) {
         backendModelStatus.textContent = "Model active";
         backendModelStatus.className = "status active";
-        backendAiMessage.textContent =
+        const backendMessage =
           result.event_message ||
           result.message ||
           "Backend AI analysis completed.";
+        showBackendAiMessage(backendMessage, result.snapshot_url);
       } else {
         setBackendAiStatus(
           result.message || "Backend YOLO model is unavailable.",
@@ -1061,6 +1095,98 @@ endblock %} {% block content %}
       });
     }
 
+    function waitForCondition(checkFn, timeoutMs = 6000, intervalMs = 150) {
+      const startTime = Date.now();
+
+      return new Promise((resolve) => {
+        const check = () => {
+          if (checkFn()) {
+            resolve(true);
+            return;
+          }
+
+          if (Date.now() - startTime >= timeoutMs) {
+            resolve(false);
+            return;
+          }
+
+          window.setTimeout(check, intervalMs);
+        };
+
+        check();
+      });
+    }
+
+    async function startPhoneDetectionFromAll() {
+      if (!stream || !selectedSessionId || phoneDetectionRunning) {
+        return;
+      }
+
+      const phoneLibraryReady = await waitForCondition(
+        () => Boolean(window.cocoSsd?.load),
+        7000,
+      );
+
+      if (!phoneLibraryReady) {
+        setPhoneDetectionStatus("Detection unavailable", "status warning");
+        phoneDetectionMessage.textContent =
+          "Phone detection model is still loading. You can click Start Phone again in a few seconds.";
+        return;
+      }
+
+      try {
+        await loadPhoneModel();
+        phoneDetectionRunning = true;
+        startPhoneDetectionButton.disabled = true;
+        stopPhoneDetectionButton.disabled = false;
+        setPhoneDetectionStatus("Detecting phone", "status info");
+        await detectPhones();
+      } catch (error) {
+        stopPhoneDetection("Detection unavailable");
+      }
+    }
+
+    async function startAttentionDetectionFromAll() {
+      if (!stream || !selectedSessionId || attentionDetectionRunning) {
+        return;
+      }
+
+      const attentionLibraryReady = await waitForCondition(
+        () => Boolean(window.FaceMesh),
+        7000,
+      );
+
+      if (!attentionLibraryReady) {
+        setAttentionDetectionStatus("Detection unavailable", "status warning");
+        attentionDetectionMessage.textContent =
+          "Attention detection model is still loading. You can click Start Attention again in a few seconds.";
+        return;
+      }
+
+      try {
+        await loadAttentionModel();
+        attentionDetectionRunning = true;
+        startAttentionDetectionButton.disabled = true;
+        stopAttentionDetectionButton.disabled = false;
+        setAttentionDetectionStatus("Detecting attention", "status info");
+        await detectAttention();
+      } catch (error) {
+        stopAttentionDetection("Detection unavailable");
+      }
+    }
+
+    async function startBackendAiFromAll() {
+      if (!stream || !selectedSessionId || backendAiRunning) {
+        return;
+      }
+
+      backendAiRunning = true;
+      startBackendAiButton.disabled = true;
+      stopBackendAiButton.disabled = false;
+      setBackendAiStatus("Analyzing frames", "status info");
+      await analyzeBackendFrameLoop();
+    }
+
     async function startAllMonitoring() {
       if (!selectedSessionId) {
         setStatus("Please select an active session to monitor.");
@@ -1083,7 +1209,12 @@ endblock %} {% block content %}
         }
       }
 
-      if (!startDetectionButton.disabled) {
+      await waitForCondition(
+        () => Boolean(video.videoWidth && video.videoHeight),
+        4000,
+      );
+
+      if (!startDetectionButton.disabled && !detectionRunning) {
         startDetectionButton.click();
       } else if (!faceDetectionSupported()) {
         setDetectionStatus(
@@ -1091,17 +1222,9 @@ endblock %} {% block content %}
         );
       }
 
-      if (!startPhoneDetectionButton.disabled) {
-        startPhoneDetectionButton.click();
-      }
-
-      if (!startAttentionDetectionButton.disabled) {
-        startAttentionDetectionButton.click();
-      }
-
-      if (!startBackendAiButton.disabled) {
-        startBackendAiButton.click();
-      }
+      await startBackendAiFromAll();
+      await startPhoneDetectionFromAll();
+      await startAttentionDetectionFromAll();
 
       monitoringStatus.textContent = "monitoring";
       monitoringStatus.className = "status active";
@@ -1514,16 +1637,7 @@ endblock %} {% block content %}
         return;
       }
 
-      try {
-        await loadPhoneModel();
-        phoneDetectionRunning = true;
-        startPhoneDetectionButton.disabled = true;
-        stopPhoneDetectionButton.disabled = false;
-        setPhoneDetectionStatus("Detecting phone", "status info");
-        await detectPhones();
-      } catch (error) {
-        stopPhoneDetection("Detection unavailable");
-      }
+      await startPhoneDetectionFromAll();
     });
 
     stopPhoneDetectionButton.addEventListener("click", () => {
@@ -1544,16 +1658,7 @@ endblock %} {% block content %}
         return;
       }
 
-      try {
-        await loadAttentionModel();
-        attentionDetectionRunning = true;
-        startAttentionDetectionButton.disabled = true;
-        stopAttentionDetectionButton.disabled = false;
-        setAttentionDetectionStatus("Detecting attention", "status info");
-        await detectAttention();
-      } catch (error) {
-        stopAttentionDetection("Detection unavailable");
-      }
+      await startAttentionDetectionFromAll();
     });
 
     stopAttentionDetectionButton.addEventListener("click", () => {
@@ -1576,11 +1681,7 @@ endblock %} {% block content %}
         return;
       }
 
-      backendAiRunning = true;
-      startBackendAiButton.disabled = true;
-      stopBackendAiButton.disabled = false;
-      setBackendAiStatus("Analyzing frames", "status info");
-      await analyzeBackendFrameLoop();
+      await startBackendAiFromAll();
     });
 
     stopBackendAiButton.addEventListener("click", () => {

@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from math import ceil
+from pathlib import Path
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session as DatabaseSession
@@ -34,12 +35,18 @@ ATTENTION_WARNING_COOLDOWN_SECONDS = 60
 PHONE_USAGE_COOLDOWN_SECONDS = 60
 DEMO_LIGHT_AUTO_OFF_SECONDS = 10
 OCCUPANCY_EMPTY_COOLDOWN_SECONDS = 60
+
+SNAPSHOT_DIR = Path("app/static/uploads/ai_snapshots")
+SNAPSHOT_URL_PREFIX = "/static/uploads/ai_snapshots"
+SNAPSHOT_LINE_PREFIX = "Snapshot:"
+
 UNKNOWN = "Unknown"
 OCCUPIED = "Occupied"
 EMPTY = "Empty"
 LIGHT_AUTO = "Auto Mode"
 LIGHT_ON = "ON"
 LIGHT_OFF = "OFF"
+
 _occupancy_states: dict[int, dict] = {}
 
 
@@ -314,6 +321,7 @@ def create_event(
     event_type: str,
     severity: str,
     message: str,
+    description: str | None = None,
 ) -> AIEvent:
     event = AIEvent(
         session_id=active_session.id,
@@ -324,12 +332,61 @@ def create_event(
         event_type=event_type,
         severity=severity,
         message=message,
-        description=message,
+        description=description or message,
     )
     db.add(event)
     db.commit()
     db.refresh(event)
     return event
+
+
+def ensure_snapshot_dir() -> None:
+    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def snapshot_filename(session_id: int, event_type: str, now: datetime | None = None) -> str:
+    timestamp = (now or datetime.utcnow()).strftime("%Y%m%d_%H%M%S_%f")
+    safe_event = "".join(char if char.isalnum() or char in {"_", "-"} else "_" for char in event_type)
+    return f"session_{session_id}_{safe_event}_{timestamp}.jpg"
+
+
+def save_snapshot_image(
+    session_id: int,
+    event_type: str,
+    image_bytes: bytes | None,
+) -> str | None:
+    if not image_bytes:
+        return None
+
+    ensure_snapshot_dir()
+    filename = snapshot_filename(session_id, event_type)
+    path = SNAPSHOT_DIR / filename
+    path.write_bytes(image_bytes)
+    return f"{SNAPSHOT_URL_PREFIX}/{filename}"
+
+
+def description_with_snapshot(message: str, snapshot_url: str | None) -> str:
+    if not snapshot_url:
+        return message
+    return f"{message}\n{SNAPSHOT_LINE_PREFIX} {snapshot_url}"
+
+
+def extract_snapshot_url(text: str | None) -> str | None:
+    if not text:
+        return None
+
+    for line in text.splitlines():
+        line = line.strip()
+        if line.startswith(SNAPSHOT_LINE_PREFIX):
+            value = line.replace(SNAPSHOT_LINE_PREFIX, "", 1).strip()
+            if value.startswith(SNAPSHOT_URL_PREFIX):
+                return value
+
+    return None
+
+
+def event_snapshot_url(event: AIEvent) -> str | None:
+    return extract_snapshot_url(event.description) or extract_snapshot_url(event.message)
 
 
 def latest_auto_face_event(db: DatabaseSession, session_id: int) -> AIEvent | None:
@@ -409,7 +466,11 @@ def log_auto_face_detected(db: DatabaseSession, session_id: int | str | None) ->
     return create_event(db, active_session, "face_detected", INFO, AUTO_FACE_MESSAGE), None
 
 
-def log_phone_usage_detected(db: DatabaseSession, session_id: int | str | None) -> tuple[AIEvent | None, str | None, int]:
+def log_phone_usage_detected(
+    db: DatabaseSession,
+    session_id: int | str | None,
+    snapshot_image_bytes: bytes | None = None,
+) -> tuple[AIEvent | None, str | None, int]:
     active_session, session_error = get_session_for_event(db, session_id)
     if session_error:
         return None, session_error, 0
@@ -418,11 +479,23 @@ def log_phone_usage_detected(db: DatabaseSession, session_id: int | str | None) 
     if remaining_seconds > 0:
         return None, phone_usage_cooldown_message(remaining_seconds), remaining_seconds
 
-    event = create_event(db, active_session, "phone_usage_warning", WARNING, AUTO_PHONE_MESSAGE)
+    snapshot_url = save_snapshot_image(active_session.id, "phone_usage_warning", snapshot_image_bytes)
+    event = create_event(
+        db,
+        active_session,
+        "phone_usage_warning",
+        WARNING,
+        AUTO_PHONE_MESSAGE,
+        description_with_snapshot(AUTO_PHONE_MESSAGE, snapshot_url),
+    )
     return event, None, PHONE_USAGE_COOLDOWN_SECONDS
 
 
-def log_attention_warning_detected(db: DatabaseSession, session_id: int | str | None) -> tuple[AIEvent | None, str | None, int]:
+def log_attention_warning_detected(
+    db: DatabaseSession,
+    session_id: int | str | None,
+    snapshot_image_bytes: bytes | None = None,
+) -> tuple[AIEvent | None, str | None, int]:
     active_session, session_error = get_session_for_event(db, session_id)
     if session_error:
         return None, session_error, 0
@@ -431,7 +504,15 @@ def log_attention_warning_detected(db: DatabaseSession, session_id: int | str | 
     if remaining_seconds > 0:
         return None, attention_warning_cooldown_message(remaining_seconds), remaining_seconds
 
-    event = create_event(db, active_session, "attention_warning", WARNING, AUTO_ATTENTION_MESSAGE)
+    snapshot_url = save_snapshot_image(active_session.id, "attention_warning", snapshot_image_bytes)
+    event = create_event(
+        db,
+        active_session,
+        "attention_warning",
+        WARNING,
+        AUTO_ATTENTION_MESSAGE,
+        description_with_snapshot(AUTO_ATTENTION_MESSAGE, snapshot_url),
+    )
     return event, None, ATTENTION_WARNING_COOLDOWN_SECONDS
 
 

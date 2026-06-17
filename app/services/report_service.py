@@ -21,6 +21,12 @@ ATTENDANCE_COLUMNS = [
     "Recorded At",
 ]
 
+SNAPSHOT_LINE_PREFIX = "Snapshot:"
+SNAPSHOT_URL_PREFIX = "/static/uploads/ai_snapshots"
+SNAPSHOT_PRIVACY_NOTE = (
+    "Snapshots are stored for demo/review purposes only and should be handled responsibly."
+)
+
 AI_EVENT_COLUMNS = [
     "Detected At",
     "Class",
@@ -31,6 +37,7 @@ AI_EVENT_COLUMNS = [
     "Event Type",
     "Severity",
     "Message",
+    "Snapshot",
 ]
 
 
@@ -65,6 +72,43 @@ def build_attendance_csv(records: list[Attendance]) -> bytes:
     return output.getvalue().encode("utf-8-sig")
 
 
+def extract_snapshot_url(text: str | None) -> str:
+    if not text:
+        return ""
+
+    for line in str(text).splitlines():
+        line = line.strip()
+        if not line.startswith(SNAPSHOT_LINE_PREFIX):
+            continue
+
+        value = line.replace(SNAPSHOT_LINE_PREFIX, "", 1).strip()
+        if value.startswith(SNAPSHOT_URL_PREFIX):
+            return value
+
+    return ""
+
+
+def clean_snapshot_text(text: str | None) -> str:
+    if not text:
+        return ""
+
+    clean_lines = []
+    for line in str(text).splitlines():
+        if not line.strip().startswith(SNAPSHOT_LINE_PREFIX):
+            clean_lines.append(line)
+
+    return "\n".join(clean_lines).strip()
+
+
+def ai_event_message(event: AIEvent) -> str:
+    description_message = clean_snapshot_text(event.description)
+    return event.message or description_message or ""
+
+
+def ai_event_snapshot_url(event: AIEvent) -> str:
+    return extract_snapshot_url(event.description) or extract_snapshot_url(event.message)
+
+
 def ai_event_row(event: AIEvent) -> list[str]:
     session = event.session
     class_group = session.class_group if session else event.class_group
@@ -79,7 +123,8 @@ def ai_event_row(event: AIEvent) -> list[str]:
         f"{session.start_time.strftime('%H:%M')} - {session.end_time.strftime('%H:%M')}" if session else "",
         event.event_type.replace("_", " "),
         event.severity,
-        event.message or event.description or "",
+        ai_event_message(event),
+        ai_event_snapshot_url(event),
     ]
 
 
@@ -162,8 +207,8 @@ def build_ai_events_pdf(
         "AIEventTableCell",
         parent=styles["Normal"],
         fontName="Helvetica",
-        fontSize=6.1,
-        leading=7.2,
+        fontSize=5.7,
+        leading=6.8,
         wordWrap="CJK",
         splitLongWords=True,
     )
@@ -189,7 +234,9 @@ def build_ai_events_pdf(
             f"Light Auto On {summary['light_auto_on']}",
             styles["Normal"],
         ),
-        Spacer(1, 0.18 * inch),
+        Spacer(1, 0.08 * inch),
+        Paragraph(SNAPSHOT_PRIVACY_NOTE, styles["Italic"]),
+        Spacer(1, 0.14 * inch),
     ]
     if note:
         story.extend([Paragraph(note, styles["Italic"]), Spacer(1, 0.12 * inch)])
@@ -208,6 +255,7 @@ def build_ai_events_pdf(
                 Paragraph("Event", header_style),
                 Paragraph("Severity", header_style),
                 Paragraph("Message", header_style),
+                Paragraph("Snapshot", header_style),
             ]
         ]
         for event in events:
@@ -218,15 +266,16 @@ def build_ai_events_pdf(
             table_data,
             repeatRows=1,
             colWidths=[
-                0.7 * inch,
-                1.12 * inch,
-                1.14 * inch,
-                1.18 * inch,
+                0.65 * inch,
+                1.0 * inch,
+                1.0 * inch,
+                1.03 * inch,
+                0.58 * inch,
                 0.62 * inch,
-                0.68 * inch,
-                0.78 * inch,
-                0.52 * inch,
-                4.2 * inch,
+                0.72 * inch,
+                0.48 * inch,
+                2.85 * inch,
+                1.95 * inch,
             ],
         )
         table.setStyle(
@@ -235,7 +284,7 @@ def build_ai_events_pdf(
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1f7a6d")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, -1), 6.1),
+                    ("FONTSIZE", (0, 0), (-1, -1), 5.7),
                     ("TOPPADDING", (0, 0), (-1, -1), 3),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
                     ("LEFTPADDING", (0, 0), (-1, -1), 3),

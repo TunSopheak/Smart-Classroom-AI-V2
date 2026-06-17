@@ -93,6 +93,7 @@ async def log_phone_usage_event(session_id: str = Form(""), db: DatabaseSession 
         "message": "Phone warning logged. Waiting for cooldown.",
         "event_type": event.event_type,
         "severity": event.severity,
+        "snapshot_url": ai_service.event_snapshot_url(event),
         "cooldown_seconds": ai_service.PHONE_USAGE_COOLDOWN_SECONDS,
         "cooldown_remaining_seconds": cooldown_remaining_seconds,
     }
@@ -118,6 +119,7 @@ async def log_attention_warning_event(session_id: str = Form(""), db: DatabaseSe
         "message": "Attention warning logged. Waiting for cooldown.",
         "event_type": event.event_type,
         "severity": event.severity,
+        "snapshot_url": ai_service.event_snapshot_url(event),
         "cooldown_seconds": ai_service.ATTENTION_WARNING_COOLDOWN_SECONDS,
         "cooldown_remaining_seconds": cooldown_remaining_seconds,
     }
@@ -152,12 +154,20 @@ async def analyze_frame(
             result["occupancy"] = occupancy
 
         if result["phone_count"] > 0:
-            _, phone_error, cooldown_remaining_seconds = ai_service.log_phone_usage_detected(db, active_session.id)
+            phone_event, phone_error, cooldown_remaining_seconds = ai_service.log_phone_usage_detected(
+                db,
+                active_session.id,
+                snapshot_image_bytes=image_bytes,
+            )
             if phone_error:
                 event_messages.append(phone_error)
+                result["phone_cooldown_remaining_seconds"] = cooldown_remaining_seconds
             else:
-                event_messages.append("Phone warning logged. Waiting for cooldown.")
+                snapshot_url = ai_service.event_snapshot_url(phone_event)
+                event_messages.append("Phone warning logged. Snapshot saved. Waiting for cooldown.")
                 result["phone_cooldown_seconds"] = cooldown_remaining_seconds
+                result["snapshot_url"] = snapshot_url
+                result["phone_event_id"] = phone_event.id if phone_event else None
 
     result["ok"] = True
     result["event_message"] = " ".join(event_messages)

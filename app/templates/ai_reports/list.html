@@ -23,6 +23,10 @@
 
 {% include "partials/messages.html" %}
 
+<div class="helper-note">
+    Snapshots are stored for demo/review purposes only and should be handled responsibly.
+</div>
+
 <form class="form-panel inline-form ai-event-filters" method="get" action="/ai-events">
     <label>
         Class
@@ -153,10 +157,17 @@
                 <th>Event Type</th>
                 <th>Severity</th>
                 <th>Message</th>
+                <th>Snapshot</th>
             </tr>
         </thead>
         <tbody>
             {% for event in events %}
+            {% set snapshot_url = none %}
+            {% set event_message = event.message or event.description or "-" %}
+            {% if event.description and "Snapshot:" in event.description %}
+            {% set snapshot_url = event.description.split("Snapshot:", 1)[1].strip().split()[0] %}
+            {% set event_message = event.description.split("Snapshot:", 1)[0].strip() or event.message or "-" %}
+            {% endif %}
             <tr>
                 <td>{{ event.detected_at.strftime("%Y-%m-%d %H:%M") if event.detected_at else "-" }}</td>
                 <td>
@@ -189,11 +200,18 @@
                 </td>
                 <td>{{ event.event_type.replace("_", " ") }}</td>
                 <td><span class="status {{ event.severity }}">{{ event.severity }}</span></td>
-                <td>{{ event.message or event.description or "-" }}</td>
+                <td>{{ event_message }}</td>
+                <td>
+                    {% if snapshot_url %}
+                    <a class="button" href="{{ snapshot_url }}" target="_blank" rel="noopener">View Snapshot</a>
+                    {% else %}
+                    -
+                    {% endif %}
+                </td>
             </tr>
             {% else %}
             <tr>
-                <td colspan="8" class="empty">No AI monitoring events match the selected filters.</td>
+                <td colspan="9" class="empty">No AI monitoring events match the selected filters.</td>
             </tr>
             {% endfor %}
         </tbody>
