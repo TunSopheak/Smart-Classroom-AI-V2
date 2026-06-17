@@ -221,7 +221,7 @@ body.nav-open {
 main {
     width: min(1120px, calc(100% - 40px));
     margin: 0 auto;
-    padding: 26px 0 56px;
+    padding: 34px 0 56px;
 }
 
 .page-hero {
@@ -229,9 +229,12 @@ main {
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 18px;
     align-items: end;
-    margin-bottom: 22px;
-    padding-bottom: 18px;
-    border-bottom: 1px solid var(--line);
+    margin-bottom: 24px;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 8px 22px rgba(23, 32, 51, 0.04);
 }
 
 .breadcrumbs {
@@ -364,6 +367,7 @@ main {
     align-items: center;
     flex-wrap: wrap;
     gap: 10px;
+    min-width: 0;
 }
 
 .card-links {
@@ -725,8 +729,8 @@ a.mini-record {
 }
 
 .scanner-panel {
-    margin-top: 24px;
-    padding: 20px;
+    margin-top: 18px;
+    padding: 18px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -738,7 +742,7 @@ a.mini-record {
 
 .qr-reader {
     width: min(460px, 100%);
-    min-height: 280px;
+    min-height: 220px;
     margin-top: 16px;
     overflow: hidden;
     border: 1px solid var(--line);
@@ -764,7 +768,7 @@ a.mini-record {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 14px;
-    margin-bottom: 28px;
+    margin-bottom: 20px;
 }
 
 .summary-card {
@@ -798,7 +802,7 @@ a.mini-record {
 
 .split-layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 340px);
+    grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
     gap: 20px;
     align-items: start;
 }
@@ -829,9 +833,9 @@ a.mini-record {
 
 .monitor-section {
     display: grid;
-    gap: 16px;
-    margin-bottom: 18px;
-    padding: 18px;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding: 16px;
     background: var(--surface);
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -841,11 +845,11 @@ a.mini-record {
     display: grid;
     grid-template-columns: repeat(3, minmax(180px, 1fr));
     gap: 12px;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 
 .session-selector-card {
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 
 .section-heading,
@@ -913,10 +917,10 @@ a.mini-record {
 
 .monitor-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.85fr);
-    gap: 20px;
+    grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+    gap: 22px;
     align-items: start;
-    margin-bottom: 18px;
+    margin-bottom: 20px;
 }
 
 .camera-section {
@@ -926,14 +930,14 @@ a.mini-record {
 
 .monitor-camera {
     width: 100%;
-    min-height: 320px;
-    max-height: 58vh;
+    min-height: 260px;
+    max-height: 420px;
     margin-top: 0;
 }
 
 .monitor-control-stack {
     display: grid;
-    gap: 16px;
+    gap: 18px;
 }
 
 .monitor-message {
@@ -944,9 +948,9 @@ a.mini-record {
 .control-card {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 14px;
+    gap: 12px;
     align-items: center;
-    padding: 12px;
+    padding: 14px;
     background: #fbfcfe;
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -1042,7 +1046,7 @@ a.mini-record {
 }
 
 .monitor-events-section {
-    margin-top: 24px;
+    margin-top: 20px;
 }
 
 .table-heading {
@@ -1051,11 +1055,12 @@ a.mini-record {
 }
 
 .manual-backup {
-    margin-top: 18px;
+    margin-top: 16px;
 }
 
 .manual-backup .form-panel {
     max-width: 520px;
+    padding: 16px;
 }
 
 .voice-note {
