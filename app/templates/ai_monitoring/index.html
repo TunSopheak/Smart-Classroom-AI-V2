@@ -1,364 +1,571 @@
-{% extends "base.html" %}
-
-{% block title %}AI Monitoring - Smart Classroom V2{% endblock %}
-
-{% block content %}
+{% extends "base.html" %} {% block title %}AI Monitoring - Smart Classroom V2{%
+endblock %} {% block content %}
 <section class="page-hero">
-    <div>
-        <nav class="breadcrumbs" aria-label="Breadcrumb">
-            <a href="/dashboard">Dashboard</a>
-            <span class="breadcrumb-separator">&gt;</span>
-            <span>AI Monitoring</span>
-        </nav>
-        <h2>AI Monitoring</h2>
-        <p class="page-subtitle">Monitor selected active classroom sessions with attendance, AI detection, and device status.</p>
-    </div>
-    <div class="page-actions">
-        <a class="button" href="/sessions">Sessions</a>
-        <a class="button" href="/ai-events">AI Events</a>
-    </div>
+  <div>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="/dashboard">Dashboard</a>
+      <span class="breadcrumb-separator">&gt;</span>
+      <span>AI Monitoring</span>
+    </nav>
+    <h2>AI Monitoring</h2>
+    <p class="page-subtitle">
+      Monitor selected active classroom sessions with attendance, AI detection,
+      and device status.
+    </p>
+  </div>
+  <div class="page-actions">
+    <a class="button" href="/sessions">Sessions</a>
+    <a class="button" href="/ai-events">AI Events</a>
+  </div>
 </section>
 
 {% include "partials/messages.html" %}
 
 <section class="monitor-note-grid" aria-label="AI monitoring notes">
-    <div class="helper-note">Version 2 logs AI monitoring events linked to active sessions. Sleep detection and noise/talking detection are future improvements.</div>
-    <div class="helper-note">Phone detection is a prototype and depends on camera angle, lighting, and model accuracy.</div>
-    <div class="helper-note">Attention detection is a prototype estimate based on camera view and may be inaccurate. It does not prove student behavior.</div>
+  <div class="helper-note">
+    Version 2 logs AI monitoring events linked to active sessions. Sleep
+    detection and noise/talking detection are future improvements.
+  </div>
+  <div class="helper-note">
+    Phone detection is a prototype and depends on camera angle, lighting, and
+    model accuracy.
+  </div>
+  <div class="helper-note">
+    Attention detection is a prototype estimate based on camera view and may be
+    inaccurate. It does not prove student behavior.
+  </div>
 </section>
 
 {% if active_sessions %}
 <section class="form-panel compact session-selector-card">
-    <div class="section-heading compact-heading">
-        <div>
-            <p class="eyebrow">Active Sessions</p>
-            <h3>Select Session</h3>
-        </div>
+  <div class="section-heading compact-heading">
+    <div>
+      <p class="eyebrow">Active Sessions</p>
+      <h3>Select Session</h3>
     </div>
-    <form class="filter-form" method="get" action="/ai-monitoring">
-        <label>
-            Monitor
-            <select name="session_id" onchange="this.form.submit()">
-                <option value="">Choose an active session</option>
-                {% for session in active_sessions %}
-                <option value="{{ session.id }}" {% if selected_session_id and selected_session_id|string == session.id|string %}selected{% endif %}>
-                    {{ session.class_group.class_code }} | {{ session.subject.code }} | {{ session.teacher.teacher_code }} | {{ session.room }} | {{ session.start_time.strftime("%H:%M") }}-{{ session.end_time.strftime("%H:%M") }}
-                </option>
-                {% endfor %}
-            </select>
-        </label>
-        <button class="button" type="submit">Select</button>
-    </form>
-    <div class="session-choice-grid">
+  </div>
+  <form class="filter-form" method="get" action="/ai-monitoring">
+    <label>
+      Monitor
+      <select name="session_id" onchange="this.form.submit()">
+        <option value="">Choose an active session</option>
         {% for session in active_sessions %}
-        <a class="summary-card session-choice {% if active_session and active_session.id == session.id %}selected{% endif %}" href="/ai-monitoring?session_id={{ session.id }}">
-            <span>{{ session.start_time.strftime("%H:%M") }} - {{ session.end_time.strftime("%H:%M") }} | {{ session.room }}</span>
-            <strong>{{ session.class_group.class_code }} - {{ session.subject.name }}</strong>
-            <small>{{ session.teacher.teacher_code }} - {{ session.teacher.first_name }} {{ session.teacher.last_name }}</small>
-        </a>
+        <option value="{{ session.id }}"{% if selected_session_id and selected_session_id|string == session.id|string %} selected{% endif %}>
+          {{ session.class_group.class_code }} | {{ session.subject.code }} | {{ session.teacher.teacher_code }} | {{ session.room }} | {{ session.start_time.strftime("%H:%M") }}-{{ session.end_time.strftime("%H:%M") }}
+        </option>
         {% endfor %}
-    </div>
+      </select>
+    </label>
+    <button class="button" type="submit">Select</button>
+  </form>
+  <div class="session-choice-grid">
+    {% for session in active_sessions %}
+    <a
+      class="summary-card session-choice {% if active_session and active_session.id == session.id %}selected{% endif %}"
+      href="/ai-monitoring?session_id={{ session.id }}"
+    >
+      <span
+        >{{ session.start_time.strftime("%H:%M") }} - {{
+        session.end_time.strftime("%H:%M") }} | {{ session.room }}</span
+      >
+      <strong
+        >{{ session.class_group.class_code }} - {{ session.subject.name
+        }}</strong
+      >
+      <small
+        >{{ session.teacher.teacher_code }} - {{ session.teacher.first_name }}
+        {{ session.teacher.last_name }}</small
+      >
+    </a>
+    {% endfor %}
+  </div>
 </section>
-{% endif %}
-
-{% if selection_error %}
-<div class="notice {% if active_sessions %}info{% else %}error{% endif %}">{{ selection_error }}</div>
-{% endif %}
-
-{% if active_session %}
+{% endif %} {% if selection_error %}
+<div class="notice {% if active_sessions %}info{% else %}error{% endif %}">
+  {{ selection_error }}
+</div>
+{% endif %} {% if active_session %}
 <section class="monitor-section selected-session-panel">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Selected Active Session</p>
-            <h3>{{ active_session.class_group.class_code }} - {{ active_session.subject.name }}</h3>
-        </div>
-        <strong id="monitoring-status" class="status scheduled">stopped</strong>
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Selected Active Session</p>
+      <h3>
+        {{ active_session.class_group.class_code }} - {{
+        active_session.subject.name }}
+      </h3>
     </div>
-    <div class="session-detail-grid">
-        <div><span>Class</span><strong>{{ active_session.class_group.class_code }} - {{ active_session.class_group.name }}</strong></div>
-        <div><span>Subject</span><strong>{{ active_session.subject.code }} - {{ active_session.subject.name }}</strong></div>
-        <div><span>Teacher</span><strong>{{ active_session.teacher.teacher_code }} - {{ active_session.teacher.first_name }} {{ active_session.teacher.last_name }}</strong></div>
-        <div><span>Room</span><strong>{{ active_session.room }}</strong></div>
-        <div><span>Date</span><strong>{{ active_session.session_date.strftime("%Y-%m-%d") }}</strong></div>
-        <div><span>Time</span><strong>{{ active_session.start_time.strftime("%H:%M") }} - {{ active_session.end_time.strftime("%H:%M") }}</strong></div>
+    <strong id="monitoring-status" class="status scheduled">stopped</strong>
+  </div>
+  <div class="session-detail-grid">
+    <div>
+      <span>Class</span
+      ><strong
+        >{{ active_session.class_group.class_code }} - {{
+        active_session.class_group.name }}</strong
+      >
     </div>
+    <div>
+      <span>Subject</span
+      ><strong
+        >{{ active_session.subject.code }} - {{ active_session.subject.name
+        }}</strong
+      >
+    </div>
+    <div>
+      <span>Teacher</span
+      ><strong
+        >{{ active_session.teacher.teacher_code }} - {{
+        active_session.teacher.first_name }} {{ active_session.teacher.last_name
+        }}</strong
+      >
+    </div>
+    <div><span>Room</span><strong>{{ active_session.room }}</strong></div>
+    <div>
+      <span>Date</span
+      ><strong>{{ active_session.session_date.strftime("%Y-%m-%d") }}</strong>
+    </div>
+    <div>
+      <span>Time</span
+      ><strong
+        >{{ active_session.start_time.strftime("%H:%M") }} - {{
+        active_session.end_time.strftime("%H:%M") }}</strong
+      >
+    </div>
+  </div>
 </section>
 
 <section class="monitor-section">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Smart Classroom Status</p>
-            <h3>Live Classroom Snapshot</h3>
-        </div>
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Smart Classroom Status</p>
+      <h3>Live Classroom Snapshot</h3>
     </div>
-    <div class="summary-grid monitor-status-grid">
-        <article class="summary-card metric-card">
-            <span>QR Present Count</span>
-            <strong id="qr-present-count">{{ occupancy.qr_present_count }}</strong>
-        </article>
-        <article class="summary-card metric-card">
-            <span>Detected Student Count</span>
-            <strong id="detected-count">{{ occupancy.detected_count_label }}</strong>
-        </article>
-        <article class="summary-card metric-card">
-            <span>Difference</span>
-            <strong id="count-difference">{{ occupancy.difference_label }}</strong>
-        </article>
-        <article class="summary-card metric-card">
-            <span>Occupancy</span>
-            <strong id="occupancy-status" class="status inactive">{{ occupancy.occupancy_status }}</strong>
-        </article>
-        <article class="summary-card metric-card">
-            <span>Light</span>
-            <strong id="light-status" class="status info">{{ occupancy.light_status }}</strong>
-        </article>
-    </div>
+  </div>
+  <div class="summary-grid monitor-status-grid">
+    <article class="summary-card metric-card">
+      <span>QR Present Count</span>
+      <strong id="qr-present-count">{{ occupancy.qr_present_count }}</strong>
+    </article>
+    <article class="summary-card metric-card">
+      <span>Detected Student Count</span>
+      <strong id="detected-count">{{ occupancy.detected_count_label }}</strong>
+    </article>
+    <article class="summary-card metric-card">
+      <span>Difference</span>
+      <strong id="count-difference">{{ occupancy.difference_label }}</strong>
+    </article>
+    <article class="summary-card metric-card">
+      <span>Occupancy</span>
+      <strong id="occupancy-status" class="status inactive"
+        >{{ occupancy.occupancy_status }}</strong
+      >
+    </article>
+    <article class="summary-card metric-card">
+      <span>Light</span>
+      <strong id="light-status" class="status info"
+        >{{ occupancy.light_status }}</strong
+      >
+    </article>
+  </div>
 </section>
 
 <section class="monitor-grid">
-    <section class="monitor-section camera-section">
-        <div class="section-heading">
-            <div>
-                <p class="eyebrow">Camera Controls</p>
-                <h3>Live Preview</h3>
-            </div>
-            <div class="button-row">
-                <button id="start-camera" class="button primary" type="button">Start Camera</button>
-                <button id="stop-camera" class="button" type="button" disabled>Stop Camera</button>
-            </div>
-        </div>
-        <p id="camera-status" class="monitor-message">Camera stopped.</p>
-        <video id="ai-video" class="camera-preview monitor-camera" autoplay muted playsinline></video>
-    </section>
-
-    <div class="monitor-control-stack">
-    <section class="monitor-section">
-        <div class="section-heading">
-            <div>
-                <p class="eyebrow">Real / Browser Detection</p>
-                <h3>Face Count and Occupancy</h3>
-            </div>
-            <span class="status info">Browser API</span>
-        </div>
-        <div class="control-card">
-            <div>
-                <strong>Face Detection / Count</strong>
-                <p id="detection-status" class="monitor-message">Detection stopped.</p>
-            </div>
-            <div class="button-row">
-                <button id="start-detection" class="button" type="button" disabled>Start Face Count</button>
-                <button id="stop-detection" class="button" type="button" disabled>Stop Face Count</button>
-            </div>
-        </div>
-        <div class="rule-list">
-            <div><span>Occupancy Detection</span><strong>Uses detected face count and QR attendance comparison.</strong></div>
-            <div><span>Light Auto-Off Rule</span><strong>Demo threshold: {{ occupancy.auto_off_seconds }} seconds. Real rule: 5 minutes.</strong></div>
-        </div>
-    </section>
-
-    <section class="monitor-section">
-        <div class="section-heading">
-            <div>
-                <p class="eyebrow">Backend AI Engine</p>
-                <h3>YOLO / OpenCV Analysis</h3>
-            </div>
-            <strong id="backend-model-status" class="status scheduled">Not started</strong>
-        </div>
-        <p class="helper-note compact-note">Backend AI Engine is a prototype using YOLO/OpenCV. Accuracy depends on model, camera angle, lighting, and hardware performance.</p>
-        <div class="backend-ai-grid">
-            <article class="summary-card metric-card">
-                <span>Backend Person Count</span>
-                <strong id="backend-person-count">-</strong>
-            </article>
-            <article class="summary-card metric-card">
-                <span>Backend Phone Count</span>
-                <strong id="backend-phone-count">-</strong>
-            </article>
-        </div>
-        <div class="control-card">
-            <div>
-                <strong>Detected Objects</strong>
-                <p id="backend-ai-message" class="monitor-message">Backend AI analysis is not started.</p>
-                <div id="backend-detections" class="detection-list">No backend detections yet.</div>
-            </div>
-            <div class="control-status">
-                <div class="button-row">
-                    <button id="start-backend-ai" class="button" type="button" disabled>Start Backend AI Analysis</button>
-                    <button id="stop-backend-ai" class="button" type="button" disabled>Stop Backend AI Analysis</button>
-                </div>
-            </div>
-        </div>
-
-    </section>
-
-    <section class="monitor-section">
-        <div class="section-heading">
-            <div>
-                <p class="eyebrow">Prototype Detection</p>
-                <h3>Phone and Attention</h3>
-            </div>
-            <span class="status warning">Prototype</span>
-        </div>
-        <p class="helper-note compact-note">Prototype detection may be inaccurate and depends on camera angle, lighting, and model support.</p>
-        <div class="control-card">
-            <div>
-                <strong>Phone Usage Detection Prototype</strong>
-                <p id="phone-detection-message" class="monitor-message">Phone detection is not started.</p>
-                <small id="phone-confidence" class="muted">Confidence unavailable</small>
-            </div>
-            <div class="control-status">
-                <strong id="phone-detection-status" class="status scheduled">Not started</strong>
-                <div class="button-row">
-                    <button id="start-phone-detection" class="button" type="button" disabled>Start Phone</button>
-                    <button id="stop-phone-detection" class="button" type="button" disabled>Stop Phone</button>
-                </div>
-            </div>
-        </div>
-        <div class="control-card">
-            <div>
-                <strong>Attention / Looking-Away Detection Prototype</strong>
-                <p id="attention-detection-message" class="monitor-message">Attention detection is not started.</p>
-                <small id="attention-confidence" class="muted">Prototype estimate</small>
-            </div>
-            <div class="control-status">
-                <strong id="attention-detection-status" class="status scheduled">Not started</strong>
-                <div class="button-row">
-                    <button id="start-attention-detection" class="button" type="button" disabled>Start Attention</button>
-                    <button id="stop-attention-detection" class="button" type="button" disabled>Stop Attention</button>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="monitor-section">
-        <div class="section-heading">
-            <div>
-                <p class="eyebrow">Device / Light Status</p>
-                <h3>Demo Device State</h3>
-            </div>
-            <strong id="light-status-copy" class="status info">{{ occupancy.light_status }}</strong>
-        </div>
-        <p class="muted">This is a software demo state only. Raspberry Pi relay integration is not enabled yet.</p>
-        <div class="button-row monitor-all-controls">
-            <button id="start-all-monitoring" class="button primary" type="button">Start All Monitoring</button>
-            <button id="stop-all-monitoring" class="button" type="button" disabled>Stop All Monitoring</button>
-        </div>
-    </section>
+  <section class="monitor-section camera-section">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Camera Controls</p>
+        <h3>Live Preview</h3>
+      </div>
+      <div class="button-row">
+        <button id="start-camera" class="button primary" type="button">
+          Start Camera
+        </button>
+        <button id="stop-camera" class="button" type="button" disabled>
+          Stop Camera
+        </button>
+      </div>
     </div>
+    <p id="camera-status" class="monitor-message">Camera stopped.</p>
+    <!-- <video id="ai-video" class="camera-preview monitor-camera" autoplay muted playsinline></video> -->
+    <div class="video-overlay-wrap">
+      <video
+        id="ai-video"
+        class="camera-preview monitor-camera"
+        autoplay
+        muted
+        playsinline
+      ></video>
+      <canvas
+        id="ai-overlay-canvas"
+        class="ai-overlay-canvas"
+        aria-hidden="true"
+      ></canvas>
+    </div>
+  </section>
+
+  <div class="monitor-control-stack">
+    <section class="monitor-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Real / Browser Detection</p>
+          <h3>Face Count and Occupancy</h3>
+        </div>
+        <span class="status info">Browser API</span>
+      </div>
+      <div class="control-card">
+        <div>
+          <strong>Face Detection / Count</strong>
+          <p id="detection-status" class="monitor-message">
+            Detection stopped.
+          </p>
+        </div>
+        <div class="button-row">
+          <button id="start-detection" class="button" type="button" disabled>
+            Start Face Count
+          </button>
+          <button id="stop-detection" class="button" type="button" disabled>
+            Stop Face Count
+          </button>
+        </div>
+      </div>
+      <div class="rule-list">
+        <div>
+          <span>Occupancy Detection</span
+          ><strong
+            >Uses detected face count and QR attendance comparison.</strong
+          >
+        </div>
+        <div>
+          <span>Light Auto-Off Rule</span
+          ><strong
+            >Demo threshold: {{ occupancy.auto_off_seconds }} seconds. Real
+            rule: 5 minutes.</strong
+          >
+        </div>
+      </div>
+    </section>
+
+    <section class="monitor-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Backend AI Engine</p>
+          <h3>YOLO / OpenCV Analysis</h3>
+        </div>
+        <strong id="backend-model-status" class="status scheduled"
+          >Not started</strong
+        >
+      </div>
+      <p class="helper-note compact-note">
+        Backend AI Engine is a prototype using YOLO/OpenCV. Accuracy depends on
+        model, camera angle, lighting, and hardware performance.
+      </p>
+      <div class="backend-ai-grid">
+        <article class="summary-card metric-card">
+          <span>Backend Person Count</span>
+          <strong id="backend-person-count">-</strong>
+        </article>
+        <article class="summary-card metric-card">
+          <span>Backend Phone Count</span>
+          <strong id="backend-phone-count">-</strong>
+        </article>
+      </div>
+      <div class="control-card">
+        <div>
+          <strong>Detected Objects</strong>
+          <p id="backend-ai-message" class="monitor-message">
+            Backend AI analysis is not started.
+          </p>
+          <div id="backend-detections" class="detection-list">
+            No backend detections yet.
+          </div>
+        </div>
+        <div class="control-status">
+          <div class="button-row">
+            <button id="start-backend-ai" class="button" type="button" disabled>
+              Start Backend AI Analysis
+            </button>
+            <button id="stop-backend-ai" class="button" type="button" disabled>
+              Stop Backend AI Analysis
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="monitor-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Prototype Detection</p>
+          <h3>Phone and Attention</h3>
+        </div>
+        <span class="status warning">Prototype</span>
+      </div>
+      <p class="helper-note compact-note">
+        Prototype detection may be inaccurate and depends on camera angle,
+        lighting, and model support.
+      </p>
+      <div class="control-card">
+        <div>
+          <strong>Phone Usage Detection Prototype</strong>
+          <p id="phone-detection-message" class="monitor-message">
+            Phone detection is not started.
+          </p>
+          <small id="phone-confidence" class="muted"
+            >Confidence unavailable</small
+          >
+        </div>
+        <div class="control-status">
+          <strong id="phone-detection-status" class="status scheduled"
+            >Not started</strong
+          >
+          <div class="button-row">
+            <button
+              id="start-phone-detection"
+              class="button"
+              type="button"
+              disabled
+            >
+              Start Phone
+            </button>
+            <button
+              id="stop-phone-detection"
+              class="button"
+              type="button"
+              disabled
+            >
+              Stop Phone
+            </button>
+          </div>
+        </div>
+      </div>
+      <div class="control-card">
+        <div>
+          <strong>Attention / Looking-Away Detection Prototype</strong>
+          <p id="attention-detection-message" class="monitor-message">
+            Attention detection is not started.
+          </p>
+          <small id="attention-confidence" class="muted"
+            >Prototype estimate</small
+          >
+        </div>
+        <div class="control-status">
+          <strong id="attention-detection-status" class="status scheduled"
+            >Not started</strong
+          >
+          <div class="button-row">
+            <button
+              id="start-attention-detection"
+              class="button"
+              type="button"
+              disabled
+            >
+              Start Attention
+            </button>
+            <button
+              id="stop-attention-detection"
+              class="button"
+              type="button"
+              disabled
+            >
+              Stop Attention
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="monitor-section">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Device / Light Status</p>
+          <h3>Demo Device State</h3>
+        </div>
+        <strong id="light-status-copy" class="status info"
+          >{{ occupancy.light_status }}</strong
+        >
+      </div>
+      <p class="muted">
+        This is a software demo state only. Raspberry Pi relay integration is
+        not enabled yet.
+      </p>
+      <div class="button-row monitor-all-controls">
+        <button id="start-all-monitoring" class="button primary" type="button">
+          Start All Monitoring
+        </button>
+        <button id="stop-all-monitoring" class="button" type="button" disabled>
+          Stop All Monitoring
+        </button>
+      </div>
+    </section>
+  </div>
 </section>
 
 <details class="monitor-section manual-demo-panel">
-    <summary>
-        <span>
-            <span class="eyebrow">Manual Demo Controls</span>
-            <strong>Manual Demo Controls for Testing Only</strong>
-        </span>
-        <span class="status warning">Testing</span>
-    </summary>
-    <div class="manual-demo-grid">
-        <div>
-            <h4>Detected Count Demo</h4>
-            <p class="muted">These buttons use the same backend occupancy logic as camera detection.</p>
-            <div class="button-row">
-                <button class="button" type="button" data-demo-count="0">Set Detected Count: 0</button>
-                <button class="button" type="button" data-demo-count="1">Set Detected Count: 1</button>
-                <button class="button" type="button" data-demo-count="5">Set Detected Count: 5</button>
-            </div>
-            <p id="occupancy-message" class="monitor-message"></p>
-        </div>
-        <div>
-            <h4>Manual Event Logging</h4>
-            <p class="muted">Use these only when browser detection is unavailable or for report demos.</p>
-            <div class="manual-event-list">
-                <form method="post" action="/ai-monitoring/events/monitoring_started?session_id={{ active_session.id }}">
-                    <button class="button primary" type="submit">Log Manual Monitoring Started</button>
-                </form>
-                <form method="post" action="/ai-monitoring/events/face_detected?session_id={{ active_session.id }}">
-                    <button class="button" type="submit">Log Manual Face Detected</button>
-                </form>
-                <form method="post" action="/ai-monitoring/events/attention_warning?session_id={{ active_session.id }}">
-                    <button class="button" type="submit">Log Manual Attention Warning (uses cooldown)</button>
-                </form>
-                <form method="post" action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}">
-                    <button class="button" type="submit">Log Manual Phone Usage Warning</button>
-                </form>
-                <form method="post" action="/ai-monitoring/events/monitoring_stopped?session_id={{ active_session.id }}">
-                    <button class="button" type="submit">Log Manual Monitoring Stopped</button>
-                </form>
-            </div>
-        </div>
+  <summary>
+    <span>
+      <span class="eyebrow">Manual Demo Controls</span>
+      <strong>Manual Demo Controls for Testing Only</strong>
+    </span>
+    <span class="status warning">Testing</span>
+  </summary>
+  <div class="manual-demo-grid">
+    <div>
+      <h4>Detected Count Demo</h4>
+      <p class="muted">
+        These buttons use the same backend occupancy logic as camera detection.
+      </p>
+      <div class="button-row">
+        <button class="button" type="button" data-demo-count="0">
+          Set Detected Count: 0
+        </button>
+        <button class="button" type="button" data-demo-count="1">
+          Set Detected Count: 1
+        </button>
+        <button class="button" type="button" data-demo-count="5">
+          Set Detected Count: 5
+        </button>
+      </div>
+      <p id="occupancy-message" class="monitor-message"></p>
     </div>
+    <div>
+      <h4>Manual Event Logging</h4>
+      <p class="muted">
+        Use these only when browser detection is unavailable or for report
+        demos.
+      </p>
+      <div class="manual-event-list">
+        <form
+          method="post"
+          action="/ai-monitoring/events/monitoring_started?session_id={{ active_session.id }}"
+        >
+          <button class="button primary" type="submit">
+            Log Manual Monitoring Started
+          </button>
+        </form>
+        <form
+          method="post"
+          action="/ai-monitoring/events/face_detected?session_id={{ active_session.id }}"
+        >
+          <button class="button" type="submit">Log Manual Face Detected</button>
+        </form>
+        <form
+          method="post"
+          action="/ai-monitoring/events/attention_warning?session_id={{ active_session.id }}"
+        >
+          <button class="button" type="submit">
+            Log Manual Attention Warning (uses cooldown)
+          </button>
+        </form>
+        <form
+          method="post"
+          action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}"
+        >
+          <button class="button" type="submit">
+            Log Manual Phone Usage Warning
+          </button>
+        </form>
+        <form
+          method="post"
+          action="/ai-monitoring/events/monitoring_stopped?session_id={{ active_session.id }}"
+        >
+          <button class="button" type="submit">
+            Log Manual Monitoring Stopped
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
 </details>
 {% endif %}
 
 <section class="table-panel ai-events monitor-events-section">
-    <div class="table-heading">
-        <div>
-            <p class="eyebrow">Recent AI Events</p>
-            <h3>Newest First</h3>
-        </div>
-        <a class="button" href="/ai-events">View All AI Events</a>
+  <div class="table-heading">
+    <div>
+      <p class="eyebrow">Recent AI Events</p>
+      <h3>Newest First</h3>
     </div>
-    <table>
-        <thead>
-            <tr>
-                <th>Detected At</th>
-                <th>Event</th>
-                <th>Severity</th>
-                <th>Message</th>
-                <th>Session</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for event in events %}
-            <tr>
-                <td>{{ event.detected_at.strftime("%Y-%m-%d %H:%M") if event.detected_at else "-" }}</td>
-                <td>{{ event.event_type.replace("_", " ") }}</td>
-                <td><span class="status {{ event.severity }}">{{ event.severity }}</span></td>
-                <td>{{ event.message or event.description or "-" }}</td>
-                <td>
-                    {% if event.session %}
-                    {{ event.session.subject.code }} | {{ event.session.class_group.class_code }}
-                    {% else %}
-                    -
-                    {% endif %}
-                </td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="5" class="empty">No AI monitoring events yet.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <a class="button" href="/ai-events">View All AI Events</a>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Detected At</th>
+        <th>Event</th>
+        <th>Severity</th>
+        <th>Message</th>
+        <th>Session</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for event in events %}
+      <tr>
+        <td>
+          {{ event.detected_at.strftime("%Y-%m-%d %H:%M") if event.detected_at
+          else "-" }}
+        </td>
+        <td>{{ event.event_type.replace("_", " ") }}</td>
+        <td>
+          <span class="status {{ event.severity }}">{{ event.severity }}</span>
+        </td>
+        <td>{{ event.message or event.description or "-" }}</td>
+        <td>
+          {% if event.session %} {{ event.session.subject.code }} | {{
+          event.session.class_group.class_code }} {% else %} - {% endif %}
+        </td>
+      </tr>
+      {% else %}
+      <tr>
+        <td colspan="5" class="empty">No AI monitoring events yet.</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
 </section>
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.22.0/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js"></script>
 <script>
-(() => {
+  (() => {
     const startButton = document.getElementById("start-camera");
     const stopButton = document.getElementById("stop-camera");
     const startDetectionButton = document.getElementById("start-detection");
     const stopDetectionButton = document.getElementById("stop-detection");
-    const startPhoneDetectionButton = document.getElementById("start-phone-detection");
-    const stopPhoneDetectionButton = document.getElementById("stop-phone-detection");
-    const startAttentionDetectionButton = document.getElementById("start-attention-detection");
-    const stopAttentionDetectionButton = document.getElementById("stop-attention-detection");
+    const startPhoneDetectionButton = document.getElementById(
+      "start-phone-detection",
+    );
+    const stopPhoneDetectionButton = document.getElementById(
+      "stop-phone-detection",
+    );
+    const startAttentionDetectionButton = document.getElementById(
+      "start-attention-detection",
+    );
+    const stopAttentionDetectionButton = document.getElementById(
+      "stop-attention-detection",
+    );
     const startBackendAiButton = document.getElementById("start-backend-ai");
     const stopBackendAiButton = document.getElementById("stop-backend-ai");
-    const startAllMonitoringButton = document.getElementById("start-all-monitoring");
-    const stopAllMonitoringButton = document.getElementById("stop-all-monitoring");
+    const startAllMonitoringButton = document.getElementById(
+      "start-all-monitoring",
+    );
+    const stopAllMonitoringButton = document.getElementById(
+      "stop-all-monitoring",
+    );
     const statusText = document.getElementById("camera-status");
     const detectionStatus = document.getElementById("detection-status");
-    const phoneDetectionStatus = document.getElementById("phone-detection-status");
-    const phoneDetectionMessage = document.getElementById("phone-detection-message");
+    const phoneDetectionStatus = document.getElementById(
+      "phone-detection-status",
+    );
+    const phoneDetectionMessage = document.getElementById(
+      "phone-detection-message",
+    );
     const phoneConfidence = document.getElementById("phone-confidence");
-    const attentionDetectionStatus = document.getElementById("attention-detection-status");
-    const attentionDetectionMessage = document.getElementById("attention-detection-message");
+    const attentionDetectionStatus = document.getElementById(
+      "attention-detection-status",
+    );
+    const attentionDetectionMessage = document.getElementById(
+      "attention-detection-message",
+    );
     const attentionConfidence = document.getElementById("attention-confidence");
     const backendModelStatus = document.getElementById("backend-model-status");
     const backendPersonCount = document.getElementById("backend-person-count");
@@ -366,6 +573,11 @@
     const backendAiMessage = document.getElementById("backend-ai-message");
     const backendDetections = document.getElementById("backend-detections");
     const video = document.getElementById("ai-video");
+    const overlayCanvas = document.getElementById("ai-overlay-canvas");
+    const overlayContext = overlayCanvas
+      ? overlayCanvas.getContext("2d")
+      : null;
+    let latestBackendImageSize = { width: 0, height: 0 };
     const monitoringStatus = document.getElementById("monitoring-status");
     const qrPresentCount = document.getElementById("qr-present-count");
     const detectedCount = document.getElementById("detected-count");
@@ -375,7 +587,8 @@
     const lightStatusCopy = document.getElementById("light-status-copy");
     const occupancyMessage = document.getElementById("occupancy-message");
     const demoButtons = document.querySelectorAll("[data-demo-count]");
-    const selectedSessionId = "{{ active_session.id if active_session else '' }}";
+    const selectedSessionId =
+      "{{ active_session.id if active_session else '' }}";
     let stream = null;
     let detector = null;
     let phoneModel = null;
@@ -402,771 +615,994 @@
     const statusIntervalMs = 1000;
     const phoneConfidenceThreshold = 0.45;
 
-    if (!startButton || !stopButton || !startDetectionButton || !stopDetectionButton || !video) {
-        return;
+    if (
+      !startButton ||
+      !stopButton ||
+      !startDetectionButton ||
+      !stopDetectionButton ||
+      !video
+    ) {
+      return;
     }
 
     function setStatus(message) {
-        statusText.textContent = message;
+      statusText.textContent = message;
     }
 
     function setDetectionStatus(message) {
-        detectionStatus.textContent = message;
+      detectionStatus.textContent = message;
     }
 
     function setPhoneDetectionStatus(message, className = "status info") {
-        phoneDetectionStatus.textContent = message;
-        phoneDetectionStatus.className = className;
-        phoneDetectionMessage.textContent = message;
+      phoneDetectionStatus.textContent = message;
+      phoneDetectionStatus.className = className;
+      phoneDetectionMessage.textContent = message;
     }
 
     function setAttentionDetectionStatus(message, className = "status info") {
-        attentionDetectionStatus.textContent = message;
-        attentionDetectionStatus.className = className;
-        attentionDetectionMessage.textContent = message;
+      attentionDetectionStatus.textContent = message;
+      attentionDetectionStatus.className = className;
+      attentionDetectionMessage.textContent = message;
     }
 
     function setBackendAiStatus(message, className = "status info") {
-        backendModelStatus.textContent = message;
-        backendModelStatus.className = className;
-        backendAiMessage.textContent = message;
+      backendModelStatus.textContent = message;
+      backendModelStatus.className = className;
+      backendAiMessage.textContent = message;
     }
 
     function phoneCooldownRemainingSeconds() {
-        return Math.max(0, Math.ceil((phoneCooldownUntil - Date.now()) / 1000));
+      return Math.max(0, Math.ceil((phoneCooldownUntil - Date.now()) / 1000));
     }
 
     function attentionCooldownRemainingSeconds() {
-        return Math.max(0, Math.ceil((attentionCooldownUntil - Date.now()) / 1000));
+      return Math.max(
+        0,
+        Math.ceil((attentionCooldownUntil - Date.now()) / 1000),
+      );
     }
 
     function phoneCooldownMessage(prefix) {
-        const remainingSeconds = phoneCooldownRemainingSeconds();
-        return remainingSeconds > 0
-            ? `${prefix} ${remainingSeconds} seconds remaining.`
-            : prefix;
+      const remainingSeconds = phoneCooldownRemainingSeconds();
+      return remainingSeconds > 0
+        ? `${prefix} ${remainingSeconds} seconds remaining.`
+        : prefix;
     }
 
     function attentionCooldownMessage(prefix) {
-        const remainingSeconds = attentionCooldownRemainingSeconds();
-        return remainingSeconds > 0
-            ? `${prefix} ${remainingSeconds} seconds remaining.`
-            : prefix;
+      const remainingSeconds = attentionCooldownRemainingSeconds();
+      return remainingSeconds > 0
+        ? `${prefix} ${remainingSeconds} seconds remaining.`
+        : prefix;
     }
 
     function setPhoneCooldown(seconds) {
-        const cooldownSeconds = Number(seconds) || 0;
-        phoneCooldownUntil = cooldownSeconds > 0 ? Date.now() + cooldownSeconds * 1000 : 0;
+      const cooldownSeconds = Number(seconds) || 0;
+      phoneCooldownUntil =
+        cooldownSeconds > 0 ? Date.now() + cooldownSeconds * 1000 : 0;
     }
 
     function setAttentionCooldown(seconds) {
-        const cooldownSeconds = Number(seconds) || 0;
-        attentionCooldownUntil = cooldownSeconds > 0 ? Date.now() + cooldownSeconds * 1000 : 0;
+      const cooldownSeconds = Number(seconds) || 0;
+      attentionCooldownUntil =
+        cooldownSeconds > 0 ? Date.now() + cooldownSeconds * 1000 : 0;
     }
 
     function setPhoneConfidence(score) {
-        phoneConfidence.textContent = typeof score === "number"
-            ? `Confidence: ${Math.round(score * 100)}%`
-            : "Confidence unavailable";
+      phoneConfidence.textContent =
+        typeof score === "number"
+          ? `Confidence: ${Math.round(score * 100)}%`
+          : "Confidence unavailable";
     }
 
     function setAttentionConfidence(score) {
-        attentionConfidence.textContent = typeof score === "number"
-            ? `Looking-away estimate: ${Math.round(score * 100)}%`
-            : "Prototype estimate";
+      attentionConfidence.textContent =
+        typeof score === "number"
+          ? `Looking-away estimate: ${Math.round(score * 100)}%`
+          : "Prototype estimate";
     }
 
     function faceDetectionSupported() {
-        return "FaceDetector" in window;
+      return "FaceDetector" in window;
     }
 
     function statusClass(value) {
-        if (value === "Occupied" || value === "ON") {
-            return "status active";
-        }
-        if (value === "Empty" || value === "OFF") {
-            return "status warning";
-        }
-        return "status info";
+      if (value === "Occupied" || value === "ON") {
+        return "status active";
+      }
+      if (value === "Empty" || value === "OFF") {
+        return "status warning";
+      }
+      return "status info";
     }
 
     function renderOccupancy(occupancy) {
-        if (!occupancy) {
-            return;
-        }
-        qrPresentCount.textContent = occupancy.qr_present_count;
-        detectedCount.textContent = occupancy.detected_count_label;
-        countDifference.textContent = occupancy.difference_label;
-        occupancyStatus.textContent = occupancy.occupancy_status;
-        occupancyStatus.className = statusClass(occupancy.occupancy_status);
-        lightStatus.textContent = occupancy.light_status;
-        lightStatus.className = statusClass(occupancy.light_status);
-        if (lightStatusCopy) {
-            lightStatusCopy.textContent = occupancy.light_status;
-            lightStatusCopy.className = statusClass(occupancy.light_status);
-        }
+      if (!occupancy) {
+        return;
+      }
+      qrPresentCount.textContent = occupancy.qr_present_count;
+      detectedCount.textContent = occupancy.detected_count_label;
+      countDifference.textContent = occupancy.difference_label;
+      occupancyStatus.textContent = occupancy.occupancy_status;
+      occupancyStatus.className = statusClass(occupancy.occupancy_status);
+      lightStatus.textContent = occupancy.light_status;
+      lightStatus.className = statusClass(occupancy.light_status);
+      if (lightStatusCopy) {
+        lightStatusCopy.textContent = occupancy.light_status;
+        lightStatusCopy.className = statusClass(occupancy.light_status);
+      }
     }
 
     function renderBackendDetections(detections) {
-        if (!detections || detections.length === 0) {
-            backendDetections.textContent = "No objects detected.";
-            return;
+      if (!detections || detections.length === 0) {
+        backendDetections.textContent = "No objects detected.";
+        return;
+      }
+
+      backendDetections.innerHTML = "";
+      detections.slice(0, 8).forEach((item) => {
+        const badge = document.createElement("span");
+        badge.className = "detection-badge";
+        badge.textContent = `${item.label} ${Math.round(item.confidence * 100)}%`;
+        backendDetections.appendChild(badge);
+      });
+    }
+
+    function clearAiOverlay() {
+      if (!overlayCanvas || !overlayContext) {
+        return;
+      }
+      overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    }
+
+    function syncOverlaySize() {
+      if (!overlayCanvas || !video) {
+        return;
+      }
+
+      const rect = video.getBoundingClientRect();
+      const displayWidth = Math.max(1, Math.round(rect.width));
+      const displayHeight = Math.max(1, Math.round(rect.height));
+
+      if (
+        overlayCanvas.width !== displayWidth ||
+        overlayCanvas.height !== displayHeight
+      ) {
+        overlayCanvas.width = displayWidth;
+        overlayCanvas.height = displayHeight;
+      }
+    }
+
+    function normalizeDetectionBox(item) {
+      const box = item.box || item.bbox || item.xyxy || null;
+      if (!box) {
+        return null;
+      }
+
+      if (Array.isArray(box) && box.length >= 4) {
+        return {
+          x1: Number(box[0]),
+          y1: Number(box[1]),
+          x2: Number(box[2]),
+          y2: Number(box[3]),
+        };
+      }
+
+      return {
+        x1: Number(box.x1 ?? box.left ?? box.x ?? 0),
+        y1: Number(box.y1 ?? box.top ?? box.y ?? 0),
+        x2: Number(box.x2 ?? (box.left ?? box.x ?? 0) + (box.width ?? 0)),
+        y2: Number(box.y2 ?? (box.top ?? box.y ?? 0) + (box.height ?? 0)),
+      };
+    }
+
+    function drawAiOverlay(detections, imageWidth, imageHeight) {
+      if (!overlayCanvas || !overlayContext || !detections || !video) {
+        return;
+      }
+
+      syncOverlaySize();
+      clearAiOverlay();
+
+      const sourceWidth =
+        imageWidth ||
+        latestBackendImageSize.width ||
+        video.videoWidth ||
+        overlayCanvas.width;
+      const sourceHeight =
+        imageHeight ||
+        latestBackendImageSize.height ||
+        video.videoHeight ||
+        overlayCanvas.height;
+      const scaleX = overlayCanvas.width / sourceWidth;
+      const scaleY = overlayCanvas.height / sourceHeight;
+
+      detections.forEach((item) => {
+        const box = normalizeDetectionBox(item);
+        if (!box) {
+          return;
         }
 
-        backendDetections.innerHTML = "";
-        detections.slice(0, 8).forEach((item) => {
-            const badge = document.createElement("span");
-            badge.className = "detection-badge";
-            badge.textContent = `${item.label} ${Math.round(item.confidence * 100)}%`;
-            backendDetections.appendChild(badge);
-        });
+        const label = item.label || item.class_name || "object";
+        const confidence = Number(item.confidence ?? item.score ?? 0);
+        const isWarning = label.toLowerCase().includes("phone");
+
+        const x = box.x1 * scaleX;
+        const y = box.y1 * scaleY;
+        const width = (box.x2 - box.x1) * scaleX;
+        const height = (box.y2 - box.y1) * scaleY;
+
+        if (width <= 0 || height <= 0) {
+          return;
+        }
+
+        overlayContext.lineWidth = isWarning ? 3 : 2;
+        overlayContext.strokeStyle = isWarning ? "#f59e0b" : "#14b8a6";
+        overlayContext.fillStyle = isWarning
+          ? "rgba(245, 158, 11, 0.92)"
+          : "rgba(20, 184, 166, 0.92)";
+
+        overlayContext.strokeRect(x, y, width, height);
+
+        const text = `${label} ${Math.round(confidence * 100)}%`;
+        overlayContext.font =
+          "600 13px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
+        const textWidth = overlayContext.measureText(text).width + 12;
+        const textHeight = 22;
+        const textY = Math.max(0, y - textHeight);
+
+        overlayContext.fillRect(x, textY, textWidth, textHeight);
+        overlayContext.fillStyle = "#ffffff";
+        overlayContext.fillText(text, x + 6, textY + 15);
+      });
     }
 
     function captureVideoFrame() {
-        if (!video.videoWidth || !video.videoHeight) {
-            return null;
-        }
+      if (!video.videoWidth || !video.videoHeight) {
+        return null;
+      }
 
-        const canvas = document.createElement("canvas");
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        const context = canvas.getContext("2d");
-        context.drawImage(video, 0, 0, canvas.width, canvas.height);
-        return canvas.toDataURL("image/jpeg", 0.72);
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext("2d");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", 0.72);
     }
 
     async function postBackendFrame() {
-        const frameData = captureVideoFrame();
-        if (!frameData) {
-            backendAiMessage.textContent = "Camera frame is not ready yet.";
-            return false;
-        }
+      const frameData = captureVideoFrame();
+      if (!frameData) {
+        backendAiMessage.textContent = "Camera frame is not ready yet.";
+        return false;
+      }
 
-        const body = new URLSearchParams();
-        body.set("session_id", selectedSessionId);
-        body.set("frame_data", frameData);
-        const response = await fetch("/ai-monitoring/analyze-frame", {
-            method: "POST",
-            body,
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
-        const result = await response.json();
-        if (!result.ok) {
-            setBackendAiStatus(result.message || "Backend AI analysis is unavailable.", "status warning");
-            return false;
-        }
+      const body = new URLSearchParams();
+      body.set("session_id", selectedSessionId);
+      body.set("frame_data", frameData);
+      const response = await fetch("/ai-monitoring/analyze-frame", {
+        method: "POST",
+        body,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+      const result = await response.json();
+      if (!result.ok) {
+        setBackendAiStatus(
+          result.message || "Backend AI analysis is unavailable.",
+          "status warning",
+        );
+        return false;
+      }
 
-        backendPersonCount.textContent = result.person_count;
-        backendPhoneCount.textContent = result.phone_count;
-        renderBackendDetections(result.detections);
-        if (result.occupancy) {
-            renderOccupancy(result.occupancy);
-        }
+      backendPersonCount.textContent = result.person_count;
+      backendPhoneCount.textContent = result.phone_count;
+      renderBackendDetections(result.detections);
+      latestBackendImageSize = {
+        width:
+          result.image_width || result.frame_width || video.videoWidth || 0,
+        height:
+          result.image_height || result.frame_height || video.videoHeight || 0,
+      };
+      drawAiOverlay(
+        result.detections,
+        latestBackendImageSize.width,
+        latestBackendImageSize.height,
+      );
+      if (result.occupancy) {
+        renderOccupancy(result.occupancy);
+      }
 
-        if (result.available) {
-            backendModelStatus.textContent = "Model active";
-            backendModelStatus.className = "status active";
-            backendAiMessage.textContent = result.event_message || result.message || "Backend AI analysis completed.";
-        } else {
-            setBackendAiStatus(result.message || "Backend YOLO model is unavailable.", "status warning");
-        }
-        return result.available;
+      if (result.available) {
+        backendModelStatus.textContent = "Model active";
+        backendModelStatus.className = "status active";
+        backendAiMessage.textContent =
+          result.event_message ||
+          result.message ||
+          "Backend AI analysis completed.";
+      } else {
+        setBackendAiStatus(
+          result.message || "Backend YOLO model is unavailable.",
+          "status warning",
+        );
+      }
+      return result.available;
     }
 
     async function postDetectedCount(count) {
-        const body = new URLSearchParams();
-        body.set("session_id", selectedSessionId);
-        body.set("detected_count", String(count));
-        const response = await fetch("/ai-monitoring/occupancy", {
-            method: "POST",
-            body,
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
-        const result = await response.json();
-        if (!result.ok) {
-            const message = result.message || "Occupancy update was not saved.";
-            setDetectionStatus(message);
-            occupancyMessage.textContent = message;
-            return false;
-        }
-        renderOccupancy(result.occupancy);
-        occupancyMessage.textContent = "Detected count updated.";
-        return true;
+      const body = new URLSearchParams();
+      body.set("session_id", selectedSessionId);
+      body.set("detected_count", String(count));
+      const response = await fetch("/ai-monitoring/occupancy", {
+        method: "POST",
+        body,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+      const result = await response.json();
+      if (!result.ok) {
+        const message = result.message || "Occupancy update was not saved.";
+        setDetectionStatus(message);
+        occupancyMessage.textContent = message;
+        return false;
+      }
+      renderOccupancy(result.occupancy);
+      occupancyMessage.textContent = "Detected count updated.";
+      return true;
     }
 
     async function postPhoneUsageWarning() {
-        const remainingSeconds = phoneCooldownRemainingSeconds();
-        if (remainingSeconds > 0) {
-            phoneDetectionMessage.textContent = phoneCooldownMessage("Phone detected, but cooldown is active.");
-            return false;
-        }
+      const remainingSeconds = phoneCooldownRemainingSeconds();
+      if (remainingSeconds > 0) {
+        phoneDetectionMessage.textContent = phoneCooldownMessage(
+          "Phone detected, but cooldown is active.",
+        );
+        return false;
+      }
 
-        const body = new URLSearchParams();
-        body.set("session_id", selectedSessionId);
-        const response = await fetch("/ai-monitoring/phone-event", {
-            method: "POST",
-            body,
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
-        const result = await response.json();
-        if (!result.ok) {
-            if (result.cooldown_active) {
-                setPhoneCooldown(result.cooldown_remaining_seconds);
-                phoneDetectionMessage.textContent = phoneCooldownMessage("Phone detected, but cooldown is active.");
-            } else {
-                phoneDetectionMessage.textContent = result.message || "Phone warning was not logged.";
-            }
-            return false;
+      const body = new URLSearchParams();
+      body.set("session_id", selectedSessionId);
+      const response = await fetch("/ai-monitoring/phone-event", {
+        method: "POST",
+        body,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+      const result = await response.json();
+      if (!result.ok) {
+        if (result.cooldown_active) {
+          setPhoneCooldown(result.cooldown_remaining_seconds);
+          phoneDetectionMessage.textContent = phoneCooldownMessage(
+            "Phone detected, but cooldown is active.",
+          );
+        } else {
+          phoneDetectionMessage.textContent =
+            result.message || "Phone warning was not logged.";
         }
-        setPhoneCooldown(result.cooldown_remaining_seconds || result.cooldown_seconds);
-        phoneDetectionMessage.textContent = phoneCooldownMessage(result.message || "Phone warning logged. Waiting for cooldown.");
-        return true;
+        return false;
+      }
+      setPhoneCooldown(
+        result.cooldown_remaining_seconds || result.cooldown_seconds,
+      );
+      phoneDetectionMessage.textContent = phoneCooldownMessage(
+        result.message || "Phone warning logged. Waiting for cooldown.",
+      );
+      return true;
     }
 
     async function postAttentionWarning() {
-        const remainingSeconds = attentionCooldownRemainingSeconds();
-        if (remainingSeconds > 0) {
-            attentionDetectionMessage.textContent = attentionCooldownMessage("Looking away detected, but cooldown is active.");
-            return false;
-        }
+      const remainingSeconds = attentionCooldownRemainingSeconds();
+      if (remainingSeconds > 0) {
+        attentionDetectionMessage.textContent = attentionCooldownMessage(
+          "Looking away detected, but cooldown is active.",
+        );
+        return false;
+      }
 
-        const body = new URLSearchParams();
-        body.set("session_id", selectedSessionId);
-        const response = await fetch("/ai-monitoring/attention-event", {
-            method: "POST",
-            body,
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
-        const result = await response.json();
-        if (!result.ok) {
-            if (result.cooldown_active) {
-                setAttentionCooldown(result.cooldown_remaining_seconds);
-                attentionDetectionMessage.textContent = attentionCooldownMessage("Looking away detected, but cooldown is active.");
-            } else {
-                attentionDetectionMessage.textContent = result.message || "Attention warning was not logged.";
-            }
-            return false;
+      const body = new URLSearchParams();
+      body.set("session_id", selectedSessionId);
+      const response = await fetch("/ai-monitoring/attention-event", {
+        method: "POST",
+        body,
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      });
+      const result = await response.json();
+      if (!result.ok) {
+        if (result.cooldown_active) {
+          setAttentionCooldown(result.cooldown_remaining_seconds);
+          attentionDetectionMessage.textContent = attentionCooldownMessage(
+            "Looking away detected, but cooldown is active.",
+          );
+        } else {
+          attentionDetectionMessage.textContent =
+            result.message || "Attention warning was not logged.";
         }
-        setAttentionCooldown(result.cooldown_remaining_seconds || result.cooldown_seconds);
-        attentionDetectionMessage.textContent = attentionCooldownMessage(result.message || "Attention warning logged. Waiting for cooldown.");
-        return true;
+        return false;
+      }
+      setAttentionCooldown(
+        result.cooldown_remaining_seconds || result.cooldown_seconds,
+      );
+      attentionDetectionMessage.textContent = attentionCooldownMessage(
+        result.message || "Attention warning logged. Waiting for cooldown.",
+      );
+      return true;
     }
 
     async function refreshOccupancy() {
-        if (!selectedSessionId) {
-            return;
-        }
-        const params = new URLSearchParams({ session_id: selectedSessionId });
-        const response = await fetch(`/ai-monitoring/occupancy/status?${params.toString()}`);
-        const result = await response.json();
-        if (result.ok) {
-            renderOccupancy(result.occupancy);
-        } else if (result.message) {
-            occupancyMessage.textContent = result.message;
-        }
+      if (!selectedSessionId) {
+        return;
+      }
+      const params = new URLSearchParams({ session_id: selectedSessionId });
+      const response = await fetch(
+        `/ai-monitoring/occupancy/status?${params.toString()}`,
+      );
+      const result = await response.json();
+      if (result.ok) {
+        renderOccupancy(result.occupancy);
+      } else if (result.message) {
+        occupancyMessage.textContent = result.message;
+      }
     }
 
     function startStatusPolling() {
-        if (!statusTimer) {
-            statusTimer = window.setInterval(refreshOccupancy, statusIntervalMs);
-        }
+      if (!statusTimer) {
+        statusTimer = window.setInterval(refreshOccupancy, statusIntervalMs);
+      }
     }
 
     function waitForCameraReady(timeoutMs = 4000) {
-        const startTime = Date.now();
-        return new Promise((resolve) => {
-            const check = () => {
-                if (stream || Date.now() - startTime >= timeoutMs) {
-                    resolve(Boolean(stream));
-                    return;
-                }
-                window.setTimeout(check, 100);
-            };
-            check();
-        });
+      const startTime = Date.now();
+      return new Promise((resolve) => {
+        const check = () => {
+          if (stream || Date.now() - startTime >= timeoutMs) {
+            resolve(Boolean(stream));
+            return;
+          }
+          window.setTimeout(check, 100);
+        };
+        check();
+      });
     }
 
     async function startAllMonitoring() {
-        if (!selectedSessionId) {
-            setStatus("Please select an active session to monitor.");
-            return;
+      if (!selectedSessionId) {
+        setStatus("Please select an active session to monitor.");
+        return;
+      }
+
+      startAllMonitoringButton.disabled = true;
+      stopAllMonitoringButton.disabled = false;
+
+      if (!stream) {
+        startButton.click();
+        const ready = await waitForCameraReady();
+        if (!ready) {
+          setStatus(
+            "Camera could not start. Manual demo controls are still available.",
+          );
+          startAllMonitoringButton.disabled = false;
+          stopAllMonitoringButton.disabled = true;
+          return;
         }
+      }
 
-        startAllMonitoringButton.disabled = true;
-        stopAllMonitoringButton.disabled = false;
+      if (!startDetectionButton.disabled) {
+        startDetectionButton.click();
+      } else if (!faceDetectionSupported()) {
+        setDetectionStatus(
+          "Automatic face counting is not supported in this browser.",
+        );
+      }
 
-        if (!stream) {
-            startButton.click();
-            const ready = await waitForCameraReady();
-            if (!ready) {
-                setStatus("Camera could not start. Manual demo controls are still available.");
-                startAllMonitoringButton.disabled = false;
-                stopAllMonitoringButton.disabled = true;
-                return;
-            }
-        }
+      if (!startPhoneDetectionButton.disabled) {
+        startPhoneDetectionButton.click();
+      }
 
-        if (!startDetectionButton.disabled) {
-            startDetectionButton.click();
-        } else if (!faceDetectionSupported()) {
-            setDetectionStatus("Automatic face counting is not supported in this browser.");
-        }
+      if (!startAttentionDetectionButton.disabled) {
+        startAttentionDetectionButton.click();
+      }
 
-        if (!startPhoneDetectionButton.disabled) {
-            startPhoneDetectionButton.click();
-        }
+      if (!startBackendAiButton.disabled) {
+        startBackendAiButton.click();
+      }
 
-        if (!startAttentionDetectionButton.disabled) {
-            startAttentionDetectionButton.click();
-        }
-
-        if (!startBackendAiButton.disabled) {
-            startBackendAiButton.click();
-        }
-
-        monitoringStatus.textContent = "monitoring";
-        monitoringStatus.className = "status active";
+      monitoringStatus.textContent = "monitoring";
+      monitoringStatus.className = "status active";
     }
 
     function stopAllMonitoring() {
-        if (!stopAttentionDetectionButton.disabled) {
-            stopAttentionDetectionButton.click();
-        } else {
-            stopAttentionDetection("Not started");
-        }
+      if (!stopAttentionDetectionButton.disabled) {
+        stopAttentionDetectionButton.click();
+      } else {
+        stopAttentionDetection("Not started");
+      }
 
-        if (!stopPhoneDetectionButton.disabled) {
-            stopPhoneDetectionButton.click();
-        } else {
-            stopPhoneDetection("Not started");
-        }
+      if (!stopPhoneDetectionButton.disabled) {
+        stopPhoneDetectionButton.click();
+      } else {
+        stopPhoneDetection("Not started");
+      }
 
-        if (!stopDetectionButton.disabled) {
-            stopDetectionButton.click();
-        } else {
-            stopDetection("Detection stopped.");
-        }
+      if (!stopDetectionButton.disabled) {
+        stopDetectionButton.click();
+      } else {
+        stopDetection("Detection stopped.");
+      }
 
-        if (!stopBackendAiButton.disabled) {
-            stopBackendAiButton.click();
-        } else {
-            stopBackendAi("Not started");
-        }
+      if (!stopBackendAiButton.disabled) {
+        stopBackendAiButton.click();
+      } else {
+        stopBackendAi("Not started");
+      }
 
-        if (!stopButton.disabled) {
-            stopButton.click();
-        }
+      if (!stopButton.disabled) {
+        stopButton.click();
+      }
 
-        startAllMonitoringButton.disabled = false;
-        stopAllMonitoringButton.disabled = true;
+      startAllMonitoringButton.disabled = false;
+      stopAllMonitoringButton.disabled = true;
     }
 
     async function detectFaces() {
-        if (!detectionRunning || !detector || !video.srcObject) {
-            return;
-        }
+      if (!detectionRunning || !detector || !video.srcObject) {
+        return;
+      }
 
-        try {
-            const faces = await detector.detect(video);
-            await postDetectedCount(faces.length);
-            setDetectionStatus(faces.length > 0 ? `${faces.length} student face(s) detected.` : "No students detected.");
-        } catch (error) {
-            setDetectionStatus("Detection error. Try restarting camera detection.");
-        }
+      try {
+        const faces = await detector.detect(video);
+        await postDetectedCount(faces.length);
+        setDetectionStatus(
+          faces.length > 0
+            ? `${faces.length} student face(s) detected.`
+            : "No students detected.",
+        );
+      } catch (error) {
+        setDetectionStatus("Detection error. Try restarting camera detection.");
+      }
 
-        if (detectionRunning) {
-            detectionTimer = window.setTimeout(detectFaces, detectionIntervalMs);
-        }
+      if (detectionRunning) {
+        detectionTimer = window.setTimeout(detectFaces, detectionIntervalMs);
+      }
     }
 
     function stopDetection(message = "Detection stopped.") {
-        detectionRunning = false;
-        if (detectionTimer) {
-            window.clearTimeout(detectionTimer);
-            detectionTimer = null;
-        }
-        startDetectionButton.disabled = !stream;
-        stopDetectionButton.disabled = true;
-        setDetectionStatus(message);
+      detectionRunning = false;
+      if (detectionTimer) {
+        window.clearTimeout(detectionTimer);
+        detectionTimer = null;
+      }
+      startDetectionButton.disabled = !stream;
+      stopDetectionButton.disabled = true;
+      setDetectionStatus(message);
     }
 
     async function loadPhoneModel() {
-        if (phoneModel) {
-            return phoneModel;
-        }
-        if (!window.cocoSsd?.load) {
-            throw new Error("COCO-SSD is unavailable.");
-        }
-        setPhoneDetectionStatus("Loading model", "status info");
-        phoneModel = await window.cocoSsd.load();
+      if (phoneModel) {
         return phoneModel;
+      }
+      if (!window.cocoSsd?.load) {
+        throw new Error("COCO-SSD is unavailable.");
+      }
+      setPhoneDetectionStatus("Loading model", "status info");
+      phoneModel = await window.cocoSsd.load();
+      return phoneModel;
     }
 
     async function detectPhones() {
-        if (!phoneDetectionRunning || !phoneModel || !video.srcObject) {
-            return;
-        }
+      if (!phoneDetectionRunning || !phoneModel || !video.srcObject) {
+        return;
+      }
 
-        try {
-            const predictions = await phoneModel.detect(video);
-            const phonePrediction = predictions
-                .filter((item) => item.class === "cell phone")
-                .sort((left, right) => right.score - left.score)[0];
+      try {
+        const predictions = await phoneModel.detect(video);
+        const phonePrediction = predictions
+          .filter((item) => item.class === "cell phone")
+          .sort((left, right) => right.score - left.score)[0];
 
-            if (phonePrediction && phonePrediction.score >= phoneConfidenceThreshold) {
-                setPhoneConfidence(phonePrediction.score);
-                setPhoneDetectionStatus("Phone detected", "status warning");
-                if (phoneCooldownRemainingSeconds() > 0) {
-                    phoneDetectionMessage.textContent = phoneCooldownMessage("Phone detected, but cooldown is active.");
-                } else {
-                    await postPhoneUsageWarning();
-                }
-            } else {
-                setPhoneConfidence(phonePrediction?.score);
-                setPhoneDetectionStatus("No phone detected", "status active");
-            }
-        } catch (error) {
-            stopPhoneDetection("Detection unavailable");
-            return;
+        if (
+          phonePrediction &&
+          phonePrediction.score >= phoneConfidenceThreshold
+        ) {
+          setPhoneConfidence(phonePrediction.score);
+          setPhoneDetectionStatus("Phone detected", "status warning");
+          if (phoneCooldownRemainingSeconds() > 0) {
+            phoneDetectionMessage.textContent = phoneCooldownMessage(
+              "Phone detected, but cooldown is active.",
+            );
+          } else {
+            await postPhoneUsageWarning();
+          }
+        } else {
+          setPhoneConfidence(phonePrediction?.score);
+          setPhoneDetectionStatus("No phone detected", "status active");
         }
+      } catch (error) {
+        stopPhoneDetection("Detection unavailable");
+        return;
+      }
 
-        if (phoneDetectionRunning) {
-            phoneDetectionTimer = window.setTimeout(detectPhones, phoneDetectionIntervalMs);
-        }
+      if (phoneDetectionRunning) {
+        phoneDetectionTimer = window.setTimeout(
+          detectPhones,
+          phoneDetectionIntervalMs,
+        );
+      }
     }
 
     function stopPhoneDetection(message = "Not started") {
-        phoneDetectionRunning = false;
-        if (phoneDetectionTimer) {
-            window.clearTimeout(phoneDetectionTimer);
-            phoneDetectionTimer = null;
-        }
-        startPhoneDetectionButton.disabled = !stream;
-        stopPhoneDetectionButton.disabled = true;
-        setPhoneDetectionStatus(message, message === "Detection unavailable" ? "status warning" : "status scheduled");
-        if (message === "Detection unavailable") {
-            setPhoneConfidence(null);
-            phoneDetectionMessage.textContent = "Phone detection is unavailable. Manual demo logging is still available.";
-        }
+      phoneDetectionRunning = false;
+      if (phoneDetectionTimer) {
+        window.clearTimeout(phoneDetectionTimer);
+        phoneDetectionTimer = null;
+      }
+      startPhoneDetectionButton.disabled = !stream;
+      stopPhoneDetectionButton.disabled = true;
+      setPhoneDetectionStatus(
+        message,
+        message === "Detection unavailable"
+          ? "status warning"
+          : "status scheduled",
+      );
+      if (message === "Detection unavailable") {
+        setPhoneConfidence(null);
+        phoneDetectionMessage.textContent =
+          "Phone detection is unavailable. Manual demo logging is still available.";
+      }
     }
 
     async function loadAttentionModel() {
-        if (attentionModel) {
-            return attentionModel;
-        }
-        if (!window.FaceMesh) {
-            throw new Error("FaceMesh is unavailable.");
-        }
-        setAttentionDetectionStatus("Loading model", "status info");
-        attentionModel = new window.FaceMesh({
-            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
-        });
-        attentionModel.setOptions({
-            maxNumFaces: 1,
-            refineLandmarks: false,
-            minDetectionConfidence: 0.5,
-            minTrackingConfidence: 0.5,
-        });
-        attentionModel.onResults((results) => {
-            latestAttentionLandmarks = results.multiFaceLandmarks?.[0] || null;
-        });
-        if (attentionModel.initialize) {
-            await attentionModel.initialize();
-        }
+      if (attentionModel) {
         return attentionModel;
+      }
+      if (!window.FaceMesh) {
+        throw new Error("FaceMesh is unavailable.");
+      }
+      setAttentionDetectionStatus("Loading model", "status info");
+      attentionModel = new window.FaceMesh({
+        locateFile: (file) =>
+          `https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/${file}`,
+      });
+      attentionModel.setOptions({
+        maxNumFaces: 1,
+        refineLandmarks: false,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5,
+      });
+      attentionModel.onResults((results) => {
+        latestAttentionLandmarks = results.multiFaceLandmarks?.[0] || null;
+      });
+      if (attentionModel.initialize) {
+        await attentionModel.initialize();
+      }
+      return attentionModel;
     }
 
     function estimateLookingAway(landmarks) {
-        if (!landmarks || !landmarks[1] || !landmarks[33] || !landmarks[263]) {
-            return null;
-        }
+      if (!landmarks || !landmarks[1] || !landmarks[33] || !landmarks[263]) {
+        return null;
+      }
 
-        const nose = landmarks[1];
-        const leftEye = landmarks[33];
-        const rightEye = landmarks[263];
-        const eyeDistance = Math.abs(rightEye.x - leftEye.x);
-        if (eyeDistance < 0.04) {
-            return null;
-        }
+      const nose = landmarks[1];
+      const leftEye = landmarks[33];
+      const rightEye = landmarks[263];
+      const eyeDistance = Math.abs(rightEye.x - leftEye.x);
+      if (eyeDistance < 0.04) {
+        return null;
+      }
 
-        const eyeCenterX = (leftEye.x + rightEye.x) / 2;
-        const yawEstimate = Math.abs((nose.x - eyeCenterX) / eyeDistance);
-        const edgeEstimate = nose.x < 0.28 || nose.x > 0.72;
-        const lookingAway = yawEstimate > attentionYawThreshold || edgeEstimate;
-        return {
-            lookingAway,
-            score: Math.min(1, yawEstimate / 0.35),
-        };
+      const eyeCenterX = (leftEye.x + rightEye.x) / 2;
+      const yawEstimate = Math.abs((nose.x - eyeCenterX) / eyeDistance);
+      const edgeEstimate = nose.x < 0.28 || nose.x > 0.72;
+      const lookingAway = yawEstimate > attentionYawThreshold || edgeEstimate;
+      return {
+        lookingAway,
+        score: Math.min(1, yawEstimate / 0.35),
+      };
     }
 
     async function detectAttention() {
-        if (!attentionDetectionRunning || !attentionModel || !video.srcObject) {
-            return;
-        }
+      if (!attentionDetectionRunning || !attentionModel || !video.srcObject) {
+        return;
+      }
 
-        try {
-            latestAttentionLandmarks = null;
-            await attentionModel.send({ image: video });
-            const estimate = estimateLookingAway(latestAttentionLandmarks);
-            if (!estimate) {
-                attentionAwaySince = null;
-                setAttentionConfidence(null);
-                setAttentionDetectionStatus("Detecting attention", "status info");
-                attentionDetectionMessage.textContent = "No reliable face landmarks found yet.";
-            } else if (estimate.lookingAway) {
-                const now = Date.now();
-                attentionAwaySince = attentionAwaySince || now;
-                const elapsedSeconds = Math.floor((now - attentionAwaySince) / 1000);
-                setAttentionConfidence(estimate.score);
-                setAttentionDetectionStatus("Looking away", "status warning");
-                if (elapsedSeconds >= attentionAwayThresholdMs / 1000) {
-                    if (attentionCooldownRemainingSeconds() > 0) {
-                        attentionDetectionMessage.textContent = attentionCooldownMessage("Looking away detected, but cooldown is active.");
-                    } else {
-                        await postAttentionWarning();
-                    }
-                } else {
-                    attentionDetectionMessage.textContent = `Looking away estimate for ${elapsedSeconds} seconds.`;
-                }
+      try {
+        latestAttentionLandmarks = null;
+        await attentionModel.send({ image: video });
+        const estimate = estimateLookingAway(latestAttentionLandmarks);
+        if (!estimate) {
+          attentionAwaySince = null;
+          setAttentionConfidence(null);
+          setAttentionDetectionStatus("Detecting attention", "status info");
+          attentionDetectionMessage.textContent =
+            "No reliable face landmarks found yet.";
+        } else if (estimate.lookingAway) {
+          const now = Date.now();
+          attentionAwaySince = attentionAwaySince || now;
+          const elapsedSeconds = Math.floor((now - attentionAwaySince) / 1000);
+          setAttentionConfidence(estimate.score);
+          setAttentionDetectionStatus("Looking away", "status warning");
+          if (elapsedSeconds >= attentionAwayThresholdMs / 1000) {
+            if (attentionCooldownRemainingSeconds() > 0) {
+              attentionDetectionMessage.textContent = attentionCooldownMessage(
+                "Looking away detected, but cooldown is active.",
+              );
             } else {
-                attentionAwaySince = null;
-                setAttentionConfidence(estimate.score);
-                setAttentionDetectionStatus("Looking forward", "status active");
-                attentionDetectionMessage.textContent = "Looking forward.";
+              await postAttentionWarning();
             }
-        } catch (error) {
-            stopAttentionDetection("Detection unavailable");
-            return;
+          } else {
+            attentionDetectionMessage.textContent = `Looking away estimate for ${elapsedSeconds} seconds.`;
+          }
+        } else {
+          attentionAwaySince = null;
+          setAttentionConfidence(estimate.score);
+          setAttentionDetectionStatus("Looking forward", "status active");
+          attentionDetectionMessage.textContent = "Looking forward.";
         }
+      } catch (error) {
+        stopAttentionDetection("Detection unavailable");
+        return;
+      }
 
-        if (attentionDetectionRunning) {
-            attentionDetectionTimer = window.setTimeout(detectAttention, attentionDetectionIntervalMs);
-        }
+      if (attentionDetectionRunning) {
+        attentionDetectionTimer = window.setTimeout(
+          detectAttention,
+          attentionDetectionIntervalMs,
+        );
+      }
     }
 
     function stopAttentionDetection(message = "Not started") {
-        attentionDetectionRunning = false;
-        attentionAwaySince = null;
-        if (attentionDetectionTimer) {
-            window.clearTimeout(attentionDetectionTimer);
-            attentionDetectionTimer = null;
-        }
-        startAttentionDetectionButton.disabled = !stream;
-        stopAttentionDetectionButton.disabled = true;
-        setAttentionDetectionStatus(message, message === "Detection unavailable" ? "status warning" : "status scheduled");
-        if (message === "Detection unavailable") {
-            setAttentionConfidence(null);
-            attentionDetectionMessage.textContent = "Attention detection is unavailable. Manual demo logging is still available.";
-        }
+      attentionDetectionRunning = false;
+      attentionAwaySince = null;
+      if (attentionDetectionTimer) {
+        window.clearTimeout(attentionDetectionTimer);
+        attentionDetectionTimer = null;
+      }
+      startAttentionDetectionButton.disabled = !stream;
+      stopAttentionDetectionButton.disabled = true;
+      setAttentionDetectionStatus(
+        message,
+        message === "Detection unavailable"
+          ? "status warning"
+          : "status scheduled",
+      );
+      if (message === "Detection unavailable") {
+        setAttentionConfidence(null);
+        attentionDetectionMessage.textContent =
+          "Attention detection is unavailable. Manual demo logging is still available.";
+      }
     }
 
     async function analyzeBackendFrameLoop() {
-        if (!backendAiRunning || !video.srcObject) {
-            return;
-        }
+      if (!backendAiRunning || !video.srcObject) {
+        return;
+      }
 
-        await postBackendFrame();
+      await postBackendFrame();
 
-        if (backendAiRunning) {
-            backendAiTimer = window.setTimeout(analyzeBackendFrameLoop, backendAiIntervalMs);
-        }
+      if (backendAiRunning) {
+        backendAiTimer = window.setTimeout(
+          analyzeBackendFrameLoop,
+          backendAiIntervalMs,
+        );
+      }
     }
 
     function stopBackendAi(message = "Not started") {
-        backendAiRunning = false;
-        if (backendAiTimer) {
-            window.clearTimeout(backendAiTimer);
-            backendAiTimer = null;
-        }
-        startBackendAiButton.disabled = !stream;
-        stopBackendAiButton.disabled = true;
-        setBackendAiStatus(message, message === "Not started" ? "status scheduled" : "status info");
+      backendAiRunning = false;
+      if (backendAiTimer) {
+        window.clearTimeout(backendAiTimer);
+        backendAiTimer = null;
+      }
+      startBackendAiButton.disabled = !stream;
+      stopBackendAiButton.disabled = true;
+      setBackendAiStatus(
+        message,
+        message === "Not started" ? "status scheduled" : "status info",
+      );
+      clearAiOverlay();
     }
 
     startButton.addEventListener("click", async () => {
-        if (!navigator.mediaDevices?.getUserMedia) {
-            setStatus("Camera is not supported in this browser.");
-            return;
-        }
-        try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
-            video.srcObject = stream;
-            startButton.disabled = true;
-            stopButton.disabled = false;
-            startDetectionButton.disabled = !faceDetectionSupported();
-            startPhoneDetectionButton.disabled = false;
-            startAttentionDetectionButton.disabled = false;
-            startBackendAiButton.disabled = false;
-            stopAllMonitoringButton.disabled = false;
-            monitoringStatus.textContent = "camera ready";
-            monitoringStatus.className = "status active";
-            setStatus("Camera ready.");
-            setDetectionStatus(
-                faceDetectionSupported()
-                    ? "Detection ready."
-                    : "Automatic face counting is not supported in this browser."
-            );
-        } catch (error) {
-            setStatus("Camera permission denied or unavailable.");
-            setDetectionStatus("Camera permission denied.");
-        }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setStatus("Camera is not supported in this browser.");
+        return;
+      }
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
+        });
+        video.srcObject = stream;
+        startButton.disabled = true;
+        stopButton.disabled = false;
+        startDetectionButton.disabled = !faceDetectionSupported();
+        startPhoneDetectionButton.disabled = false;
+        startAttentionDetectionButton.disabled = false;
+        startBackendAiButton.disabled = false;
+        stopAllMonitoringButton.disabled = false;
+        monitoringStatus.textContent = "camera ready";
+        monitoringStatus.className = "status active";
+        setStatus("Camera ready.");
+        setDetectionStatus(
+          faceDetectionSupported()
+            ? "Detection ready."
+            : "Automatic face counting is not supported in this browser.",
+        );
+      } catch (error) {
+        setStatus("Camera permission denied or unavailable.");
+        setDetectionStatus("Camera permission denied.");
+      }
     });
 
     stopButton.addEventListener("click", () => {
-        stopDetection("Detection stopped.");
-        stopPhoneDetection("Not started");
-        stopAttentionDetection("Not started");
-        stopBackendAi("Not started");
-        if (stream) {
-            stream.getTracks().forEach((track) => track.stop());
-            stream = null;
-        }
-        video.srcObject = null;
-        startButton.disabled = false;
-        stopButton.disabled = true;
-        startDetectionButton.disabled = true;
-        startPhoneDetectionButton.disabled = true;
-        startAttentionDetectionButton.disabled = true;
-        startBackendAiButton.disabled = true;
-        startAllMonitoringButton.disabled = false;
-        stopAllMonitoringButton.disabled = true;
-        monitoringStatus.textContent = "stopped";
-        monitoringStatus.className = "status scheduled";
-        setStatus("Camera stopped.");
+      stopDetection("Detection stopped.");
+      stopPhoneDetection("Not started");
+      stopAttentionDetection("Not started");
+      stopBackendAi("Not started");
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+        stream = null;
+      }
+      video.srcObject = null;
+      clearAiOverlay();
+      startButton.disabled = false;
+      stopButton.disabled = true;
+      startDetectionButton.disabled = true;
+      startPhoneDetectionButton.disabled = true;
+      startAttentionDetectionButton.disabled = true;
+      startBackendAiButton.disabled = true;
+      startAllMonitoringButton.disabled = false;
+      stopAllMonitoringButton.disabled = true;
+      monitoringStatus.textContent = "stopped";
+      monitoringStatus.className = "status scheduled";
+      setStatus("Camera stopped.");
     });
 
     startDetectionButton.addEventListener("click", async () => {
-        if (!selectedSessionId) {
-            setDetectionStatus("Please select an active session to monitor.");
-            return;
-        }
-        if (!stream) {
-            setDetectionStatus("Start camera before detection.");
-            return;
-        }
-        if (!faceDetectionSupported()) {
-            setDetectionStatus("Automatic face counting is not supported in this browser.");
-            return;
-        }
+      if (!selectedSessionId) {
+        setDetectionStatus("Please select an active session to monitor.");
+        return;
+      }
+      if (!stream) {
+        setDetectionStatus("Start camera before detection.");
+        return;
+      }
+      if (!faceDetectionSupported()) {
+        setDetectionStatus(
+          "Automatic face counting is not supported in this browser.",
+        );
+        return;
+      }
 
-        try {
-            detector = detector || new FaceDetector({ fastMode: true });
-            detectionRunning = true;
-            startDetectionButton.disabled = true;
-            stopDetectionButton.disabled = false;
-            monitoringStatus.textContent = "detecting";
-            monitoringStatus.className = "status active";
-            setDetectionStatus("Detecting...");
-            startStatusPolling();
-            await detectFaces();
-        } catch (error) {
-            detectionRunning = false;
-            startDetectionButton.disabled = false;
-            stopDetectionButton.disabled = true;
-            setDetectionStatus("Automatic face counting is not supported in this browser.");
-        }
+      try {
+        detector = detector || new FaceDetector({ fastMode: true });
+        detectionRunning = true;
+        startDetectionButton.disabled = true;
+        stopDetectionButton.disabled = false;
+        monitoringStatus.textContent = "detecting";
+        monitoringStatus.className = "status active";
+        setDetectionStatus("Detecting...");
+        startStatusPolling();
+        await detectFaces();
+      } catch (error) {
+        detectionRunning = false;
+        startDetectionButton.disabled = false;
+        stopDetectionButton.disabled = true;
+        setDetectionStatus(
+          "Automatic face counting is not supported in this browser.",
+        );
+      }
     });
 
     stopDetectionButton.addEventListener("click", () => {
-        stopDetection();
-        if (stream) {
-            monitoringStatus.textContent = "camera ready";
-            monitoringStatus.className = "status active";
-        }
+      stopDetection();
+      if (stream) {
+        monitoringStatus.textContent = "camera ready";
+        monitoringStatus.className = "status active";
+      }
     });
 
     startPhoneDetectionButton.addEventListener("click", async () => {
-        if (!selectedSessionId) {
-            setPhoneDetectionStatus("Detection unavailable", "status warning");
-            phoneDetectionMessage.textContent = "Please select an active session to monitor.";
-            return;
-        }
-        if (!stream) {
-            setPhoneDetectionStatus("Detection unavailable", "status warning");
-            phoneDetectionMessage.textContent = "Start camera before phone detection.";
-            return;
-        }
+      if (!selectedSessionId) {
+        setPhoneDetectionStatus("Detection unavailable", "status warning");
+        phoneDetectionMessage.textContent =
+          "Please select an active session to monitor.";
+        return;
+      }
+      if (!stream) {
+        setPhoneDetectionStatus("Detection unavailable", "status warning");
+        phoneDetectionMessage.textContent =
+          "Start camera before phone detection.";
+        return;
+      }
 
-        try {
-            await loadPhoneModel();
-            phoneDetectionRunning = true;
-            startPhoneDetectionButton.disabled = true;
-            stopPhoneDetectionButton.disabled = false;
-            setPhoneDetectionStatus("Detecting phone", "status info");
-            await detectPhones();
-        } catch (error) {
-            stopPhoneDetection("Detection unavailable");
-        }
+      try {
+        await loadPhoneModel();
+        phoneDetectionRunning = true;
+        startPhoneDetectionButton.disabled = true;
+        stopPhoneDetectionButton.disabled = false;
+        setPhoneDetectionStatus("Detecting phone", "status info");
+        await detectPhones();
+      } catch (error) {
+        stopPhoneDetection("Detection unavailable");
+      }
     });
 
     stopPhoneDetectionButton.addEventListener("click", () => {
-        stopPhoneDetection("Not started");
+      stopPhoneDetection("Not started");
     });
 
     startAttentionDetectionButton.addEventListener("click", async () => {
-        if (!selectedSessionId) {
-            setAttentionDetectionStatus("Detection unavailable", "status warning");
-            attentionDetectionMessage.textContent = "Please select an active session to monitor.";
-            return;
-        }
-        if (!stream) {
-            setAttentionDetectionStatus("Detection unavailable", "status warning");
-            attentionDetectionMessage.textContent = "Start camera before attention detection.";
-            return;
-        }
+      if (!selectedSessionId) {
+        setAttentionDetectionStatus("Detection unavailable", "status warning");
+        attentionDetectionMessage.textContent =
+          "Please select an active session to monitor.";
+        return;
+      }
+      if (!stream) {
+        setAttentionDetectionStatus("Detection unavailable", "status warning");
+        attentionDetectionMessage.textContent =
+          "Start camera before attention detection.";
+        return;
+      }
 
-        try {
-            await loadAttentionModel();
-            attentionDetectionRunning = true;
-            startAttentionDetectionButton.disabled = true;
-            stopAttentionDetectionButton.disabled = false;
-            setAttentionDetectionStatus("Detecting attention", "status info");
-            await detectAttention();
-        } catch (error) {
-            stopAttentionDetection("Detection unavailable");
-        }
+      try {
+        await loadAttentionModel();
+        attentionDetectionRunning = true;
+        startAttentionDetectionButton.disabled = true;
+        stopAttentionDetectionButton.disabled = false;
+        setAttentionDetectionStatus("Detecting attention", "status info");
+        await detectAttention();
+      } catch (error) {
+        stopAttentionDetection("Detection unavailable");
+      }
     });
 
     stopAttentionDetectionButton.addEventListener("click", () => {
-        stopAttentionDetection("Not started");
+      stopAttentionDetection("Not started");
     });
 
     startBackendAiButton.addEventListener("click", async () => {
-        if (!selectedSessionId) {
-            setBackendAiStatus("Please select an active session to monitor.", "status warning");
-            return;
-        }
-        if (!stream) {
-            setBackendAiStatus("Start camera before backend AI analysis.", "status warning");
-            return;
-        }
+      if (!selectedSessionId) {
+        setBackendAiStatus(
+          "Please select an active session to monitor.",
+          "status warning",
+        );
+        return;
+      }
+      if (!stream) {
+        setBackendAiStatus(
+          "Start camera before backend AI analysis.",
+          "status warning",
+        );
+        return;
+      }
 
-        backendAiRunning = true;
-        startBackendAiButton.disabled = true;
-        stopBackendAiButton.disabled = false;
-        setBackendAiStatus("Analyzing frames", "status info");
-        await analyzeBackendFrameLoop();
+      backendAiRunning = true;
+      startBackendAiButton.disabled = true;
+      stopBackendAiButton.disabled = false;
+      setBackendAiStatus("Analyzing frames", "status info");
+      await analyzeBackendFrameLoop();
     });
 
     stopBackendAiButton.addEventListener("click", () => {
-        stopBackendAi("Not started");
+      stopBackendAi("Not started");
     });
 
     startAllMonitoringButton.addEventListener("click", startAllMonitoring);
     stopAllMonitoringButton.addEventListener("click", stopAllMonitoring);
 
     demoButtons.forEach((button) => {
-        button.addEventListener("click", async () => {
-            if (!selectedSessionId) {
-                occupancyMessage.textContent = "Please select an active session to monitor.";
-                return;
-            }
-            startStatusPolling();
-            await postDetectedCount(Number(button.dataset.demoCount));
-        });
+      button.addEventListener("click", async () => {
+        if (!selectedSessionId) {
+          occupancyMessage.textContent =
+            "Please select an active session to monitor.";
+          return;
+        }
+        startStatusPolling();
+        await postDetectedCount(Number(button.dataset.demoCount));
+      });
     });
 
     startStatusPolling();
-})();
+  })();
 </script>
 {% endblock %}

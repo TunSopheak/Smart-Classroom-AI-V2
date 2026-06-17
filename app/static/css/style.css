@@ -742,7 +742,7 @@ a.mini-record {
 
 .qr-reader {
     width: min(460px, 100%);
-    min-height: 220px;
+    min-height: 190px;
     margin-top: 16px;
     overflow: hidden;
     border: 1px solid var(--line);
@@ -917,7 +917,7 @@ a.mini-record {
 
 .monitor-grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.1fr) minmax(360px, 0.9fr);
+    grid-template-columns: minmax(0, 1.08fr) minmax(380px, 0.92fr);
     gap: 22px;
     align-items: start;
     margin-bottom: 20px;
@@ -1043,6 +1043,44 @@ a.mini-record {
     border-radius: 999px;
     font-size: 0.82rem;
     font-weight: 700;
+}
+
+.detection-badge.warning {
+    color: #5c4b12;
+    background: #fff7d6;
+}
+
+.detection-badge.info {
+    color: var(--accent-strong);
+    background: #e8f4ff;
+}
+
+.device-zone-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(140px, 1fr));
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.device-zone-card {
+    display: grid;
+    gap: 6px;
+    min-height: 88px;
+    padding: 12px;
+    background: #fbfcfe;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+}
+
+.device-zone-card span {
+    color: var(--muted);
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.device-zone-card strong {
+    font-size: 1rem;
 }
 
 .monitor-events-section {
@@ -1209,4 +1247,49 @@ a.mini-record {
         padding: 20px;
     }
 
+}
+
+.video-overlay-wrap {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    min-height: 260px;
+    max-height: 420px;
+    margin-top: 0;
+    overflow: hidden;
+    background: #0f172a;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+}
+
+.video-overlay-wrap .camera-preview {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+    margin-top: 0;
+    border: 0;
+    border-radius: 0;
+    object-fit: cover;
+}
+
+.ai-overlay-canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 2;
+}
+
+@media (max-width: 680px) {
+    .video-overlay-wrap {
+        min-height: 220px;
+        max-height: none;
+    }
+
+    .device-zone-grid {
+        grid-template-columns: 1fr;
+    }
 }
