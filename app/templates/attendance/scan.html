@@ -101,32 +101,7 @@
         <p class="muted"><strong>Scanning for:</strong> {{ selected_session.class_group.class_code }} / {{ selected_session.subject.name }} / {{ selected_session.teacher.teacher_code }} / {{ selected_session.room }} / {{ selected_session.start_time.strftime("%H:%M") }}-{{ selected_session.end_time.strftime("%H:%M") }}</p>
         {% endif %}
         <p id="scanner-status" class="muted">Camera is stopped. Use manual input only if camera scanning fails.</p>
-        <div class="voice-controls">
-            <label class="inline-check">
-                <input id="voice-enabled" type="checkbox">
-                Enable voice feedback
-            </label>
-            <label>
-                Voice
-                <select id="voice-select">
-                    <option value="">Default voice</option>
-                </select>
-            </label>
-            <label class="range-label">
-                <span>Rate</span>
-                <strong id="voice-rate-value">1.0x</strong>
-                <input id="voice-rate" type="range" min="0.7" max="1.3" step="0.1" value="1">
-            </label>
-            <label class="range-label">
-                <span>Pitch</span>
-                <strong id="voice-pitch-value">1.0</strong>
-                <input id="voice-pitch" type="range" min="0.7" max="1.3" step="0.1" value="1">
-            </label>
-            <div class="voice-actions">
-                <button id="test-voice" class="button" type="button">Test Voice</button>
-                <span id="voice-status" class="voice-status">Voice is optional.</span>
-            </div>
-        </div>
+        <p id="voice-status" class="voice-note">Voice feedback is enabled automatically for scan results.</p>
         <div id="qr-reader" class="qr-reader"></div>
     </section>
 
@@ -168,13 +143,6 @@
     const sessionInput = document.getElementById("session-id-input");
     const form = document.getElementById("attendance-scan-form");
     const resultBox = document.getElementById("scan-result");
-    const voiceToggle = document.getElementById("voice-enabled");
-    const voiceSelect = document.getElementById("voice-select");
-    const voiceRate = document.getElementById("voice-rate");
-    const voicePitch = document.getElementById("voice-pitch");
-    const voiceRateValue = document.getElementById("voice-rate-value");
-    const voicePitchValue = document.getElementById("voice-pitch-value");
-    const testVoiceButton = document.getElementById("test-voice");
     const voiceStatus = document.getElementById("voice-status");
     const readerId = "qr-reader";
     let scanner = null;
@@ -192,52 +160,32 @@
         return "speechSynthesis" in window && "SpeechSynthesisUtterance" in window;
     }
 
-    function setVoiceControlState() {
-        const supported = voiceSupported();
-        const enabled = supported && voiceToggle.checked;
-        voiceSelect.disabled = !enabled;
-        voiceRate.disabled = !enabled;
-        voicePitch.disabled = !enabled;
-        testVoiceButton.disabled = !supported;
-        voiceRateValue.textContent = `${Number(voiceRate.value || 1).toFixed(1)}x`;
-        voicePitchValue.textContent = Number(voicePitch.value || 1).toFixed(1);
-    }
-
-    function populateVoices() {
+    function preferredVoice() {
         if (!voiceSupported()) {
-            return;
+            return null;
         }
-        const selected = localStorage.getItem("qrVoiceName") || "";
         const voices = window.speechSynthesis.getVoices();
-        voiceSelect.innerHTML = '<option value="">Default voice</option>';
-        voices.forEach((voice) => {
-            const option = document.createElement("option");
-            option.value = voice.name;
-            option.textContent = `${voice.name} (${voice.lang})`;
-            option.selected = voice.name === selected;
-            voiceSelect.appendChild(option);
-        });
-        voiceStatus.textContent = voices.length ? "Voice options loaded." : "Voice options will load when the browser is ready.";
-        setVoiceControlState();
+        return (
+            voices.find((voice) => voice.name === "Google UK English Male" && voice.lang.toLowerCase().startsWith("en-gb")) ||
+            voices.find((voice) => voice.lang.toLowerCase().startsWith("en-gb")) ||
+            voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) ||
+            null
+        );
     }
 
     function speak(message) {
-        if (!voiceToggle.checked) {
-            return;
-        }
         if (!voiceSupported()) {
-            voiceStatus.textContent = "Voice feedback is not supported in this browser.";
+            voiceStatus.textContent = "Voice feedback is unavailable in this browser.";
             return;
         }
         window.speechSynthesis.cancel();
         const utterance = new SpeechSynthesisUtterance(message);
-        const voices = window.speechSynthesis.getVoices();
-        const selectedVoice = voices.find((voice) => voice.name === voiceSelect.value);
+        const selectedVoice = preferredVoice();
         if (selectedVoice) {
             utterance.voice = selectedVoice;
         }
-        utterance.rate = Number(voiceRate.value || 1);
-        utterance.pitch = Number(voicePitch.value || 1);
+        utterance.rate = 1;
+        utterance.pitch = 1;
         window.speechSynthesis.speak(utterance);
     }
 
@@ -381,50 +329,11 @@
         }
     });
 
-    const savedVoice = localStorage.getItem("qrVoiceEnabled");
-    voiceToggle.checked = savedVoice === "true";
-    voiceRate.value = localStorage.getItem("qrVoiceRate") || "1";
-    voicePitch.value = localStorage.getItem("qrVoicePitch") || "1";
     if (!voiceSupported()) {
-        voiceStatus.textContent = "Voice feedback is not supported in this browser. Scanner messages will still appear on screen.";
+        voiceStatus.textContent = "Voice feedback is unavailable in this browser. Scanner messages still appear on screen.";
     } else {
-        populateVoices();
-        window.speechSynthesis.onvoiceschanged = populateVoices;
+        window.speechSynthesis.onvoiceschanged = preferredVoice;
     }
-    setVoiceControlState();
-
-    voiceToggle.addEventListener("change", () => {
-        localStorage.setItem("qrVoiceEnabled", voiceToggle.checked ? "true" : "false");
-        voiceStatus.textContent = voiceToggle.checked ? "Voice feedback enabled." : "Voice feedback disabled.";
-        setVoiceControlState();
-    });
-
-    voiceSelect.addEventListener("change", () => {
-        localStorage.setItem("qrVoiceName", voiceSelect.value);
-        voiceStatus.textContent = voiceSelect.value ? `Voice selected: ${voiceSelect.value}.` : "Using default voice.";
-    });
-
-    voiceRate.addEventListener("input", () => {
-        localStorage.setItem("qrVoiceRate", voiceRate.value);
-        setVoiceControlState();
-    });
-
-    voicePitch.addEventListener("input", () => {
-        localStorage.setItem("qrVoicePitch", voicePitch.value);
-        setVoiceControlState();
-    });
-
-    testVoiceButton.addEventListener("click", () => {
-        if (!voiceSupported()) {
-            voiceStatus.textContent = "Voice feedback is not supported in this browser.";
-            return;
-        }
-        voiceToggle.checked = true;
-        localStorage.setItem("qrVoiceEnabled", "true");
-        voiceStatus.textContent = "Playing test voice.";
-        setVoiceControlState();
-        speak("Voice feedback is ready");
-    });
 
     const serverNotice = document.querySelector(".notice");
     if (serverNotice) {
