@@ -3,12 +3,22 @@
 {% block title %}Weekly Schedules - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Teaching Assignments</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Academic Management</span>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Schedules</span>
+        </nav>
         <h2>Weekly Schedules</h2>
+        <p class="page-subtitle">Create recurring teaching assignments that generate daily classroom sessions.</p>
     </div>
-    <a class="button primary" href="/schedules/new">Add Schedule</a>
+    <div class="page-actions">
+        <a class="button" href="/sessions">View Sessions</a>
+        <a class="button primary" href="/schedules/new">Add Schedule</a>
+    </div>
 </section>
 
 {% include "partials/messages.html" %}

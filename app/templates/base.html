@@ -4,48 +4,66 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Smart Classroom AI Monitoring V2{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=ui20">
 </head>
 <body>
-    <header class="site-header">
-        <div>
-            <p class="eyebrow">Version 2</p>
+    {% set current_path = request.url.path if request is defined else "" %}
+    <header class="app-header">
+        <button class="menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="app-sidebar">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <a class="brand-lockup" href="/dashboard" aria-label="Smart Classroom dashboard">
+            <span>Version 2</span>
             <h1>Smart Classroom AI Monitoring</h1>
-        </div>
-        <nav class="main-nav" aria-label="Main navigation">
-            <div class="nav-group">
-                <a href="/dashboard">Dashboard</a>
-                <a href="/qr-scanner">QR Scanner</a>
-                <a href="/attendance">Attendance</a>
-                <a href="/sessions">Sessions</a>
-                <a href="/ai-monitoring">AI Monitoring</a>
-                <a href="/ai-events">AI Events</a>
-            </div>
-            <details class="nav-menu">
-                <summary>Academic</summary>
-                <div class="nav-menu-panel">
-                    <a href="/classes">Classes</a>
-                    <a href="/students">Students</a>
-                    <a href="/enrollments">Enrollments</a>
-                    <a href="/teachers">Teachers</a>
-                    <a href="/subjects">Subjects</a>
-                    <a href="/schedules">Schedules</a>
-                </div>
-            </details>
-            <details class="nav-menu">
-                <summary>System</summary>
-                <div class="nav-menu-panel">
-                    <a href="/docs">API Docs</a>
-                </div>
-            </details>
-        </nav>
+        </a>
     </header>
+    <nav id="app-sidebar" class="sidebar" aria-label="Main navigation">
+        <div class="sidebar-header">
+            <div>
+                <span class="eyebrow">Version 2</span>
+                <strong>Navigation</strong>
+            </div>
+            <button class="sidebar-close" type="button" aria-label="Close navigation menu">Close</button>
+        </div>
+        <div class="sidebar-section">
+            <p>Main</p>
+            <a href="/dashboard" class="sidebar-link {% if current_path in ['/', '/dashboard'] %}active{% endif %}">Dashboard</a>
+        </div>
+        <div class="sidebar-section">
+            <p>Academic Management</p>
+            <a href="/classes" class="sidebar-link {% if current_path.startswith('/classes') %}active{% endif %}">Classes</a>
+            <a href="/students" class="sidebar-link {% if current_path.startswith('/students') %}active{% endif %}">Students</a>
+            <a href="/enrollments" class="sidebar-link {% if current_path.startswith('/enrollments') %}active{% endif %}">Enrollments</a>
+            <a href="/teachers" class="sidebar-link {% if current_path.startswith('/teachers') %}active{% endif %}">Teachers</a>
+            <a href="/subjects" class="sidebar-link {% if current_path.startswith('/subjects') %}active{% endif %}">Subjects</a>
+            <a href="/schedules" class="sidebar-link {% if current_path.startswith('/schedules') %}active{% endif %}">Schedules</a>
+        </div>
+        <div class="sidebar-section">
+            <p>Sessions &amp; Attendance</p>
+            <a href="/sessions" class="sidebar-link {% if current_path.startswith('/sessions') %}active{% endif %}">Sessions</a>
+            <a href="/attendance/scan" class="sidebar-link {% if current_path.startswith('/attendance/scan') or current_path.startswith('/qr-scanner') %}active{% endif %}">QR Scanner</a>
+            <a href="/attendance" class="sidebar-link {% if current_path == '/attendance' %}active{% endif %}">Attendance History</a>
+            <a href="/attendance" class="sidebar-link {% if current_path.startswith('/attendance/export') %}active{% endif %}">Attendance Reports</a>
+        </div>
+        <div class="sidebar-section">
+            <p>AI Monitoring</p>
+            <a href="/ai-monitoring" class="sidebar-link {% if current_path.startswith('/ai-monitoring') %}active{% endif %}">AI Monitoring</a>
+            <a href="/ai-events" class="sidebar-link {% if current_path.startswith('/ai-events') %}active{% endif %}">AI Events / Reports</a>
+        </div>
+        <div class="sidebar-section">
+            <p>System</p>
+            <a href="/docs" class="sidebar-link {% if current_path.startswith('/docs') %}active{% endif %}">API Docs</a>
+        </div>
+    </nav>
+    <div class="sidebar-backdrop"></div>
 
     <main>
         {% block content %}{% endblock %}
     </main>
 
-    <script src="{{ url_for('static', path='js/app.js') }}"></script>
+    <script src="{{ url_for('static', path='js/app.js') }}?v=ui20"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

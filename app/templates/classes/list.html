@@ -3,12 +3,22 @@
 {% block title %}Classes - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Academic Core</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Academic Management</span>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Classes</span>
+        </nav>
         <h2>Classes</h2>
+        <p class="page-subtitle">Manage class groups used by schedules, enrollments, sessions, and reports.</p>
     </div>
-    <a class="button primary" href="/classes/new">Add Class</a>
+    <div class="page-actions">
+        <a class="button" href="/students">Students</a>
+        <a class="button primary" href="/classes/new">Add Class</a>
+    </div>
 </section>
 
 {% include "partials/messages.html" %}

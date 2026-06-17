@@ -3,12 +3,22 @@
 {% block title %}Students - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Academic Core</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Academic Management</span>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Students</span>
+        </nav>
         <h2>Students</h2>
+        <p class="page-subtitle">Manage student records and review each student's current class assignment.</p>
     </div>
-    <a class="button primary" href="/students/new">Add Student</a>
+    <div class="page-actions">
+        <a class="button" href="/enrollments">Enrollments</a>
+        <a class="button primary" href="/students/new">Add Student</a>
+    </div>
 </section>
 
 {% include "partials/messages.html" %}

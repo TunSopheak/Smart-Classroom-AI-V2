@@ -3,14 +3,24 @@
 {% block title %}Sessions - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Session Engine</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Sessions &amp; Attendance</span>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Sessions</span>
+        </nav>
         <h2>Sessions</h2>
+        <p class="page-subtitle">Generate and manage class sessions from active weekly schedules.</p>
     </div>
-    <form method="post" action="/sessions/generate-today">
-        <button class="button primary" type="submit">Generate Today's Sessions</button>
-    </form>
+    <div class="page-actions">
+        <a class="button" href="/attendance/scan">QR Scanner</a>
+        <form method="post" action="/sessions/generate-today">
+            <button class="button primary" type="submit">Generate Today's Sessions</button>
+        </form>
+    </div>
 </section>
 
 {% include "partials/messages.html" %}

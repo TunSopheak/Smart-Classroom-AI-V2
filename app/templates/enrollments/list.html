@@ -3,10 +3,21 @@
 {% block title %}Enrollments - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Academic Core</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Academic Management</span>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Enrollments</span>
+        </nav>
         <h2>Enrollments</h2>
+        <p class="page-subtitle">Assign students to classes and review active or historical enrollment records.</p>
+    </div>
+    <div class="page-actions">
+        <a class="button" href="/students">Students</a>
+        <a class="button" href="/classes">Classes</a>
     </div>
 </section>
 

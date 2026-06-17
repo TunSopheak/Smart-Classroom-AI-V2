@@ -3,12 +3,22 @@
 {% block title %}Subjects - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Academic Core</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Academic Management</span>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Subjects</span>
+        </nav>
         <h2>Subjects</h2>
+        <p class="page-subtitle">Maintain subject records used by weekly schedules, sessions, and reports.</p>
     </div>
-    <a class="button primary" href="/subjects/new">Add Subject</a>
+    <div class="page-actions">
+        <a class="button" href="/schedules">Schedules</a>
+        <a class="button primary" href="/subjects/new">Add Subject</a>
+    </div>
 </section>
 
 {% include "partials/messages.html" %}

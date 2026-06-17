@@ -4,11 +4,12 @@
 
 {% block content %}
 <section class="dashboard-hero">
-    <p class="eyebrow">Clean FastAPI foundation</p>
-    <h2>Academic schedules become sessions, attendance, AI events, and reports.</h2>
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <span>Dashboard</span>
+    </nav>
+    <h2>Manage sessions, attendance, and AI monitoring from one dashboard.</h2>
     <p>
-        Teacher + Subject + Class + Day + Time + Room creates a Weekly Schedule.
-        Weekly Schedules generate Sessions, and Sessions connect attendance records with AI monitoring events.
+        Create schedules, generate sessions, record QR attendance, and review AI events without leaving the classroom workflow.
     </p>
 </section>
 
@@ -29,10 +30,10 @@
     <article class="module-card">
         <span>02</span>
         <h3>Attendance</h3>
-        <p>Session-based attendance foundation, with QR attendance planned later.</p>
+        <p>Session-based attendance with camera QR scanning, manual backup, and export-ready history.</p>
         <div class="card-links">
             <a href="/sessions">Sessions</a>
-            <a href="/qr-scanner">QR Scanner</a>
+            <a href="/attendance/scan">QR Scanner</a>
             <a href="/attendance">Attendance</a>
         </div>
     </article>

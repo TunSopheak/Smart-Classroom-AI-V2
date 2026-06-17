@@ -3,12 +3,17 @@
 {% block title %}AI Monitoring - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Session-linked Demo</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>AI Monitoring</span>
+        </nav>
         <h2>AI Monitoring</h2>
+        <p class="page-subtitle">Monitor selected active classroom sessions with attendance, AI detection, and device status.</p>
     </div>
-    <div class="button-row">
+    <div class="page-actions">
         <a class="button" href="/sessions">Sessions</a>
         <a class="button" href="/ai-events">AI Events</a>
     </div>
@@ -16,21 +21,15 @@
 
 {% include "partials/messages.html" %}
 
-<div class="helper-note">
-    Version 2 logs AI monitoring events linked to active sessions. Sleep detection and noise/talking detection are future improvements.
-</div>
-
-<div class="helper-note">
-    Phone detection is a prototype and depends on camera angle, lighting, and model accuracy.
-</div>
-
-<div class="helper-note">
-    Attention detection is a prototype estimate based on camera view and may be inaccurate. It does not prove student behavior.
-</div>
+<section class="monitor-note-grid" aria-label="AI monitoring notes">
+    <div class="helper-note">Version 2 logs AI monitoring events linked to active sessions. Sleep detection and noise/talking detection are future improvements.</div>
+    <div class="helper-note">Phone detection is a prototype and depends on camera angle, lighting, and model accuracy.</div>
+    <div class="helper-note">Attention detection is a prototype estimate based on camera view and may be inaccurate. It does not prove student behavior.</div>
+</section>
 
 {% if active_sessions %}
-<section class="form-panel compact">
-    <div class="page-heading compact-heading">
+<section class="form-panel compact session-selector-card">
+    <div class="section-heading compact-heading">
         <div>
             <p class="eyebrow">Active Sessions</p>
             <h3>Select Session</h3>
@@ -70,7 +69,7 @@
 <section class="monitor-section selected-session-panel">
     <div class="section-heading">
         <div>
-            <p class="eyebrow">A. Selected Active Session</p>
+            <p class="eyebrow">Selected Active Session</p>
             <h3>{{ active_session.class_group.class_code }} - {{ active_session.subject.name }}</h3>
         </div>
         <strong id="monitoring-status" class="status scheduled">stopped</strong>
@@ -88,7 +87,7 @@
 <section class="monitor-section">
     <div class="section-heading">
         <div>
-            <p class="eyebrow">B. Smart Classroom Status</p>
+            <p class="eyebrow">Smart Classroom Status</p>
             <h3>Live Classroom Snapshot</h3>
         </div>
     </div>
@@ -120,7 +119,7 @@
     <section class="monitor-section camera-section">
         <div class="section-heading">
             <div>
-                <p class="eyebrow">C. Camera Controls</p>
+                <p class="eyebrow">Camera Controls</p>
                 <h3>Live Preview</h3>
             </div>
             <div class="button-row">
@@ -132,10 +131,11 @@
         <video id="ai-video" class="camera-preview monitor-camera" autoplay muted playsinline></video>
     </section>
 
+    <div class="monitor-control-stack">
     <section class="monitor-section">
         <div class="section-heading">
             <div>
-                <p class="eyebrow">D. Real / Automatic Detection</p>
+                <p class="eyebrow">Real / Browser Detection</p>
                 <h3>Face Count and Occupancy</h3>
             </div>
             <span class="status info">Browser API</span>
@@ -194,7 +194,7 @@
     <section class="monitor-section">
         <div class="section-heading">
             <div>
-                <p class="eyebrow">E. Prototype Detection</p>
+                <p class="eyebrow">Prototype Detection</p>
                 <h3>Phone and Attention</h3>
             </div>
             <span class="status warning">Prototype</span>
@@ -233,7 +233,7 @@
     <section class="monitor-section">
         <div class="section-heading">
             <div>
-                <p class="eyebrow">F. Device / Light Status</p>
+                <p class="eyebrow">Device / Light Status</p>
                 <h3>Demo Device State</h3>
             </div>
             <strong id="light-status-copy" class="status info">{{ occupancy.light_status }}</strong>
@@ -244,12 +244,13 @@
             <button id="stop-all-monitoring" class="button" type="button" disabled>Stop All Monitoring</button>
         </div>
     </section>
+    </div>
 </section>
 
 <details class="monitor-section manual-demo-panel">
     <summary>
         <span>
-            <span class="eyebrow">G. Manual Demo Controls</span>
+            <span class="eyebrow">Manual Demo Controls</span>
             <strong>Manual Demo Controls for Testing Only</strong>
         </span>
         <span class="status warning">Testing</span>
@@ -293,7 +294,7 @@
 <section class="table-panel ai-events monitor-events-section">
     <div class="table-heading">
         <div>
-            <p class="eyebrow">H. Recent AI Events</p>
+            <p class="eyebrow">Recent AI Events</p>
             <h3>Newest First</h3>
         </div>
         <a class="button" href="/ai-events">View All AI Events</a>

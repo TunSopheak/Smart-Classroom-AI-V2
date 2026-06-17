@@ -3,12 +3,22 @@
 {% block title %}Teachers - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Academic Core</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Academic Management</span>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Teachers</span>
+        </nav>
         <h2>Teachers</h2>
+        <p class="page-subtitle">Manage teacher records used by schedules, sessions, and reports.</p>
     </div>
-    <a class="button primary" href="/teachers/new">Add Teacher</a>
+    <div class="page-actions">
+        <a class="button" href="/schedules">Schedules</a>
+        <a class="button primary" href="/teachers/new">Add Teacher</a>
+    </div>
 </section>
 
 {% include "partials/messages.html" %}

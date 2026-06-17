@@ -3,12 +3,22 @@
 {% block title %}Attendance - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Attendance History</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Sessions &amp; Attendance</span>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>Attendance History</span>
+        </nav>
         <h2>Attendance</h2>
+        <p class="page-subtitle">Filter attendance records by class, session, student, and status for review or export.</p>
     </div>
-    <a class="button primary" href="/attendance/scan">QR Scanner</a>
+    <div class="page-actions">
+        <a class="button" href="/sessions">View Sessions</a>
+        <a class="button primary" href="/attendance/scan">QR Scanner</a>
+    </div>
 </section>
 
 {% include "partials/messages.html" %}

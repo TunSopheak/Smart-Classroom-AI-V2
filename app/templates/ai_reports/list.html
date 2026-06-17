@@ -3,12 +3,22 @@
 {% block title %}AI Events - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">AI Monitoring Report</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="/dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <a href="/ai-monitoring">AI Monitoring</a>
+            <span class="breadcrumb-separator">&gt;</span>
+            <span>AI Events / Reports</span>
+        </nav>
         <h2>AI Events</h2>
+        <p class="page-subtitle">Review AI monitoring events, filter by class/session/type, and export reports.</p>
     </div>
-    <a class="button primary" href="/ai-monitoring">AI Monitoring</a>
+    <div class="page-actions">
+        <a class="button" href="/dashboard">Dashboard</a>
+        <a class="button primary" href="/ai-monitoring">AI Monitoring</a>
+    </div>
 </section>
 
 {% include "partials/messages.html" %}
