@@ -1,10 +1,14 @@
+import os
 import time
 from datetime import datetime
 
 import requests
 
 
-BACKEND_URL = "http://127.0.0.1:8000"
+BACKEND_URL = os.getenv(
+    "SMART_CLASSROOM_BACKEND_URL",
+    "http://127.0.0.1:8000",
+).rstrip("/")
 DEVICE_NAME = "Raspberry Pi 5"
 HEARTBEAT_INTERVAL_SECONDS = 5
 
