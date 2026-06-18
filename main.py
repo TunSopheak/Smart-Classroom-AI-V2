@@ -23,6 +23,7 @@ from app.routers import (
     dashboard,
     devices,
     enrollments,
+    iot,
     schedules,
     sessions,
     students,
@@ -54,3 +55,4 @@ app.include_router(attendance_router.qr_router)
 app.include_router(ai_monitoring.router)
 app.include_router(ai_reports.router)
 app.include_router(devices.router)
+app.include_router(iot.router)

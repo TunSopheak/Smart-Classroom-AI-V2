@@ -21,6 +21,52 @@ endblock %} {% block content %}
 
 {% include "partials/messages.html" %}
 
+<!--Raspberry Pi card-->
+
+<section class="iot-device-card">
+  <div class="iot-device-header">
+    <div>
+      <h2 class="iot-device-title">Raspberry Pi Device Status</h2>
+      <p class="iot-device-subtitle">
+        Live IoT connection status from the Raspberry Pi client.
+      </p>
+    </div>
+
+    <div style="display: flex; gap: 10px; align-items: center">
+      <span id="iotStatusBadge" class="iot-status-badge offline">Offline</span>
+      <button
+        type="button"
+        class="iot-refresh-btn"
+        onclick="refreshIotDeviceStatus()"
+      >
+        Refresh
+      </button>
+    </div>
+  </div>
+
+  <div class="iot-device-grid">
+    <div class="iot-device-item">
+      <span class="iot-device-label">Device Name</span>
+      <span id="iotDeviceName" class="iot-device-value">Raspberry Pi 5</span>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">Last Seen</span>
+      <span id="iotLastSeen" class="iot-device-value">Not connected yet</span>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">IP Address</span>
+      <span id="iotIpAddress" class="iot-device-value">-</span>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">Seconds Since Last Seen</span>
+      <span id="iotSecondsSince" class="iot-device-value">-</span>
+    </div>
+  </div>
+</section>
+
 <section class="monitor-note-grid" aria-label="AI monitoring notes">
   <div class="helper-note">
     Version 2 logs AI monitoring events linked to active sessions. Sleep
@@ -1706,4 +1752,64 @@ endblock %} {% block content %}
     startStatusPolling();
   })();
 </script>
+
+<script>
+  async function refreshIotDeviceStatus() {
+    const badge = document.getElementById("iotStatusBadge");
+    const deviceName = document.getElementById("iotDeviceName");
+    const lastSeen = document.getElementById("iotLastSeen");
+    const ipAddress = document.getElementById("iotIpAddress");
+    const secondsSince = document.getElementById("iotSecondsSince");
+
+    if (!badge || !deviceName || !lastSeen || !ipAddress || !secondsSince) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/iot/device/status", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("IoT status request failed");
+      }
+
+      const data = await response.json();
+      const device = data.device || {};
+      const isOnline = Boolean(device.online);
+
+      badge.textContent = device.status || "Offline";
+      badge.classList.toggle("online", isOnline);
+      badge.classList.toggle("offline", !isOnline);
+
+      deviceName.textContent = device.device_name || "Raspberry Pi 5";
+      lastSeen.textContent = device.last_seen_at || "Not connected yet";
+      ipAddress.textContent = device.ip_address || "-";
+
+      if (
+        device.seconds_since_last_seen === null ||
+        device.seconds_since_last_seen === undefined
+      ) {
+        secondsSince.textContent = "-";
+      } else {
+        secondsSince.textContent = `${device.seconds_since_last_seen}s`;
+      }
+    } catch (error) {
+      badge.textContent = "Offline";
+      badge.classList.remove("online");
+      badge.classList.add("offline");
+
+      lastSeen.textContent = "Unable to connect";
+      ipAddress.textContent = "-";
+      secondsSince.textContent = "-";
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", function () {
+    refreshIotDeviceStatus();
+    setInterval(refreshIotDeviceStatus, 5000);
+  });
+</script>
+
 {% endblock %}
