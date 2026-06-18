@@ -9,6 +9,7 @@ from sqlalchemy.orm import joinedload
 from app.models.ai_event import AIEvent
 from app.models.attendance import Attendance
 from app.models.session import Session as ClassroomSession
+from app.services import iot_service
 
 
 INFO = "info"
@@ -180,6 +181,21 @@ def log_occupancy_empty_if_ready(db: DatabaseSession, active_session: ClassroomS
     state["last_occupancy_empty_at"] = now
     return event
 
+def iot_light_state_matches(new_status: str) -> bool:
+    lights = iot_service.light_status()
+    target_on = new_status == LIGHT_ON
+
+    return (
+        bool(lights.get("light_1")) == target_on
+        and bool(lights.get("light_2")) == target_on
+    )
+
+
+def sync_iot_light_state(new_status: str) -> None:
+    if new_status == LIGHT_ON:
+        iot_service.update_light_state(light_1="on", light_2="on")
+    elif new_status == LIGHT_OFF:
+        iot_service.update_light_state(light_1="off", light_2="off")
 
 def log_light_change(
     db: DatabaseSession,
@@ -189,12 +205,14 @@ def log_light_change(
     new_status: str,
     severity: str,
 ) -> AIEvent | None:
+    if not iot_light_state_matches(new_status):
+        sync_iot_light_state(new_status)
+
     if state["light_status"] == new_status:
         return None
 
     state["light_status"] = new_status
     return create_event(db, active_session, event_type, severity, EVENTS[event_type][1])
-
 
 def occupancy_context(db: DatabaseSession, active_session: ClassroomSession) -> dict:
     state = evaluate_light_auto_off(db, active_session)
