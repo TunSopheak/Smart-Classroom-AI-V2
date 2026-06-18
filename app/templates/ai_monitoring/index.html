@@ -67,6 +67,57 @@ endblock %} {% block content %}
   </div>
 </section>
 
+<section class="iot-device-card">
+  <div class="iot-device-header">
+    <div>
+      <h2 class="iot-device-title">Light Control Demo</h2>
+      <p class="iot-device-subtitle">
+        Software demo only. Raspberry Pi relay control will be connected later.
+      </p>
+    </div>
+
+    <span class="iot-status-badge">Software Demo</span>
+  </div>
+
+  <div class="iot-device-grid">
+    <div class="iot-device-item">
+      <span class="iot-device-label">Light 1</span>
+      <span id="iotLight1Status" class="iot-device-value">OFF</span>
+      <div style="display: flex; gap: 8px; margin-top: 12px">
+        <button type="button" class="iot-refresh-btn" onclick="controlIotLight('light_1', 'on')">
+          ON
+        </button>
+        <button type="button" class="button" onclick="controlIotLight('light_1', 'off')">
+          OFF
+        </button>
+      </div>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">Light 2</span>
+      <span id="iotLight2Status" class="iot-device-value">OFF</span>
+      <div style="display: flex; gap: 8px; margin-top: 12px">
+        <button type="button" class="iot-refresh-btn" onclick="controlIotLight('light_2', 'on')">
+          ON
+        </button>
+        <button type="button" class="button" onclick="controlIotLight('light_2', 'off')">
+          OFF
+        </button>
+      </div>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">Light Mode</span>
+      <span id="iotLightMode" class="iot-device-value">Software Demo</span>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">Updated At</span>
+      <span id="iotLightUpdatedAt" class="iot-device-value">-</span>
+    </div>
+  </div>
+</section>
+
 <section class="monitor-note-grid" aria-label="AI monitoring notes">
   <div class="helper-note">
     Version 2 logs AI monitoring events linked to active sessions. Sleep
@@ -1806,9 +1857,71 @@ endblock %} {% block content %}
     }
   }
 
+  async function refreshIotLightStatus() {
+    const light1Status = document.getElementById("iotLight1Status");
+    const light2Status = document.getElementById("iotLight2Status");
+    const lightMode = document.getElementById("iotLightMode");
+    const lightUpdatedAt = document.getElementById("iotLightUpdatedAt");
+
+    if (!light1Status || !light2Status || !lightMode || !lightUpdatedAt) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/iot/light/status", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        throw new Error("Light status request failed");
+      }
+
+      const data = await response.json();
+      const light = data.light || {};
+
+      light1Status.textContent = light.light_1_label || "OFF";
+      light2Status.textContent = light.light_2_label || "OFF";
+      lightMode.textContent = light.mode || "Software Demo";
+      lightUpdatedAt.textContent = light.updated_at || "-";
+    } catch (error) {
+      light1Status.textContent = "Unknown";
+      light2Status.textContent = "Unknown";
+      lightMode.textContent = "Unavailable";
+      lightUpdatedAt.textContent = "-";
+    }
+  }
+
+  async function controlIotLight(lightName, state) {
+    try {
+      const response = await fetch("/iot/light/control", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          light: lightName,
+          state: state,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Light control request failed");
+      }
+
+      await refreshIotLightStatus();
+      await refreshIotDeviceStatus();
+    } catch (error) {
+      alert("Light control failed. Please check the IoT API.");
+    }
+  }
+
   document.addEventListener("DOMContentLoaded", function () {
     refreshIotDeviceStatus();
+    refreshIotLightStatus();
+
     setInterval(refreshIotDeviceStatus, 5000);
+    setInterval(refreshIotLightStatus, 5000);
   });
 </script>
 

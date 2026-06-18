@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse
 
 from app.services import iot_service
 
@@ -63,6 +62,52 @@ async def reset_device_status():
         "ok": True,
         "message": "Device status reset.",
         "device": iot_service.reset_device_state(),
+    }
+
+
+@router.get("/light/status")
+async def light_status():
+    return {
+        "ok": True,
+        "light": iot_service.light_status(),
+    }
+
+
+@router.post("/light/control")
+async def light_control(request: Request):
+    data = await read_request_data(request)
+
+    light_1 = data.get("light_1")
+    light_2 = data.get("light_2")
+
+    # Optional simple format:
+    # {"light": "light_1", "state": "on"}
+    selected_light = (data.get("light") or "").strip()
+    selected_state = data.get("state")
+
+    if selected_light == "light_1":
+        light_1 = selected_state
+    elif selected_light == "light_2":
+        light_2 = selected_state
+
+    updated_light = iot_service.update_light_state(
+        light_1=light_1,
+        light_2=light_2,
+    )
+
+    return {
+        "ok": True,
+        "message": "Light state updated.",
+        "light": updated_light,
+    }
+
+
+@router.post("/light/reset")
+async def reset_light_status():
+    return {
+        "ok": True,
+        "message": "Light state reset.",
+        "light": iot_service.reset_light_state(),
     }
 
 
