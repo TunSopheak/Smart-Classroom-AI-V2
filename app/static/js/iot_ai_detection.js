@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
   title.textContent = "AI Detection from Pi Camera";
   var subtitle = document.createElement("p");
   subtitle.className = "iot-device-subtitle";
-  subtitle.textContent = "Analyze the latest Raspberry Pi camera snapshot with the backend YOLO engine.";
+  subtitle.textContent = "Analyze the latest Raspberry Pi camera snapshot and sync person count to occupancy.";
   titleWrap.appendChild(title);
   titleWrap.appendChild(subtitle);
 
@@ -58,6 +58,8 @@ document.addEventListener("DOMContentLoaded", function () {
   addItem("Person Count", "iotAiPersonCount", "-");
   addItem("Phone Count", "iotAiPhoneCount", "-");
   addItem("Image Size", "iotAiImageSize", "-");
+  addItem("Occupancy Sync", "iotAiOccupancySync", "Not synced yet");
+  addItem("Synced Light", "iotAiSyncedLight", "-");
 
   var details = document.createElement("div");
   details.className = "helper-note";
@@ -71,11 +73,44 @@ document.addEventListener("DOMContentLoaded", function () {
   insertAfter.insertAdjacentElement("afterend", card);
 });
 
+function getSelectedAiMonitoringSessionId() {
+  var params = new URLSearchParams(window.location.search);
+  var sessionId = params.get("session_id");
+  if (sessionId) {
+    return sessionId;
+  }
+
+  var selector = document.querySelector('select[name="session_id"]');
+  if (selector && selector.value) {
+    return selector.value;
+  }
+
+  return "";
+}
+
+function updateOccupancyDashboard(occupancy) {
+  if (!occupancy) {
+    return;
+  }
+
+  var detectedCount = document.getElementById("detected-count");
+  var difference = document.getElementById("count-difference");
+  var occupancyStatus = document.getElementById("occupancy-status");
+  var lightStatus = document.getElementById("light-status");
+
+  if (detectedCount) detectedCount.textContent = occupancy.detected_count_label || "Unknown";
+  if (difference) difference.textContent = occupancy.difference_label || "Unknown";
+  if (occupancyStatus) occupancyStatus.textContent = occupancy.occupancy_status || "Unknown";
+  if (lightStatus) lightStatus.textContent = occupancy.light_status || "Auto Mode";
+}
+
 async function analyzeLatestIotSnapshot() {
   var statusEl = document.getElementById("iotAiStatus");
   var personEl = document.getElementById("iotAiPersonCount");
   var phoneEl = document.getElementById("iotAiPhoneCount");
   var imageSizeEl = document.getElementById("iotAiImageSize");
+  var occupancySyncEl = document.getElementById("iotAiOccupancySync");
+  var syncedLightEl = document.getElementById("iotAiSyncedLight");
   var detectionsEl = document.getElementById("iotAiDetections");
 
   if (!statusEl) {
@@ -83,12 +118,19 @@ async function analyzeLatestIotSnapshot() {
   }
 
   statusEl.textContent = "Analyzing...";
+  if (occupancySyncEl) occupancySyncEl.textContent = "Waiting...";
   if (detectionsEl) detectionsEl.textContent = "Please wait...";
 
   try {
     var response = await fetch("/iot/camera/analyze-latest", {
       method: "POST",
       cache: "no-store",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        session_id: getSelectedAiMonitoringSessionId(),
+      }),
     });
     var data = await response.json();
 
@@ -102,6 +144,21 @@ async function analyzeLatestIotSnapshot() {
     if (phoneEl) phoneEl.textContent = String(analysis.phone_count ?? 0);
     if (imageSizeEl) {
       imageSizeEl.textContent = (analysis.image_width || 0) + " x " + (analysis.image_height || 0);
+    }
+
+    if (occupancySyncEl) {
+      occupancySyncEl.textContent = data.occupancy_synced ? "Synced" : (data.occupancy_error || "Not synced");
+    }
+    if (syncedLightEl) {
+      syncedLightEl.textContent = data.occupancy?.light_status || data.light?.light_1_label || "-";
+    }
+
+    updateOccupancyDashboard(data.occupancy);
+    if (typeof refreshIotLightStatus === "function") {
+      await refreshIotLightStatus();
+    }
+    if (typeof refreshIotDeviceStatus === "function") {
+      await refreshIotDeviceStatus();
     }
 
     var detections = analysis.detections || [];
@@ -118,6 +175,7 @@ async function analyzeLatestIotSnapshot() {
     }
   } catch (error) {
     statusEl.textContent = "Failed";
+    if (occupancySyncEl) occupancySyncEl.textContent = "Failed";
     if (detectionsEl) detectionsEl.textContent = error.message || "AI analysis failed.";
   }
 }
