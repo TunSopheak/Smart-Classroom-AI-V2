@@ -1,10 +1,12 @@
 from pathlib import Path
 
-from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session as DatabaseSession
 
 from app.ai.yolo_detector import get_yolo_detector
-from app.services import iot_service
+from app.core.database import get_db
+from app.services import ai_service, iot_service
 
 
 router = APIRouter(prefix="/iot", tags=["iot"])
@@ -158,7 +160,10 @@ async def latest_camera_snapshot():
 
 
 @router.post("/camera/analyze-latest")
-async def analyze_latest_camera_snapshot():
+async def analyze_latest_camera_snapshot(
+    request: Request,
+    db: DatabaseSession = Depends(get_db),
+):
     snapshot = iot_service.snapshot_status()
     snapshot_url = snapshot.get("url")
 
@@ -176,12 +181,31 @@ async def analyze_latest_camera_snapshot():
         )
 
     analysis = get_yolo_detector().analyze(snapshot_path.read_bytes())
+    request_data = await read_request_data(request)
+    session_id = request_data.get("session_id")
+
+    occupancy = None
+    occupancy_error = None
+    occupancy_synced = False
+    if analysis.get("available") and session_id:
+        occupancy, occupancy_error = ai_service.update_detected_count(
+            db,
+            session_id,
+            int(analysis.get("person_count") or 0),
+        )
+        occupancy_synced = occupancy is not None and occupancy_error is None
+    elif analysis.get("available"):
+        occupancy_error = "No active session selected, so occupancy was not updated."
 
     return {
         "ok": True,
         "message": "Latest camera snapshot analyzed.",
         "snapshot": snapshot,
         "analysis": analysis,
+        "occupancy": occupancy,
+        "occupancy_synced": occupancy_synced,
+        "occupancy_error": occupancy_error,
+        "light": iot_service.light_status(),
     }
 
 
