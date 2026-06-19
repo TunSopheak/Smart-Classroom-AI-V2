@@ -60,6 +60,7 @@ document.addEventListener("DOMContentLoaded", function () {
   addItem("Image Size", "iotAiImageSize", "-");
   addItem("Occupancy Sync", "iotAiOccupancySync", "Not synced yet");
   addItem("Synced Light", "iotAiSyncedLight", "-");
+  addItem("Analyzed At", "iotAiAnalyzedAt", "-");
 
   var details = document.createElement("div");
   details.className = "helper-note";
@@ -71,6 +72,8 @@ document.addEventListener("DOMContentLoaded", function () {
   card.appendChild(details);
 
   insertAfter.insertAdjacentElement("afterend", card);
+  refreshLatestIotAnalysisState();
+  window.setInterval(refreshLatestIotAnalysisState, 10000);
 });
 
 function getSelectedAiMonitoringSessionId() {
@@ -104,13 +107,58 @@ function updateOccupancyDashboard(occupancy) {
   if (lightStatus) lightStatus.textContent = occupancy.light_status || "Auto Mode";
 }
 
-async function analyzeLatestIotSnapshot() {
+function renderIotAnalysisState(state) {
+  if (!state || !state.available) {
+    return;
+  }
+
+  var analysis = state.analysis || {};
   var statusEl = document.getElementById("iotAiStatus");
   var personEl = document.getElementById("iotAiPersonCount");
   var phoneEl = document.getElementById("iotAiPhoneCount");
   var imageSizeEl = document.getElementById("iotAiImageSize");
   var occupancySyncEl = document.getElementById("iotAiOccupancySync");
   var syncedLightEl = document.getElementById("iotAiSyncedLight");
+  var analyzedAtEl = document.getElementById("iotAiAnalyzedAt");
+  var detectionsEl = document.getElementById("iotAiDetections");
+
+  if (statusEl) statusEl.textContent = analysis.available ? "Completed" : "Unavailable";
+  if (personEl) personEl.textContent = String(analysis.person_count ?? 0);
+  if (phoneEl) phoneEl.textContent = String(analysis.phone_count ?? 0);
+  if (imageSizeEl) imageSizeEl.textContent = (analysis.image_width || 0) + " x " + (analysis.image_height || 0);
+  if (occupancySyncEl) occupancySyncEl.textContent = state.occupancy_synced ? "Synced" : (state.occupancy_error || "Not synced");
+  if (syncedLightEl) syncedLightEl.textContent = state.occupancy?.light_status || state.light?.light_1_label || "-";
+  if (analyzedAtEl) analyzedAtEl.textContent = state.analyzed_at || "-";
+
+  updateOccupancyDashboard(state.occupancy);
+
+  var detections = analysis.detections || [];
+  if (detectionsEl) {
+    if (!detections.length) {
+      detectionsEl.textContent = "No person or phone detected.";
+    } else {
+      detectionsEl.textContent = detections
+        .map(function (item, index) {
+          return (index + 1) + ". " + item.label + " | confidence: " + item.confidence + " | box: [" + item.box.join(", ") + "]";
+        })
+        .join("\n");
+    }
+  }
+}
+
+async function refreshLatestIotAnalysisState() {
+  try {
+    var response = await fetch("/iot/camera/latest", { cache: "no-store" });
+    var data = await response.json();
+    renderIotAnalysisState(data.analysis_state);
+  } catch (error) {
+    // Keep the current dashboard state if polling fails.
+  }
+}
+
+async function analyzeLatestIotSnapshot() {
+  var statusEl = document.getElementById("iotAiStatus");
+  var occupancySyncEl = document.getElementById("iotAiOccupancySync");
   var detectionsEl = document.getElementById("iotAiDetections");
 
   if (!statusEl) {
@@ -138,40 +186,13 @@ async function analyzeLatestIotSnapshot() {
       throw new Error(data.message || "AI analysis failed");
     }
 
-    var analysis = data.analysis || {};
-    statusEl.textContent = analysis.available ? "Completed" : "Unavailable";
-    if (personEl) personEl.textContent = String(analysis.person_count ?? 0);
-    if (phoneEl) phoneEl.textContent = String(analysis.phone_count ?? 0);
-    if (imageSizeEl) {
-      imageSizeEl.textContent = (analysis.image_width || 0) + " x " + (analysis.image_height || 0);
-    }
+    renderIotAnalysisState(data.analysis_state);
 
-    if (occupancySyncEl) {
-      occupancySyncEl.textContent = data.occupancy_synced ? "Synced" : (data.occupancy_error || "Not synced");
-    }
-    if (syncedLightEl) {
-      syncedLightEl.textContent = data.occupancy?.light_status || data.light?.light_1_label || "-";
-    }
-
-    updateOccupancyDashboard(data.occupancy);
     if (typeof refreshIotLightStatus === "function") {
       await refreshIotLightStatus();
     }
     if (typeof refreshIotDeviceStatus === "function") {
       await refreshIotDeviceStatus();
-    }
-
-    var detections = analysis.detections || [];
-    if (detectionsEl) {
-      if (!detections.length) {
-        detectionsEl.textContent = "No person or phone detected.";
-      } else {
-        detectionsEl.textContent = detections
-          .map(function (item, index) {
-            return (index + 1) + ". " + item.label + " | confidence: " + item.confidence + " | box: [" + item.box.join(", ") + "]";
-          })
-          .join("\n");
-      }
     }
   } catch (error) {
     statusEl.textContent = "Failed";
