@@ -1,0 +1,16 @@
+[Unit]
+Description=Smart Classroom Raspberry Pi Client
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=sopheak
+WorkingDirectory=/home/sopheak/Smart-Classroom-AI-V2
+Environment=SMART_CLASSROOM_BACKEND_URL=http://10.86.94.199:8000
+ExecStart=/usr/bin/python3 /home/sopheak/Smart-Classroom-AI-V2/raspberry_pi/pi_client.py
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
