@@ -28,6 +28,16 @@ _camera_snapshot_state: dict = {
     "size_bytes": None,
 }
 
+_camera_analysis_state: dict = {
+    "available": False,
+    "analyzed_at": None,
+    "analysis": None,
+    "occupancy": None,
+    "occupancy_synced": False,
+    "occupancy_error": None,
+    "light": None,
+}
+
 
 def utc_now() -> datetime:
     return datetime.utcnow()
@@ -146,6 +156,55 @@ def snapshot_status() -> dict:
     }
 
 
+def analysis_status() -> dict:
+    analyzed_at = _camera_analysis_state.get("analyzed_at")
+    return {
+        "available": bool(_camera_analysis_state.get("available")),
+        "analyzed_at": format_datetime(analyzed_at),
+        "analysis": _camera_analysis_state.get("analysis"),
+        "occupancy": _camera_analysis_state.get("occupancy"),
+        "occupancy_synced": bool(_camera_analysis_state.get("occupancy_synced")),
+        "occupancy_error": _camera_analysis_state.get("occupancy_error"),
+        "light": _camera_analysis_state.get("light"),
+    }
+
+
+def save_camera_analysis(
+    analysis: dict | None,
+    occupancy: dict | None = None,
+    occupancy_synced: bool = False,
+    occupancy_error: str | None = None,
+    light: dict | None = None,
+) -> dict:
+    _camera_analysis_state.update(
+        {
+            "available": bool(analysis),
+            "analyzed_at": utc_now(),
+            "analysis": analysis,
+            "occupancy": occupancy,
+            "occupancy_synced": occupancy_synced,
+            "occupancy_error": occupancy_error,
+            "light": light or light_status(),
+        }
+    )
+    return analysis_status()
+
+
+def reset_camera_analysis() -> dict:
+    _camera_analysis_state.update(
+        {
+            "available": False,
+            "analyzed_at": None,
+            "analysis": None,
+            "occupancy": None,
+            "occupancy_synced": False,
+            "occupancy_error": None,
+            "light": None,
+        }
+    )
+    return analysis_status()
+
+
 def save_camera_snapshot(
     image_bytes: bytes,
     original_filename: str | None = None,
@@ -181,6 +240,7 @@ def save_camera_snapshot(
         }
     )
 
+    reset_camera_analysis()
     return snapshot_status()
 
 
@@ -195,6 +255,7 @@ def reset_camera_snapshot() -> dict:
             "size_bytes": None,
         }
     )
+    reset_camera_analysis()
     return snapshot_status()
 
 
@@ -218,6 +279,7 @@ def device_status(now: datetime | None = None) -> dict:
         "light_1_label": lights["light_1_label"],
         "light_2_label": lights["light_2_label"],
         "snapshot": snapshot_status(),
+        "analysis": analysis_status(),
     }
 
 
