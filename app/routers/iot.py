@@ -1,6 +1,9 @@
+from pathlib import Path
+
 from fastapi import APIRouter, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse
 
+from app.ai.yolo_detector import get_yolo_detector
 from app.services import iot_service
 
 
@@ -151,6 +154,34 @@ async def latest_camera_snapshot():
     return {
         "ok": True,
         "snapshot": iot_service.snapshot_status(),
+    }
+
+
+@router.post("/camera/analyze-latest")
+async def analyze_latest_camera_snapshot():
+    snapshot = iot_service.snapshot_status()
+    snapshot_url = snapshot.get("url")
+
+    if not snapshot.get("available") or not snapshot_url:
+        return JSONResponse(
+            {"ok": False, "message": "No Raspberry Pi camera snapshot is available yet."},
+            status_code=404,
+        )
+
+    snapshot_path = Path("app") / str(snapshot_url).lstrip("/")
+    if not snapshot_path.exists():
+        return JSONResponse(
+            {"ok": False, "message": "Latest snapshot file was not found on the backend."},
+            status_code=404,
+        )
+
+    analysis = get_yolo_detector().analyze(snapshot_path.read_bytes())
+
+    return {
+        "ok": True,
+        "message": "Latest camera snapshot analyzed.",
+        "snapshot": snapshot,
+        "analysis": analysis,
     }
 
 
