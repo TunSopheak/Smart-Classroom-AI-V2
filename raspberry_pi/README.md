@@ -26,6 +26,23 @@ Example hotspot used during testing:
 SSID: SmartClassroom
 ```
 
+## First-Time Raspberry Pi Setup
+
+If the Raspberry Pi is newly prepared, install the required tools first:
+
+```bash
+sudo apt update
+sudo apt install -y git python3-requests
+```
+
+Clone the project if it is not already on the Raspberry Pi:
+
+```bash
+git clone https://github.com/TunSopheak/Smart-Classroom-AI-V2.git
+```
+
+If the project folder already exists, use `git pull` instead of cloning again.
+
 ## 1. Start Backend Server on Laptop
 
 Open PowerShell on the laptop and go to the project folder:
