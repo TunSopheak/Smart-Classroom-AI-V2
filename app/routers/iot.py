@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, File, Form, Request, UploadFile
+from fastapi.responses import JSONResponse
 
 from app.services import iot_service
 
@@ -108,6 +109,57 @@ async def reset_light_status():
         "ok": True,
         "message": "Light state reset.",
         "light": iot_service.reset_light_state(),
+    }
+
+
+@router.post("/camera/snapshot")
+async def upload_camera_snapshot(
+    request: Request,
+    snapshot: UploadFile = File(...),
+    device_name: str = Form("Raspberry Pi 5"),
+):
+    if not snapshot.content_type or not snapshot.content_type.startswith("image/"):
+        return JSONResponse(
+            {"ok": False, "message": "Snapshot must be an image file."},
+            status_code=400,
+        )
+
+    image_bytes = await snapshot.read()
+    if not image_bytes:
+        return JSONResponse(
+            {"ok": False, "message": "Snapshot image is empty."},
+            status_code=400,
+        )
+
+    ip_address = request.client.host if request.client else None
+    latest_snapshot = iot_service.save_camera_snapshot(
+        image_bytes=image_bytes,
+        original_filename=snapshot.filename,
+        device_name=device_name,
+        ip_address=ip_address,
+    )
+
+    return {
+        "ok": True,
+        "message": "Camera snapshot uploaded.",
+        "snapshot": latest_snapshot,
+    }
+
+
+@router.get("/camera/latest")
+async def latest_camera_snapshot():
+    return {
+        "ok": True,
+        "snapshot": iot_service.snapshot_status(),
+    }
+
+
+@router.post("/camera/reset")
+async def reset_camera_snapshot():
+    return {
+        "ok": True,
+        "message": "Camera snapshot state reset.",
+        "snapshot": iot_service.reset_camera_snapshot(),
     }
 
 
