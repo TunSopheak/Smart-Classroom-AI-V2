@@ -1,6 +1,8 @@
 import os
+import subprocess
 import time
 from datetime import datetime
+from pathlib import Path
 
 import requests
 
@@ -11,11 +13,20 @@ BACKEND_URL = os.getenv(
 ).rstrip("/")
 DEVICE_NAME = "Raspberry Pi 5"
 HEARTBEAT_INTERVAL_SECONDS = 5
+CAMERA_ENABLED = os.getenv("SMART_CLASSROOM_ENABLE_CAMERA", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
+CAMERA_INTERVAL_SECONDS = int(os.getenv("SMART_CLASSROOM_CAMERA_INTERVAL", "30"))
+CAMERA_SNAPSHOT_PATH = Path(os.getenv("SMART_CLASSROOM_CAMERA_PATH", "/tmp/smart_classroom_snapshot.jpg"))
 
 _last_light_state = {
     "light_1_label": None,
     "light_2_label": None,
 }
+_last_camera_upload_at = 0.0
 
 
 def current_time_label() -> str:
@@ -94,11 +105,76 @@ def print_light_status_if_changed(light: dict | None) -> None:
     # For now, this is a safe software-only demo.
 
 
+def capture_camera_snapshot() -> bool:
+    command = [
+        "rpicam-still",
+        "--output",
+        str(CAMERA_SNAPSHOT_PATH),
+        "--timeout",
+        "1500",
+        "--nopreview",
+    ]
+
+    try:
+        subprocess.run(command, check=True, timeout=15)
+        return CAMERA_SNAPSHOT_PATH.exists() and CAMERA_SNAPSHOT_PATH.stat().st_size > 0
+    except (subprocess.SubprocessError, OSError) as error:
+        print(f"[{current_time_label()}] Camera capture failed: {error}")
+        return False
+
+
+def upload_camera_snapshot() -> bool:
+    url = f"{BACKEND_URL}/iot/camera/snapshot"
+
+    try:
+        with CAMERA_SNAPSHOT_PATH.open("rb") as image_file:
+            files = {
+                "snapshot": ("pi_client_snapshot.jpg", image_file, "image/jpeg"),
+            }
+            data = {
+                "device_name": DEVICE_NAME,
+            }
+            response = requests.post(url, files=files, data=data, timeout=20)
+            response.raise_for_status()
+
+        snapshot = response.json().get("snapshot", {})
+        print(
+            f"[{current_time_label()}] "
+            f"Camera snapshot uploaded | "
+            f"URL: {snapshot.get('url')} | "
+            f"Size: {snapshot.get('size_bytes')} bytes"
+        )
+        return True
+
+    except (OSError, requests.RequestException) as error:
+        print(f"[{current_time_label()}] Camera snapshot upload failed: {error}")
+        return False
+
+
+def maybe_capture_and_upload_camera_snapshot() -> None:
+    global _last_camera_upload_at
+
+    if not CAMERA_ENABLED:
+        return
+
+    now = time.time()
+    if now - _last_camera_upload_at < CAMERA_INTERVAL_SECONDS:
+        return
+
+    _last_camera_upload_at = now
+
+    if capture_camera_snapshot():
+        upload_camera_snapshot()
+
+
 def main():
     print("Smart Classroom Raspberry Pi Client")
     print(f"Backend URL: {BACKEND_URL}")
     print(f"Device Name: {DEVICE_NAME}")
     print("Mode: Software light demo only")
+    print(f"Camera Snapshot Upload: {'Enabled' if CAMERA_ENABLED else 'Disabled'}")
+    if CAMERA_ENABLED:
+        print(f"Camera Snapshot Interval: {CAMERA_INTERVAL_SECONDS} seconds")
     print("Press Ctrl + C to stop.\n")
 
     try:
@@ -107,6 +183,8 @@ def main():
 
             light = fetch_light_status()
             print_light_status_if_changed(light)
+
+            maybe_capture_and_upload_camera_snapshot()
 
             time.sleep(HEARTBEAT_INTERVAL_SECONDS)
 
