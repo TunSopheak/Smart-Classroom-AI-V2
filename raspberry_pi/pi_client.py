@@ -19,7 +19,14 @@ CAMERA_ENABLED = os.getenv("SMART_CLASSROOM_ENABLE_CAMERA", "0").strip().lower()
     "yes",
     "on",
 }
+CAMERA_AUTO_ANALYZE = os.getenv("SMART_CLASSROOM_AUTO_ANALYZE", "0").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 CAMERA_INTERVAL_SECONDS = int(os.getenv("SMART_CLASSROOM_CAMERA_INTERVAL", "30"))
+CAMERA_SESSION_ID = os.getenv("SMART_CLASSROOM_SESSION_ID", "").strip()
 CAMERA_SNAPSHOT_PATH = Path(os.getenv("SMART_CLASSROOM_CAMERA_PATH", "/tmp/smart_classroom_snapshot.jpg"))
 
 _last_light_state = {
@@ -133,17 +140,33 @@ def upload_camera_snapshot() -> bool:
             }
             data = {
                 "device_name": DEVICE_NAME,
+                "auto_analyze": "true" if CAMERA_AUTO_ANALYZE else "false",
+                "session_id": CAMERA_SESSION_ID,
             }
-            response = requests.post(url, files=files, data=data, timeout=20)
+            response = requests.post(url, files=files, data=data, timeout=30)
             response.raise_for_status()
 
-        snapshot = response.json().get("snapshot", {})
+        response_data = response.json()
+        snapshot = response_data.get("snapshot", {})
         print(
             f"[{current_time_label()}] "
             f"Camera snapshot uploaded | "
             f"URL: {snapshot.get('url')} | "
             f"Size: {snapshot.get('size_bytes')} bytes"
         )
+
+        if CAMERA_AUTO_ANALYZE:
+            analysis = response_data.get("analysis", {})
+            light = response_data.get("light", {})
+            print(
+                f"[{current_time_label()}] "
+                f"Auto AI analysis | "
+                f"Person count: {analysis.get('person_count')} | "
+                f"Phone count: {analysis.get('phone_count')} | "
+                f"Occupancy sync: {response_data.get('occupancy_synced')} | "
+                f"Light: {light.get('light_1_label')}"
+            )
+
         return True
 
     except (OSError, requests.RequestException) as error:
@@ -175,6 +198,8 @@ def main():
     print(f"Camera Snapshot Upload: {'Enabled' if CAMERA_ENABLED else 'Disabled'}")
     if CAMERA_ENABLED:
         print(f"Camera Snapshot Interval: {CAMERA_INTERVAL_SECONDS} seconds")
+        print(f"Camera Auto Analyze: {'Enabled' if CAMERA_AUTO_ANALYZE else 'Disabled'}")
+        print(f"Camera Session ID: {CAMERA_SESSION_ID or 'Not set'}")
     print("Press Ctrl + C to stop.\n")
 
     try:
