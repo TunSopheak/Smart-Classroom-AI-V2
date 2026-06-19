@@ -35,6 +35,43 @@ async def read_request_data(request: Request) -> dict:
     return {}
 
 
+def is_truthy(value) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def run_camera_analysis(
+    image_bytes: bytes,
+    db: DatabaseSession,
+    session_id: str | int | None = None,
+) -> tuple[dict, dict | None, bool, str | None, dict]:
+    analysis = get_yolo_detector().analyze(image_bytes)
+
+    occupancy = None
+    occupancy_error = None
+    occupancy_synced = False
+
+    if analysis.get("available") and session_id:
+        occupancy, occupancy_error = ai_service.update_detected_count(
+            db,
+            session_id,
+            int(analysis.get("person_count") or 0),
+        )
+        occupancy_synced = occupancy is not None and occupancy_error is None
+    elif analysis.get("available"):
+        occupancy_error = "No active session selected, so occupancy was not updated."
+
+    light = iot_service.light_status()
+    iot_service.save_camera_analysis(
+        analysis=analysis,
+        occupancy=occupancy,
+        occupancy_synced=occupancy_synced,
+        occupancy_error=occupancy_error,
+        light=light,
+    )
+
+    return analysis, occupancy, occupancy_synced, occupancy_error, light
+
+
 @router.post("/device/heartbeat")
 async def device_heartbeat(request: Request):
     data = await read_request_data(request)
@@ -122,6 +159,9 @@ async def upload_camera_snapshot(
     request: Request,
     snapshot: UploadFile = File(...),
     device_name: str = Form("Raspberry Pi 5"),
+    auto_analyze: str = Form("false"),
+    session_id: str = Form(""),
+    db: DatabaseSession = Depends(get_db),
 ):
     if not snapshot.content_type or not snapshot.content_type.startswith("image/"):
         return JSONResponse(
@@ -144,11 +184,32 @@ async def upload_camera_snapshot(
         ip_address=ip_address,
     )
 
-    return {
+    response_payload = {
         "ok": True,
         "message": "Camera snapshot uploaded.",
         "snapshot": latest_snapshot,
+        "analysis_state": iot_service.analysis_status(),
     }
+
+    if is_truthy(auto_analyze):
+        analysis, occupancy, occupancy_synced, occupancy_error, light = run_camera_analysis(
+            image_bytes=image_bytes,
+            db=db,
+            session_id=session_id,
+        )
+        response_payload.update(
+            {
+                "message": "Camera snapshot uploaded and analyzed.",
+                "analysis": analysis,
+                "occupancy": occupancy,
+                "occupancy_synced": occupancy_synced,
+                "occupancy_error": occupancy_error,
+                "light": light,
+                "analysis_state": iot_service.analysis_status(),
+            }
+        )
+
+    return response_payload
 
 
 @router.get("/camera/latest")
@@ -156,6 +217,7 @@ async def latest_camera_snapshot():
     return {
         "ok": True,
         "snapshot": iot_service.snapshot_status(),
+        "analysis_state": iot_service.analysis_status(),
     }
 
 
@@ -180,22 +242,13 @@ async def analyze_latest_camera_snapshot(
             status_code=404,
         )
 
-    analysis = get_yolo_detector().analyze(snapshot_path.read_bytes())
     request_data = await read_request_data(request)
     session_id = request_data.get("session_id")
-
-    occupancy = None
-    occupancy_error = None
-    occupancy_synced = False
-    if analysis.get("available") and session_id:
-        occupancy, occupancy_error = ai_service.update_detected_count(
-            db,
-            session_id,
-            int(analysis.get("person_count") or 0),
-        )
-        occupancy_synced = occupancy is not None and occupancy_error is None
-    elif analysis.get("available"):
-        occupancy_error = "No active session selected, so occupancy was not updated."
+    analysis, occupancy, occupancy_synced, occupancy_error, light = run_camera_analysis(
+        image_bytes=snapshot_path.read_bytes(),
+        db=db,
+        session_id=session_id,
+    )
 
     return {
         "ok": True,
@@ -205,7 +258,8 @@ async def analyze_latest_camera_snapshot(
         "occupancy": occupancy,
         "occupancy_synced": occupancy_synced,
         "occupancy_error": occupancy_error,
-        "light": iot_service.light_status(),
+        "light": light,
+        "analysis_state": iot_service.analysis_status(),
     }
 
 
@@ -215,6 +269,7 @@ async def reset_camera_snapshot():
         "ok": True,
         "message": "Camera snapshot state reset.",
         "snapshot": iot_service.reset_camera_snapshot(),
+        "analysis_state": iot_service.analysis_status(),
     }
 
 
