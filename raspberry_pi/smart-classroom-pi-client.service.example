@@ -8,6 +8,10 @@ Type=simple
 User=sopheak
 WorkingDirectory=/home/sopheak/Smart-Classroom-AI-V2
 Environment=SMART_CLASSROOM_BACKEND_URL=http://10.86.94.199:8000
+Environment=SMART_CLASSROOM_ENABLE_CAMERA=1
+Environment=SMART_CLASSROOM_AUTO_ANALYZE=1
+Environment=SMART_CLASSROOM_CAMERA_INTERVAL=20
+Environment=SMART_CLASSROOM_SESSION_ID=10
 ExecStart=/usr/bin/python3 /home/sopheak/Smart-Classroom-AI-V2/raspberry_pi/pi_client.py
 Restart=always
 RestartSec=5
