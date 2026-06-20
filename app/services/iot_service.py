@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -6,6 +7,7 @@ DEVICE_NAME_DEFAULT = "Raspberry Pi 5"
 HEARTBEAT_TIMEOUT_SECONDS = 15
 SNAPSHOT_UPLOAD_DIR = Path("app/static/uploads/iot_snapshots")
 SNAPSHOT_URL_PREFIX = "/static/uploads/iot_snapshots"
+SNAPSHOT_MAX_FILES = int(os.getenv("SMART_CLASSROOM_SNAPSHOT_MAX_FILES", "30"))
 
 _device_state: dict = {
     "device_name": DEVICE_NAME_DEFAULT,
@@ -205,6 +207,59 @@ def reset_camera_analysis() -> dict:
     return analysis_status()
 
 
+def snapshot_file_list() -> list[Path]:
+    if not SNAPSHOT_UPLOAD_DIR.exists():
+        return []
+
+    files: list[Path] = []
+    for pattern in ("*.jpg", "*.jpeg", "*.png"):
+        files.extend(SNAPSHOT_UPLOAD_DIR.glob(pattern))
+
+    return sorted(files, key=lambda path: path.stat().st_mtime, reverse=True)
+
+
+def snapshot_storage_status() -> dict:
+    files = snapshot_file_list()
+    total_size = sum(path.stat().st_size for path in files if path.exists())
+    return {
+        "directory": str(SNAPSHOT_UPLOAD_DIR),
+        "file_count": len(files),
+        "total_size_bytes": total_size,
+        "max_files": SNAPSHOT_MAX_FILES,
+    }
+
+
+def cleanup_old_snapshots(keep_filename: str | None = None) -> dict:
+    if SNAPSHOT_MAX_FILES <= 0:
+        return snapshot_storage_status()
+
+    files = snapshot_file_list()
+    old_files = files[SNAPSHOT_MAX_FILES:]
+
+    removed_count = 0
+    removed_size = 0
+
+    for path in old_files:
+        if keep_filename and path.name == keep_filename:
+            continue
+        try:
+            size = path.stat().st_size
+            path.unlink()
+            removed_count += 1
+            removed_size += size
+        except OSError:
+            continue
+
+    status = snapshot_storage_status()
+    status.update(
+        {
+            "removed_count": removed_count,
+            "removed_size_bytes": removed_size,
+        }
+    )
+    return status
+
+
 def save_camera_snapshot(
     image_bytes: bytes,
     original_filename: str | None = None,
@@ -240,6 +295,7 @@ def save_camera_snapshot(
         }
     )
 
+    cleanup_old_snapshots(keep_filename=filename)
     reset_camera_analysis()
     return snapshot_status()
 
@@ -280,6 +336,7 @@ def device_status(now: datetime | None = None) -> dict:
         "light_2_label": lights["light_2_label"],
         "snapshot": snapshot_status(),
         "analysis": analysis_status(),
+        "snapshot_storage": snapshot_storage_status(),
     }
 
 
