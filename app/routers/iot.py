@@ -1,7 +1,8 @@
+import asyncio
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session as DatabaseSession
 
 from app.ai.yolo_detector import get_yolo_detector
@@ -10,6 +11,36 @@ from app.services import ai_service, iot_service
 
 
 router = APIRouter(prefix="/iot", tags=["iot"])
+LIVE_STREAM_FRAME_DELAY_SECONDS = 0.75
+
+
+async def camera_live_stream():
+    while True:
+        snapshot = iot_service.snapshot_status()
+        snapshot_url = snapshot.get("url")
+
+        if snapshot.get("available") and snapshot_url:
+            snapshot_path = Path("app") / str(snapshot_url).lstrip("/")
+            try:
+                image_bytes = snapshot_path.read_bytes()
+            except OSError:
+                image_bytes = b""
+
+            if image_bytes:
+                content_type = (
+                    "image/png"
+                    if snapshot_path.suffix.lower() == ".png"
+                    else "image/jpeg"
+                )
+                yield (
+                    b"--frame\r\n"
+                    + f"Content-Type: {content_type}\r\n".encode("ascii")
+                    + f"Content-Length: {len(image_bytes)}\r\n\r\n".encode("ascii")
+                    + image_bytes
+                    + b"\r\n"
+                )
+
+        await asyncio.sleep(LIVE_STREAM_FRAME_DELAY_SECONDS)
 
 
 async def read_request_data(request: Request) -> dict:
@@ -219,6 +250,18 @@ async def latest_camera_snapshot():
         "snapshot": iot_service.snapshot_status(),
         "analysis_state": iot_service.analysis_status(),
     }
+
+
+@router.get("/camera/live.mjpg")
+async def live_camera_preview():
+    return StreamingResponse(
+        camera_live_stream(),
+        media_type="multipart/x-mixed-replace; boundary=frame",
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+            "Pragma": "no-cache",
+        },
+    )
 
 
 @router.post("/camera/analyze-latest")
