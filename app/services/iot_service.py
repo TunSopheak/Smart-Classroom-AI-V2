@@ -28,6 +28,7 @@ _camera_snapshot_state: dict = {
     "device_name": None,
     "ip_address": None,
     "size_bytes": None,
+    "session_id": None,
 }
 
 _camera_analysis_state: dict = {
@@ -155,6 +156,7 @@ def snapshot_status() -> dict:
         "device_name": _camera_snapshot_state.get("device_name"),
         "ip_address": _camera_snapshot_state.get("ip_address"),
         "size_bytes": _camera_snapshot_state.get("size_bytes"),
+        "session_id": _camera_snapshot_state.get("session_id"),
     }
 
 
@@ -265,6 +267,7 @@ def save_camera_snapshot(
     original_filename: str | None = None,
     device_name: str | None = None,
     ip_address: str | None = None,
+    session_id: str | int | None = None,
 ) -> dict:
     if not image_bytes:
         raise ValueError("Snapshot image is empty.")
@@ -283,6 +286,7 @@ def save_camera_snapshot(
 
     clean_device_name = (device_name or "").strip() or DEVICE_NAME_DEFAULT
     clean_ip_address = (ip_address or "").strip() or None
+    clean_session_id = str(session_id or "").strip() or None
 
     _camera_snapshot_state.update(
         {
@@ -292,6 +296,7 @@ def save_camera_snapshot(
             "device_name": clean_device_name,
             "ip_address": clean_ip_address,
             "size_bytes": len(image_bytes),
+            "session_id": clean_session_id,
         }
     )
 
@@ -309,6 +314,7 @@ def reset_camera_snapshot() -> dict:
             "device_name": None,
             "ip_address": None,
             "size_bytes": None,
+            "session_id": None,
         }
     )
     reset_camera_analysis()

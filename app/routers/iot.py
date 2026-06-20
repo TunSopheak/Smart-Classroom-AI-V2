@@ -1,4 +1,6 @@
 import asyncio
+from contextlib import suppress
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
@@ -6,12 +8,60 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.orm import Session as DatabaseSession
 
 from app.ai.yolo_detector import get_yolo_detector
-from app.core.database import get_db
+from app.core.config import (
+    AI_FRAME_SAMPLING_ENABLED,
+    AI_FRAME_SAMPLING_INTERVAL_SECONDS,
+    AI_FRAME_SAMPLING_MIN_INTERVAL_SECONDS,
+)
+from app.core.database import SessionLocal, get_db
 from app.services import ai_service, iot_service
 
 
 router = APIRouter(prefix="/iot", tags=["iot"])
 LIVE_STREAM_FRAME_DELAY_SECONDS = 0.75
+_camera_analysis_lock = asyncio.Lock()
+_sampler_task: asyncio.Task | None = None
+_sampler_state: dict = {
+    "running": False,
+    "last_sampled_file": None,
+    "last_sampled_at": None,
+    "last_error": None,
+    "skipped_reason": "AI frame sampling is disabled.",
+}
+
+
+def sampler_time_label(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    return value.strftime("%Y-%m-%d %H:%M:%S")
+
+
+def ai_frame_sampler_status() -> dict:
+    return {
+        "enabled": AI_FRAME_SAMPLING_ENABLED,
+        "running": bool(_sampler_state.get("running")),
+        "interval_seconds": AI_FRAME_SAMPLING_INTERVAL_SECONDS,
+        "min_interval_seconds": AI_FRAME_SAMPLING_MIN_INTERVAL_SECONDS,
+        "last_sampled_file": _sampler_state.get("last_sampled_file"),
+        "last_sampled_at": sampler_time_label(
+            _sampler_state.get("last_sampled_at")
+        ),
+        "last_error": _sampler_state.get("last_error"),
+        "skipped_reason": _sampler_state.get("skipped_reason"),
+    }
+
+
+def mark_sampler_file_processed(filename: str | None, reason: str) -> None:
+    if not AI_FRAME_SAMPLING_ENABLED or not filename:
+        return
+    _sampler_state.update(
+        {
+            "last_sampled_file": filename,
+            "last_sampled_at": datetime.utcnow(),
+            "last_error": None,
+            "skipped_reason": reason,
+        }
+    )
 
 
 async def camera_live_stream():
@@ -101,6 +151,131 @@ def run_camera_analysis(
     )
 
     return analysis, occupancy, occupancy_synced, occupancy_error, light
+
+
+async def run_camera_analysis_guarded(
+    image_bytes: bytes,
+    db: DatabaseSession,
+    session_id: str | int | None = None,
+) -> tuple[dict, dict | None, bool, str | None, dict]:
+    async with _camera_analysis_lock:
+        return run_camera_analysis(image_bytes, db, session_id)
+
+
+def run_sampled_camera_analysis(
+    image_bytes: bytes,
+    session_id: str | int | None,
+) -> tuple[dict, dict | None, bool, str | None, dict]:
+    db = SessionLocal()
+    try:
+        return run_camera_analysis(image_bytes, db, session_id)
+    finally:
+        db.close()
+
+
+async def sample_latest_camera_snapshot() -> None:
+    snapshot = iot_service.snapshot_status()
+    filename = snapshot.get("filename")
+    snapshot_url = snapshot.get("url")
+
+    if not snapshot.get("available") or not filename or not snapshot_url:
+        _sampler_state["skipped_reason"] = "No camera snapshot is available."
+        return
+
+    if filename == _sampler_state.get("last_sampled_file"):
+        _sampler_state["skipped_reason"] = "Latest snapshot was already analyzed."
+        return
+
+    if _camera_analysis_lock.locked():
+        _sampler_state["skipped_reason"] = "AI analysis is already running."
+        return
+
+    snapshot_path = Path("app") / str(snapshot_url).lstrip("/")
+    try:
+        image_bytes = snapshot_path.read_bytes()
+    except OSError as error:
+        _sampler_state.update(
+            {
+                "last_error": str(error),
+                "skipped_reason": "Latest snapshot file could not be read.",
+            }
+        )
+        return
+
+    async with _camera_analysis_lock:
+        if filename == _sampler_state.get("last_sampled_file"):
+            _sampler_state["skipped_reason"] = (
+                "Latest snapshot was already analyzed."
+            )
+            return
+
+        _sampler_state.update(
+            {
+                "last_sampled_file": filename,
+                "last_sampled_at": datetime.utcnow(),
+                "last_error": None,
+                "skipped_reason": None,
+            }
+        )
+        try:
+            await asyncio.to_thread(
+                run_sampled_camera_analysis,
+                image_bytes,
+                snapshot.get("session_id"),
+            )
+        except Exception as error:
+            _sampler_state.update(
+                {
+                    "last_error": str(error),
+                    "skipped_reason": "AI analysis failed for the sampled snapshot.",
+                }
+            )
+
+
+async def ai_frame_sampling_loop() -> None:
+    _sampler_state.update(
+        {
+            "running": True,
+            "last_error": None,
+            "skipped_reason": "Waiting for the next sampling interval.",
+        }
+    )
+    try:
+        while True:
+            await asyncio.sleep(AI_FRAME_SAMPLING_INTERVAL_SECONDS)
+            await sample_latest_camera_snapshot()
+    finally:
+        _sampler_state["running"] = False
+
+
+def start_ai_frame_sampler() -> None:
+    global _sampler_task
+
+    if not AI_FRAME_SAMPLING_ENABLED:
+        _sampler_state.update(
+            {
+                "running": False,
+                "skipped_reason": "AI frame sampling is disabled.",
+            }
+        )
+        return
+
+    if _sampler_task and not _sampler_task.done():
+        return
+
+    _sampler_task = asyncio.create_task(ai_frame_sampling_loop())
+
+
+async def stop_ai_frame_sampler() -> None:
+    global _sampler_task
+
+    if not _sampler_task:
+        return
+
+    _sampler_task.cancel()
+    with suppress(asyncio.CancelledError):
+        await _sampler_task
+    _sampler_task = None
 
 
 @router.post("/device/heartbeat")
@@ -213,6 +388,7 @@ async def upload_camera_snapshot(
         original_filename=snapshot.filename,
         device_name=device_name,
         ip_address=ip_address,
+        session_id=session_id,
     )
 
     response_payload = {
@@ -223,10 +399,18 @@ async def upload_camera_snapshot(
     }
 
     if is_truthy(auto_analyze):
-        analysis, occupancy, occupancy_synced, occupancy_error, light = run_camera_analysis(
-            image_bytes=image_bytes,
-            db=db,
-            session_id=session_id,
+        (
+            analysis,
+            occupancy,
+            occupancy_synced,
+            occupancy_error,
+            light,
+        ) = await run_camera_analysis_guarded(
+            image_bytes=image_bytes, db=db, session_id=session_id
+        )
+        mark_sampler_file_processed(
+            latest_snapshot.get("filename"),
+            "Latest snapshot was analyzed by upload auto_analyze.",
         )
         response_payload.update(
             {
@@ -264,6 +448,14 @@ async def live_camera_preview():
     )
 
 
+@router.get("/camera/sampler/status")
+async def camera_sampler_status():
+    return {
+        "ok": True,
+        "sampler": ai_frame_sampler_status(),
+    }
+
+
 @router.post("/camera/analyze-latest")
 async def analyze_latest_camera_snapshot(
     request: Request,
@@ -287,10 +479,18 @@ async def analyze_latest_camera_snapshot(
 
     request_data = await read_request_data(request)
     session_id = request_data.get("session_id")
-    analysis, occupancy, occupancy_synced, occupancy_error, light = run_camera_analysis(
-        image_bytes=snapshot_path.read_bytes(),
-        db=db,
-        session_id=session_id,
+    (
+        analysis,
+        occupancy,
+        occupancy_synced,
+        occupancy_error,
+        light,
+    ) = await run_camera_analysis_guarded(
+        image_bytes=snapshot_path.read_bytes(), db=db, session_id=session_id
+    )
+    mark_sampler_file_processed(
+        snapshot.get("filename"),
+        "Latest snapshot was analyzed manually.",
     )
 
     return {

@@ -1,3 +1,5 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
@@ -34,10 +36,21 @@ from app.routers import (
 Base.metadata.create_all(bind=engine)
 ensure_development_schema()
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    iot.start_ai_frame_sampler()
+    try:
+        yield
+    finally:
+        await iot.stop_ai_frame_sampler()
+
+
 app = FastAPI(
     title="Smart Classroom AI Monitoring V2",
     description="Clean FastAPI foundation for Smart Classroom academic, attendance, AI monitoring, and IoT workflows.",
     version="2.0.0",
+    lifespan=lifespan,
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
