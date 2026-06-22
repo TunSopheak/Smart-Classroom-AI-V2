@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session as DatabaseSession
 
 from app.ai.frame_utils import decode_base64_image
 from app.ai.yolo_detector import get_yolo_detector
+from app.core.config import PI_LIVE_STREAM_URL
 from app.core.database import get_db
 from app.services import ai_service
 
@@ -39,6 +40,7 @@ async def ai_monitoring_page(
             "selection_error": selection_error,
             "events": ai_service.recent_events(db, selected_session.id if selected_session else None),
             "occupancy": occupancy,
+            "pi_live_stream_url": PI_LIVE_STREAM_URL,
             "message": message,
             "error": error,
         },

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Smart Classroom AI Monitoring V2{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=ui23d">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=ui24">
 </head>
 <body>
     <a class="skip-link" href="#main-content">Skip to main content</a>
@@ -129,9 +129,9 @@
         {% block content %}{% endblock %}
     </main>
 
-    <script src="{{ url_for('static', path='js/app.js') }}?v=ui23d"></script>
-    <script src="{{ url_for('static', path='js/iot_snapshot.js') }}?v=ui23d"></script>
-    <script src="{{ url_for('static', path='js/iot_ai_detection.js') }}?v=ui23d"></script>
+    <script src="{{ url_for('static', path='js/app.js') }}?v=ui24"></script>
+    <script src="{{ url_for('static', path='js/iot_snapshot.js') }}?v=ui24"></script>
+    <script src="{{ url_for('static', path='js/iot_ai_detection.js') }}?v=ui24"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

@@ -5,6 +5,10 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DATABASE_URL = f"sqlite:///{BASE_DIR / 'smart_classroom_v2.db'}"
 PROJECT_NAME = "Smart Classroom AI Monitoring V2"
+PI_LIVE_STREAM_URL = os.getenv(
+    "SMART_CLASSROOM_PI_STREAM_URL",
+    "http://10.86.94.200:8081/stream.mjpg",
+).strip() or "http://10.86.94.200:8081/stream.mjpg"
 
 AI_FRAME_SAMPLING_MIN_INTERVAL_SECONDS = 5
 AI_FRAME_SAMPLING_ENABLED = os.getenv(

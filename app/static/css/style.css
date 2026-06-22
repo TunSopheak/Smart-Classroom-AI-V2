@@ -1609,6 +1609,12 @@ td a:not(.button):not(.action-button):hover {
   border-color: #f0c5bf;
 }
 
+.iot-status-badge.fallback {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: #ecdc9d;
+}
+
 .mjpeg-preview-shell {
   position: relative;
   width: 100%;
@@ -1648,6 +1654,27 @@ td a:not(.button):not(.action-button):hover {
   border: 0;
   border-radius: 0;
   object-fit: contain;
+}
+
+.live-camera-notes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.live-camera-notes .helper-note {
+  display: grid;
+  gap: 3px;
+}
+
+.live-camera-notes strong {
+  color: var(--text);
+  font-size: 0.82rem;
+}
+
+.live-camera-notes code {
+  overflow-wrap: anywhere;
 }
 
 .snapshot-preview-wrap {
@@ -1858,6 +1885,10 @@ td a:not(.button):not(.action-button):hover {
   .mjpeg-preview-shell .monitor-camera,
   .video-overlay-wrap {
     min-height: 210px;
+  }
+
+  .live-camera-notes {
+    grid-template-columns: 1fr;
   }
 }
 

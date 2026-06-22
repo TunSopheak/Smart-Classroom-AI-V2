@@ -41,4 +41,63 @@ document.addEventListener("DOMContentLoaded", () => {
             window.setTimeout(() => notice.remove(), 450);
         }, 5200);
     });
+
+    const liveStreamImage = document.getElementById("pi-live-stream");
+    const liveStreamBadge = document.getElementById("pi-live-stream-badge");
+    const liveStreamMessage = document.getElementById("pi-live-stream-message");
+    const retryLiveStreamButton = document.getElementById("retry-pi-live-stream");
+    let liveStreamFallbackActive = false;
+    let liveStreamTimeout = null;
+
+    function setLiveStreamState(label, mode, message) {
+        if (liveStreamBadge) {
+            liveStreamBadge.textContent = label;
+            liveStreamBadge.classList.toggle("online", mode === "online");
+            liveStreamBadge.classList.toggle("fallback", mode === "fallback");
+            liveStreamBadge.classList.toggle("offline", mode === "offline");
+        }
+        if (liveStreamMessage) {
+            liveStreamMessage.textContent = message;
+        }
+    }
+
+    function useSnapshotFallback() {
+        if (!liveStreamImage || liveStreamFallbackActive) {
+            return;
+        }
+        liveStreamFallbackActive = true;
+        window.clearTimeout(liveStreamTimeout);
+        setLiveStreamState("Snapshot fallback", "fallback", "Waiting for Raspberry Pi frame...");
+        liveStreamImage.src = `${liveStreamImage.dataset.fallbackSrc}?t=${Date.now()}`;
+        liveStreamImage.alt = "Fallback preview using the latest uploaded Raspberry Pi frame";
+    }
+
+    function loadDirectPiStream() {
+        if (!liveStreamImage) {
+            return;
+        }
+        liveStreamFallbackActive = false;
+        window.clearTimeout(liveStreamTimeout);
+        setLiveStreamState("Connecting", "", "Connecting to Raspberry Pi live stream...");
+        liveStreamImage.src = `${liveStreamImage.dataset.directSrc}${liveStreamImage.dataset.directSrc.includes("?") ? "&" : "?"}t=${Date.now()}`;
+        liveStreamImage.alt = "Real live stream from Raspberry Pi camera";
+        liveStreamTimeout = window.setTimeout(useSnapshotFallback, 6000);
+    }
+
+    if (liveStreamImage) {
+        liveStreamImage.addEventListener("load", () => {
+            window.clearTimeout(liveStreamTimeout);
+            if (!liveStreamFallbackActive) {
+                setLiveStreamState("Live from Pi", "online", "Real live stream from Raspberry Pi");
+            }
+        });
+        liveStreamImage.addEventListener("error", () => {
+            if (liveStreamFallbackActive) {
+                return;
+            }
+            useSnapshotFallback();
+        });
+        retryLiveStreamButton?.addEventListener("click", loadDirectPiStream);
+        loadDirectPiStream();
+    }
 });

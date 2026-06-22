@@ -131,21 +131,38 @@ endblock %} {% block content %}
 <section id="live-camera-preview" class="iot-device-card anchor-section">
   <div class="iot-device-header">
     <div>
-      <h2 class="iot-device-title">Live Camera Preview</h2>
+      <h2 class="iot-device-title">Real Live Camera</h2>
       <p class="iot-device-subtitle">
-        Live preview uses the latest uploaded Raspberry Pi frame.
+        Direct MJPEG video from the Raspberry Pi camera with a safe snapshot fallback.
       </p>
     </div>
-    <span class="iot-status-badge">MJPEG</span>
+    <div class="iot-header-actions">
+      <span id="pi-live-stream-badge" class="iot-status-badge">Connecting</span>
+      <button id="retry-pi-live-stream" class="button small" type="button">Retry Direct Stream</button>
+    </div>
   </div>
 
   <div class="mjpeg-preview-shell">
-    <p>Waiting for Raspberry Pi frame...</p>
+    <p id="pi-live-stream-message" aria-live="polite">Connecting to Raspberry Pi live stream...</p>
     <img
-      src="/iot/camera/live.mjpg"
+      id="pi-live-stream"
+      src="{{ pi_live_stream_url }}"
+      data-direct-src="{{ pi_live_stream_url }}"
+      data-fallback-src="/iot/camera/live.mjpg"
       class="camera-preview monitor-camera"
-      alt="Live Raspberry Pi camera preview"
+      alt="Real live stream from Raspberry Pi camera"
+      referrerpolicy="no-referrer"
     />
+  </div>
+  <div class="live-camera-notes">
+    <div class="helper-note">
+      <strong>Real live stream from Raspberry Pi</strong>
+      <span>The browser connects directly to the configured Pi MJPEG server.</span>
+    </div>
+    <div class="helper-note">
+      <strong>Fallback: backend latest snapshot preview</strong>
+      <span>The existing <code>/iot/camera/live.mjpg</code> preview remains available if the direct stream cannot load.</span>
+    </div>
   </div>
 </section>
 
