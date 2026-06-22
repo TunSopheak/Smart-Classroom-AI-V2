@@ -4,10 +4,36 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Smart Classroom AI Monitoring V2{% endblock %}</title>
-    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=ui22">
+    <link rel="stylesheet" href="{{ url_for('static', path='css/style.css') }}?v=ui23d">
 </head>
 <body>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
+    <svg class="icon-sprite" aria-hidden="true">
+        <symbol id="icon-dashboard" viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></symbol>
+        <symbol id="icon-academic" viewBox="0 0 24 24"><path d="M3 5.5A3.5 3.5 0 0 1 6.5 2H11v17H6.5A3.5 3.5 0 0 0 3 22V5.5ZM21 5.5A3.5 3.5 0 0 0 17.5 2H13v17h4.5A3.5 3.5 0 0 1 21 22V5.5Z"/></symbol>
+        <symbol id="icon-students" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></symbol>
+        <symbol id="icon-teacher" viewBox="0 0 24 24"><path d="M15 20v-1.5A3.5 3.5 0 0 0 11.5 15h-5A3.5 3.5 0 0 0 3 18.5V20M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM15 4h6v8h-6zM17 8h2"/></symbol>
+        <symbol id="icon-classes" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5ZM3 12l9 5 9-5M3 17l9 5 9-5"/></symbol>
+        <symbol id="icon-subjects" viewBox="0 0 24 24"><path d="M4 3h13a3 3 0 0 1 3 3v15H7a3 3 0 0 1-3-3V3ZM4 17.5A3.5 3.5 0 0 1 7.5 14H20M8 7h8M8 10h6"/></symbol>
+        <symbol id="icon-enrollments" viewBox="0 0 24 24"><path d="M9 5h6M9 3h6v4H9zM6 5H4v16h16V5h-2M8 13l2 2 5-5M8 18h8"/></symbol>
+        <symbol id="icon-calendar" viewBox="0 0 24 24"><path d="M4 5h16v16H4zM8 2v6M16 2v6M4 10h16M8 14h2M14 14h2M8 18h2"/></symbol>
+        <symbol id="icon-attendance" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12 2.5 2.5L16 9"/></symbol>
+        <symbol id="icon-sessions" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></symbol>
+        <symbol id="icon-qr" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM19 14h2v7h-4M14 19h3v2h-3"/></symbol>
+        <symbol id="icon-ai" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M8 2v3M16 2v3M8 11h.01M16 11h.01M8 15h8"/></symbol>
+        <symbol id="icon-events" viewBox="0 0 24 24"><path d="M3 12h4l2-6 4 12 2-6h6M18 3l3 3M21 3l-3 3"/></symbol>
+        <symbol id="icon-iot" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 1v5M15 1v5M9 18v5M15 18v5M1 9h5M1 15h5M18 9h5M18 15h5M10 10h4v4h-4z"/></symbol>
+        <symbol id="icon-camera" viewBox="0 0 24 24"><path d="M3 7h13v10H3zM16 10l5-3v10l-5-3z"/></symbol>
+        <symbol id="icon-reports" viewBox="0 0 24 24"><path d="M5 3h14v18H5zM9 16v-3M12 16V9M15 16v-5M8 6h8"/></symbol>
+    </svg>
     {% set current_path = request.url.path if request is defined else "" %}
+    {% set current_nav = request.query_params.get('nav', '') if request is defined else '' %}
+    {% set dashboard_active = current_path in ['/', '/dashboard'] %}
+    {% set academic_active = current_path.startswith('/students') or current_path.startswith('/teachers') or current_path.startswith('/classes') or current_path.startswith('/subjects') or current_path.startswith('/enrollments') or current_path.startswith('/schedules') %}
+    {% set reports_active = current_nav == 'reports' %}
+    {% set iot_active = current_nav == 'iot' %}
+    {% set attendance_active = (current_path.startswith('/sessions') or current_path.startswith('/attendance') or current_path.startswith('/qr-scanner')) and not reports_active %}
+    {% set ai_active = (current_path.startswith('/ai-monitoring') and not iot_active) or (current_path.startswith('/ai-events') and not reports_active) %}
     <header class="app-header">
         <button class="menu-toggle" type="button" aria-label="Open navigation menu" aria-expanded="false" aria-controls="app-sidebar">
             <span></span>
@@ -15,9 +41,10 @@
             <span></span>
         </button>
         <a class="brand-lockup" href="/dashboard" aria-label="Smart Classroom dashboard">
-            <span>Version 2</span>
+            <span>Smart Classroom · Version 2</span>
             <h1>Smart Classroom AI Monitoring</h1>
         </a>
+        <span class="header-context">AI + IoT Demo</span>
     </header>
     <nav id="app-sidebar" class="sidebar" aria-label="Main navigation">
         <div class="sidebar-header">
@@ -27,45 +54,84 @@
             </div>
             <button class="sidebar-close" type="button" aria-label="Close navigation menu">Close</button>
         </div>
-        <div class="sidebar-section">
-            <p>Main</p>
-            <a href="/dashboard" class="sidebar-link {% if current_path in ['/', '/dashboard'] %}active{% endif %}">Dashboard</a>
-        </div>
-        <div class="sidebar-section">
-            <p>Academic Management</p>
-            <a href="/classes" class="sidebar-link {% if current_path.startswith('/classes') %}active{% endif %}">Classes</a>
-            <a href="/students" class="sidebar-link {% if current_path.startswith('/students') %}active{% endif %}">Students</a>
-            <a href="/enrollments" class="sidebar-link {% if current_path.startswith('/enrollments') %}active{% endif %}">Enrollments</a>
-            <a href="/teachers" class="sidebar-link {% if current_path.startswith('/teachers') %}active{% endif %}">Teachers</a>
-            <a href="/subjects" class="sidebar-link {% if current_path.startswith('/subjects') %}active{% endif %}">Subjects</a>
-            <a href="/schedules" class="sidebar-link {% if current_path.startswith('/schedules') %}active{% endif %}">Schedules</a>
-        </div>
-        <div class="sidebar-section">
-            <p>Sessions &amp; Attendance</p>
-            <a href="/sessions" class="sidebar-link {% if current_path.startswith('/sessions') %}active{% endif %}">Sessions</a>
-            <a href="/attendance/scan" class="sidebar-link {% if current_path.startswith('/attendance/scan') or current_path.startswith('/qr-scanner') %}active{% endif %}">QR Scanner</a>
-            <a href="/attendance" class="sidebar-link {% if current_path == '/attendance' %}active{% endif %}">Attendance History</a>
-            <a href="/attendance" class="sidebar-link {% if current_path.startswith('/attendance/export') %}active{% endif %}">Attendance Reports</a>
-        </div>
-        <div class="sidebar-section">
-            <p>AI Monitoring</p>
-            <a href="/ai-monitoring" class="sidebar-link {% if current_path.startswith('/ai-monitoring') %}active{% endif %}">AI Monitoring</a>
-            <a href="/ai-events" class="sidebar-link {% if current_path.startswith('/ai-events') %}active{% endif %}">AI Events / Reports</a>
-        </div>
-        <div class="sidebar-section">
-            <p>System</p>
-            <a href="/docs" class="sidebar-link {% if current_path.startswith('/docs') %}active{% endif %}">API Docs</a>
+        <div class="sidebar-nav">
+            <section class="nav-group nav-group-single {% if dashboard_active %}active{% endif %}">
+                <a href="/dashboard" class="nav-group-link {% if dashboard_active %}active{% endif %}" {% if dashboard_active %}aria-current="page"{% endif %}>
+                    <svg class="nav-icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+                    <span>Dashboard</span>
+                </a>
+            </section>
+
+            <section class="nav-group {% if academic_active %}active{% endif %}">
+                <a href="/students" class="nav-group-link {% if academic_active %}active{% endif %}">
+                    <svg class="nav-icon" aria-hidden="true"><use href="#icon-academic"></use></svg>
+                    <span>Academics</span>
+                </a>
+                <div class="nav-submenu">
+                    <a href="/students" class="nav-sub-link {% if current_path.startswith('/students') %}active{% endif %}" {% if current_path.startswith('/students') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-students"></use></svg><span>Students</span></a>
+                    <a href="/teachers" class="nav-sub-link {% if current_path.startswith('/teachers') %}active{% endif %}" {% if current_path.startswith('/teachers') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-teacher"></use></svg><span>Teachers</span></a>
+                    <a href="/classes" class="nav-sub-link {% if current_path.startswith('/classes') %}active{% endif %}" {% if current_path.startswith('/classes') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-classes"></use></svg><span>Classes</span></a>
+                    <a href="/subjects" class="nav-sub-link {% if current_path.startswith('/subjects') %}active{% endif %}" {% if current_path.startswith('/subjects') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-subjects"></use></svg><span>Subjects</span></a>
+                    <a href="/enrollments" class="nav-sub-link {% if current_path.startswith('/enrollments') %}active{% endif %}" {% if current_path.startswith('/enrollments') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-enrollments"></use></svg><span>Enrollments</span></a>
+                    <a href="/schedules" class="nav-sub-link {% if current_path.startswith('/schedules') %}active{% endif %}" {% if current_path.startswith('/schedules') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg><span>Weekly Schedules</span></a>
+                </div>
+            </section>
+
+            <section class="nav-group {% if attendance_active %}active{% endif %}">
+                <a href="/sessions" class="nav-group-link {% if attendance_active %}active{% endif %}">
+                    <svg class="nav-icon" aria-hidden="true"><use href="#icon-attendance"></use></svg>
+                    <span>Attendance</span>
+                </a>
+                <div class="nav-submenu">
+                    <a href="/sessions" class="nav-sub-link {% if current_path.startswith('/sessions') %}active{% endif %}" {% if current_path.startswith('/sessions') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-sessions"></use></svg><span>Sessions</span></a>
+                    <a href="/attendance" class="nav-sub-link {% if current_path == '/attendance' and not reports_active %}active{% endif %}" {% if current_path == '/attendance' and not reports_active %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-attendance"></use></svg><span>Attendance</span></a>
+                    <a href="/attendance/scan" class="nav-sub-link {% if current_path.startswith('/attendance/scan') or current_path.startswith('/qr-scanner') %}active{% endif %}" {% if current_path.startswith('/attendance/scan') or current_path.startswith('/qr-scanner') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-qr"></use></svg><span>QR Scanner</span></a>
+                </div>
+            </section>
+
+            <section class="nav-group {% if ai_active %}active{% endif %}">
+                <a href="/ai-monitoring" class="nav-group-link {% if ai_active %}active{% endif %}">
+                    <svg class="nav-icon" aria-hidden="true"><use href="#icon-ai"></use></svg>
+                    <span>AI Monitoring</span>
+                </a>
+                <div class="nav-submenu">
+                    <a href="/ai-monitoring" class="nav-sub-link {% if current_path.startswith('/ai-monitoring') and not iot_active %}active{% endif %}" {% if current_path.startswith('/ai-monitoring') and not iot_active %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-ai"></use></svg><span>AI Monitoring</span></a>
+                    <a href="/ai-events" class="nav-sub-link {% if current_path.startswith('/ai-events') and not reports_active %}active{% endif %}" {% if current_path.startswith('/ai-events') and not reports_active %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-events"></use></svg><span>AI Events</span></a>
+                </div>
+            </section>
+
+            <section class="nav-group {% if iot_active %}active{% endif %}">
+                <a href="/ai-monitoring?nav=iot#iot-device-status" class="nav-group-link {% if iot_active %}active{% endif %}">
+                    <svg class="nav-icon" aria-hidden="true"><use href="#icon-iot"></use></svg>
+                    <span>IoT Devices</span>
+                </a>
+                <div class="nav-submenu">
+                    <a href="/ai-monitoring?nav=iot#iot-device-status" class="nav-sub-link {% if iot_active %}active{% endif %}" {% if iot_active %}aria-current="location"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-iot"></use></svg><span>Device Status</span></a>
+                    <a href="/ai-monitoring?nav=iot#live-camera-preview" class="nav-sub-link"><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-camera"></use></svg><span>Live Preview</span></a>
+                </div>
+            </section>
+
+            <section class="nav-group {% if reports_active %}active{% endif %}">
+                <a href="/attendance?nav=reports" class="nav-group-link {% if reports_active %}active{% endif %}">
+                    <svg class="nav-icon" aria-hidden="true"><use href="#icon-reports"></use></svg>
+                    <span>Reports</span>
+                </a>
+                <div class="nav-submenu">
+                    <a href="/attendance?nav=reports" class="nav-sub-link {% if current_path.startswith('/attendance') and reports_active %}active{% endif %}" {% if current_path.startswith('/attendance') and reports_active %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-attendance"></use></svg><span>Attendance Reports</span></a>
+                    <a href="/ai-events?nav=reports" class="nav-sub-link {% if current_path.startswith('/ai-events') and reports_active %}active{% endif %}" {% if current_path.startswith('/ai-events') and reports_active %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-events"></use></svg><span>AI Event Reports</span></a>
+                </div>
+            </section>
         </div>
     </nav>
     <div class="sidebar-backdrop"></div>
 
-    <main>
+    <main id="main-content" tabindex="-1">
         {% block content %}{% endblock %}
     </main>
 
-    <script src="{{ url_for('static', path='js/app.js') }}?v=ui22"></script>
-    <script src="{{ url_for('static', path='js/iot_snapshot.js') }}?v=phase17"></script>
-    <script src="{{ url_for('static', path='js/iot_ai_detection.js') }}?v=phase18b"></script>
+    <script src="{{ url_for('static', path='js/app.js') }}?v=ui23d"></script>
+    <script src="{{ url_for('static', path='js/iot_snapshot.js') }}?v=ui23d"></script>
+    <script src="{{ url_for('static', path='js/iot_ai_detection.js') }}?v=ui23d"></script>
     {% block scripts %}{% endblock %}
 </body>
 </html>

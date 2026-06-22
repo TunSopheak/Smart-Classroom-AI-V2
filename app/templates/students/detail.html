@@ -3,16 +3,17 @@
 {% block title %}{{ student.student_code }} - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Student Details</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/dashboard">Dashboard</a><span class="breadcrumb-separator">&gt;</span><a href="/students">Students</a><span class="breadcrumb-separator">&gt;</span><span>Student Details</span></nav>
         <h2>{{ student.student_code }} - {{ student.first_name }} {{ student.last_name }}</h2>
+        <p class="page-subtitle">Review profile information, enrollment history, QR code, and account status.</p>
     </div>
     <div class="button-row">
         <a class="button" href="/students">Students</a>
         <a class="button" href="/students/{{ student.id }}/edit">Edit</a>
         <form method="post" action="/students/{{ student.id }}/toggle">
-            <button class="button" type="submit">{{ "Deactivate" if student.status == "active" else "Activate" }}</button>
+            <button class="button {{ 'danger' if student.status == 'active' else 'secondary' }}" type="submit">{{ "Deactivate" if student.status == "active" else "Activate" }}</button>
         </form>
     </div>
 </section>

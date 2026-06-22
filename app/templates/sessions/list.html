@@ -25,7 +25,7 @@
 
 {% include "partials/messages.html" %}
 
-<form class="form-panel inline-form session-filters" method="get" action="/sessions">
+<form class="form-panel filter-toolbar session-filters" method="get" action="/sessions">
     <label>
         View
         <select name="view" id="session-view">
@@ -47,9 +47,11 @@
             {% endfor %}
         </select>
     </label>
-    <button class="button primary" type="submit">Apply</button>
-    <a class="button" href="/sessions">Today</a>
-    <a class="button" href="/sessions?view=all">All Sessions</a>
+    <div class="filter-toolbar-actions">
+        <button class="button primary" type="submit">Apply</button>
+        <a class="button neutral" href="/sessions">Today</a>
+        <a class="button neutral" href="/sessions?view=all">All Sessions</a>
+    </div>
 </form>
 
 <p class="filter-label">{{ filter_label }}</p>
@@ -81,14 +83,14 @@
                 <td class="actions">
                     {% if session.status == "scheduled" %}
                     <form method="post" action="/sessions/{{ session.id }}/start">
-                        <button class="link-button" type="submit">Start</button>
+                        <button class="action-button positive" type="submit">Start</button>
                     </form>
                     <form method="post" action="/sessions/{{ session.id }}/cancel">
-                        <button class="link-button" type="submit">Cancel</button>
+                        <button class="action-button danger" type="submit">Cancel</button>
                     </form>
                     {% elif session.status == "active" %}
                     <form method="post" action="/sessions/{{ session.id }}/close">
-                        <button class="link-button" type="submit">Close</button>
+                        <button class="action-button neutral" type="submit">Close</button>
                     </form>
                     {% else %}
                     -

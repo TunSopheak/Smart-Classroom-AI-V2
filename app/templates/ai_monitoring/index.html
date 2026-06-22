@@ -23,7 +23,17 @@ endblock %} {% block content %}
 
 <!--Raspberry Pi card-->
 
-<section class="iot-device-card">
+<nav class="monitor-jump-nav" aria-label="AI monitoring sections">
+  <span>Jump to</span>
+  <a href="#iot-device-status">Device</a>
+  <a href="#snapshot-preview">Snapshot</a>
+  <a href="#iot-ai-results">AI result</a>
+  <a href="#live-camera-preview">Live preview</a>
+  <a href="#classroom-status">Occupancy &amp; light</a>
+  <a href="#recent-ai-events">Recent events</a>
+</nav>
+
+<section id="iot-device-status" class="iot-device-card anchor-section">
   <div class="iot-device-header">
     <div>
       <h2 class="iot-device-title">Raspberry Pi Device Status</h2>
@@ -32,7 +42,7 @@ endblock %} {% block content %}
       </p>
     </div>
 
-    <div style="display: flex; gap: 10px; align-items: center">
+    <div class="iot-header-actions">
       <span id="iotStatusBadge" class="iot-status-badge offline">Offline</span>
       <button
         type="button"
@@ -83,7 +93,7 @@ endblock %} {% block content %}
     <div class="iot-device-item">
       <span class="iot-device-label">Light 1</span>
       <span id="iotLight1Status" class="iot-device-value">OFF</span>
-      <div style="display: flex; gap: 8px; margin-top: 12px">
+      <div class="iot-item-actions">
         <button type="button" class="iot-refresh-btn" onclick="controlIotLight('light_1', 'on')">
           ON
         </button>
@@ -96,7 +106,7 @@ endblock %} {% block content %}
     <div class="iot-device-item">
       <span class="iot-device-label">Light 2</span>
       <span id="iotLight2Status" class="iot-device-value">OFF</span>
-      <div style="display: flex; gap: 8px; margin-top: 12px">
+      <div class="iot-item-actions">
         <button type="button" class="iot-refresh-btn" onclick="controlIotLight('light_2', 'on')">
           ON
         </button>
@@ -118,22 +128,25 @@ endblock %} {% block content %}
   </div>
 </section>
 
-<section class="iot-device-card">
+<section id="live-camera-preview" class="iot-device-card anchor-section">
   <div class="iot-device-header">
     <div>
       <h2 class="iot-device-title">Live Camera Preview</h2>
       <p class="iot-device-subtitle">
-        Live preview uses latest uploaded Raspberry Pi frame.
+        Live preview uses the latest uploaded Raspberry Pi frame.
       </p>
     </div>
     <span class="iot-status-badge">MJPEG</span>
   </div>
 
-  <img
-    src="/iot/camera/live.mjpg"
-    class="camera-preview monitor-camera"
-    alt="Live Raspberry Pi camera preview"
-  />
+  <div class="mjpeg-preview-shell">
+    <p>Waiting for Raspberry Pi frame...</p>
+    <img
+      src="/iot/camera/live.mjpg"
+      class="camera-preview monitor-camera"
+      alt="Live Raspberry Pi camera preview"
+    />
+  </div>
 </section>
 
 <section class="monitor-note-grid" aria-label="AI monitoring notes">
@@ -249,7 +262,7 @@ endblock %} {% block content %}
   </div>
 </section>
 
-<section class="monitor-section">
+<section id="classroom-status" class="monitor-section anchor-section">
   <div class="section-heading">
     <div>
       <p class="eyebrow">Smart Classroom Status</p>
@@ -593,7 +606,7 @@ endblock %} {% block content %}
 </details>
 {% endif %}
 
-<section class="table-panel ai-events monitor-events-section">
+<section id="recent-ai-events" class="table-panel ai-events monitor-events-section anchor-section">
   <div class="table-heading">
     <div>
       <p class="eyebrow">Recent AI Events</p>

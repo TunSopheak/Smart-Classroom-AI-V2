@@ -27,7 +27,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     sidebarClose?.addEventListener("click", closeSidebar);
     sidebarBackdrop?.addEventListener("click", closeSidebar);
-    sidebar?.querySelectorAll(".sidebar-link").forEach((link) => link.addEventListener("click", closeSidebar));
+    sidebar?.querySelectorAll(".nav-group-link, .nav-sub-link").forEach((link) => link.addEventListener("click", closeSidebar));
 
     document.addEventListener("keydown", (event) => {
         if (event.key === "Escape") {

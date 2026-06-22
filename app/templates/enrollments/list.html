@@ -64,7 +64,7 @@
                 <td>
                     {% if enrollment.status == "active" %}
                     <form method="post" action="/enrollments/{{ enrollment.id }}/deactivate">
-                        <button class="link-button" type="submit">Deactivate</button>
+                        <button class="action-button danger" type="submit">Deactivate</button>
                     </form>
                     {% else %}
                     -

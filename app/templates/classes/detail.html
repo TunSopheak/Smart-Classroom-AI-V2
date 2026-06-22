@@ -3,16 +3,17 @@
 {% block title %}{{ class_group.class_code }} - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Class Details</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/dashboard">Dashboard</a><span class="breadcrumb-separator">&gt;</span><a href="/classes">Classes</a><span class="breadcrumb-separator">&gt;</span><span>Class Details</span></nav>
         <h2>{{ class_group.class_code }} - {{ class_group.name }}</h2>
+        <p class="page-subtitle">Review class information, active students, and enrollment controls.</p>
     </div>
     <div class="button-row">
         <a class="button" href="/classes">Classes</a>
         <a class="button" href="/classes/{{ class_group.id }}/edit">Edit</a>
         <form method="post" action="/classes/{{ class_group.id }}/toggle">
-            <button class="button" type="submit">{{ "Deactivate" if class_group.status == "active" else "Activate" }}</button>
+            <button class="button {{ 'danger' if class_group.status == 'active' else 'secondary' }}" type="submit">{{ "Deactivate" if class_group.status == "active" else "Activate" }}</button>
         </form>
     </div>
 </section>

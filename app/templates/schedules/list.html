@@ -48,9 +48,9 @@
                 <td>{{ schedule.room }}</td>
                 <td><span class="status {{ schedule.status }}">{{ schedule.status }}</span></td>
                 <td class="actions">
-                    <a href="/schedules/{{ schedule.id }}/edit">Edit</a>
+                    <a class="action-button neutral" href="/schedules/{{ schedule.id }}/edit">Edit</a>
                     <form method="post" action="/schedules/{{ schedule.id }}/toggle">
-                        <button class="link-button" type="submit">{{ "Deactivate" if schedule.status == "active" else "Activate" }}</button>
+                        <button class="action-button {{ 'danger' if schedule.status == 'active' else 'positive' }}" type="submit">{{ "Deactivate" if schedule.status == "active" else "Activate" }}</button>
                     </form>
                 </td>
             </tr>

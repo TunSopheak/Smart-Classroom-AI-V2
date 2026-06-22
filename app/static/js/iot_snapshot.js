@@ -9,8 +9,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   var card = document.createElement("section");
-  card.id = "iotCameraSnapshotCard";
-  card.className = "iot-device-card";
+  card.id = "snapshot-preview";
+  card.className = "iot-device-card anchor-section";
 
   var header = document.createElement("div");
   header.className = "iot-device-header";
@@ -59,18 +59,13 @@ document.addEventListener("DOMContentLoaded", function () {
 
   var previewWrap = document.createElement("div");
   previewWrap.id = "iotSnapshotPreviewWrap";
-  previewWrap.style.marginTop = "18px";
-  previewWrap.style.display = "none";
+  previewWrap.className = "snapshot-preview-wrap";
+  previewWrap.hidden = true;
 
   var image = document.createElement("img");
   image.id = "iotSnapshotPreview";
   image.alt = "Latest Raspberry Pi camera snapshot";
-  image.style.width = "100%";
-  image.style.maxHeight = "420px";
-  image.style.objectFit = "contain";
-  image.style.borderRadius = "18px";
-  image.style.border = "1px solid #dfe7ef";
-  image.style.background = "#f8fafc";
+  image.className = "snapshot-preview-image";
   previewWrap.appendChild(image);
 
   card.appendChild(header);
@@ -103,7 +98,7 @@ async function refreshIotCameraSnapshot() {
       if (uploadedAtEl) uploadedAtEl.textContent = "-";
       if (deviceEl) deviceEl.textContent = "-";
       if (sizeEl) sizeEl.textContent = "-";
-      if (previewWrap) previewWrap.style.display = "none";
+      if (previewWrap) previewWrap.hidden = true;
       return;
     }
 
@@ -116,7 +111,7 @@ async function refreshIotCameraSnapshot() {
     if (image && snapshot.url) {
       image.src = snapshot.url + "?t=" + Date.now();
     }
-    if (previewWrap) previewWrap.style.display = "block";
+    if (previewWrap) previewWrap.hidden = false;
   } catch (error) {
     statusEl.textContent = "Snapshot status failed";
   }

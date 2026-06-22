@@ -44,9 +44,9 @@
                 <td>{{ teacher.department or "-" }}</td>
                 <td><span class="status {{ teacher.status }}">{{ teacher.status }}</span></td>
                 <td class="actions">
-                    <a href="/teachers/{{ teacher.id }}/edit">Edit</a>
+                    <a class="action-button neutral" href="/teachers/{{ teacher.id }}/edit">Edit</a>
                     <form method="post" action="/teachers/{{ teacher.id }}/toggle">
-                        <button class="link-button" type="submit">{{ "Deactivate" if teacher.status == "active" else "Activate" }}</button>
+                        <button class="action-button {{ 'danger' if teacher.status == 'active' else 'positive' }}" type="submit">{{ "Deactivate" if teacher.status == "active" else "Activate" }}</button>
                     </form>
                 </td>
             </tr>

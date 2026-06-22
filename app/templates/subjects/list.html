@@ -42,9 +42,9 @@
                 <td>{{ subject.description or "-" }}</td>
                 <td><span class="status {{ subject.status }}">{{ subject.status }}</span></td>
                 <td class="actions">
-                    <a href="/subjects/{{ subject.id }}/edit">Edit</a>
+                    <a class="action-button neutral" href="/subjects/{{ subject.id }}/edit">Edit</a>
                     <form method="post" action="/subjects/{{ subject.id }}/toggle">
-                        <button class="link-button" type="submit">{{ "Deactivate" if subject.status == "active" else "Activate" }}</button>
+                        <button class="action-button {{ 'danger' if subject.status == 'active' else 'positive' }}" type="submit">{{ "Deactivate" if subject.status == "active" else "Activate" }}</button>
                     </form>
                 </td>
             </tr>

@@ -51,8 +51,8 @@
                 </td>
                 <td><span class="status {{ student.status }}">{{ student.status }}</span></td>
                 <td class="actions">
-                    <a href="/students/{{ student.id }}">View</a>
-                    <a href="/students/{{ student.id }}/edit">Edit</a>
+                    <a class="action-button" href="/students/{{ student.id }}">View</a>
+                    <a class="action-button neutral" href="/students/{{ student.id }}/edit">Edit</a>
                 </td>
             </tr>
             {% else %}

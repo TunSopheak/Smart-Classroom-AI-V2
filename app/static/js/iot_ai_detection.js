@@ -3,7 +3,7 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
-  var snapshotCard = document.getElementById("iotCameraSnapshotCard");
+  var snapshotCard = document.getElementById("snapshot-preview");
   var lightCards = document.querySelectorAll(".iot-device-card");
   var insertAfter = snapshotCard || (lightCards.length >= 2 ? lightCards[1] : null);
   if (!insertAfter) {
@@ -11,8 +11,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   var card = document.createElement("section");
-  card.id = "iotAiDetectionCard";
-  card.className = "iot-device-card";
+  card.id = "iot-ai-results";
+  card.className = "iot-device-card anchor-section";
 
   var header = document.createElement("div");
   header.className = "iot-device-header";
@@ -63,9 +63,8 @@ document.addEventListener("DOMContentLoaded", function () {
   addItem("Analyzed At", "iotAiAnalyzedAt", "-");
 
   var details = document.createElement("div");
-  details.className = "helper-note";
-  details.style.marginTop = "18px";
-  details.innerHTML = '<strong>Detections</strong><pre id="iotAiDetections" style="white-space: pre-wrap; margin: 10px 0 0; font-size: 13px;">No detection result yet.</pre>';
+  details.className = "helper-note iot-detection-details";
+  details.innerHTML = '<strong>Detections</strong><pre id="iotAiDetections" class="iot-detection-output">No detection result yet.</pre>';
 
   card.appendChild(header);
   card.appendChild(grid);

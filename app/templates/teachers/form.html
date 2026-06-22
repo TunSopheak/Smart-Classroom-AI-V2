@@ -4,10 +4,11 @@
 {% block title %}{{ "Edit Teacher" if is_edit else "Add Teacher" }} - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Academic Core</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/dashboard">Dashboard</a><span class="breadcrumb-separator">&gt;</span><a href="/teachers">Teachers</a><span class="breadcrumb-separator">&gt;</span><span>{{ "Edit" if is_edit else "Add" }}</span></nav>
         <h2>{{ "Edit Teacher" if is_edit else "Add Teacher" }}</h2>
+        <p class="page-subtitle">{{ "Update the teacher profile and department." if is_edit else "Create a teacher profile for classroom scheduling." }}</p>
     </div>
     <a class="button" href="/teachers">Back</a>
 </section>

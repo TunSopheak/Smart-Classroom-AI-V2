@@ -4,10 +4,11 @@
 {% block title %}{{ "Edit Subject" if is_edit else "Add Subject" }} - Smart Classroom V2{% endblock %}
 
 {% block content %}
-<section class="page-heading">
+<section class="page-hero">
     <div>
-        <p class="eyebrow">Academic Core</p>
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/dashboard">Dashboard</a><span class="breadcrumb-separator">&gt;</span><a href="/subjects">Subjects</a><span class="breadcrumb-separator">&gt;</span><span>{{ "Edit" if is_edit else "Add" }}</span></nav>
         <h2>{{ "Edit Subject" if is_edit else "Add Subject" }}</h2>
+        <p class="page-subtitle">{{ "Update the subject name and description." if is_edit else "Create a subject for schedules, sessions, and reports." }}</p>
     </div>
     <a class="button" href="/subjects">Back</a>
 </section>

@@ -23,7 +23,8 @@
 
 {% include "partials/messages.html" %}
 
-<form class="form-panel inline-form attendance-filters" method="get" action="/attendance">
+<form class="form-panel filter-toolbar attendance-filters" method="get" action="/attendance">
+    {% if request.query_params.get('nav') == 'reports' %}<input type="hidden" name="nav" value="reports">{% endif %}
     <label>
         Class
         <select name="class_group_id">
@@ -59,12 +60,15 @@
             {% endfor %}
         </select>
     </label>
-    <button class="button primary" type="submit">Filter</button>
+    <div class="filter-toolbar-actions">
+        <button class="button primary" type="submit">Filter</button>
+    </div>
 </form>
 
 <div class="export-actions">
-    <a class="button" href="/attendance/export.csv?class_group_id={{ filters.class_group_id }}&session_id={{ filters.session_id }}&student_search={{ filters.student_search | urlencode }}&status={{ filters.status }}">Export CSV</a>
-    <a class="button" href="/attendance/export.pdf?class_group_id={{ filters.class_group_id }}&session_id={{ filters.session_id }}&student_search={{ filters.student_search | urlencode }}&status={{ filters.status }}">Export PDF</a>
+    <span>Export filtered results</span>
+    <a class="button secondary" href="/attendance/export.csv?class_group_id={{ filters.class_group_id }}&session_id={{ filters.session_id }}&student_search={{ filters.student_search | urlencode }}&status={{ filters.status }}">Export CSV</a>
+    <a class="button secondary" href="/attendance/export.pdf?class_group_id={{ filters.class_group_id }}&session_id={{ filters.session_id }}&student_search={{ filters.student_search | urlencode }}&status={{ filters.status }}">Export PDF</a>
 </div>
 
 <section class="table-panel">
