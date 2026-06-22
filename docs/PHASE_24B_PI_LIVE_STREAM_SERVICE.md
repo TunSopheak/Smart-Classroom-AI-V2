@@ -123,8 +123,8 @@ If the Raspberry Pi username or project directory changes, update `User`, `Worki
 
 ## Limitation
 
-The current live stream process owns the Raspberry Pi camera. The old `smart-classroom-pi-client.service` must remain disabled while this service is active, so its camera-based snapshot upload loop cannot run concurrently.
+The live stream process remains the only Raspberry Pi camera owner. The old `smart-classroom-pi-client.service` must remain disabled while this service is active.
 
-## Next Phase Recommendation
+## Phase 25 Update
 
-Phase 25 should combine live streaming and AI snapshot sampling through one camera owner. The live stream process can expose or periodically forward selected in-memory frames for AI analysis, avoiding multiple processes competing for Picamera2 while keeping sampling frequency and CPU use controlled.
+Phase 25 adds optional periodic snapshot upload directly to `pi_live_stream.py`. It reuses the latest in-memory JPEG from the live capture loop, so backend AI sampling can continue without starting a second camera process. See `docs/PHASE_25_LIVE_STREAM_SNAPSHOT_UPLOAD.md` for configuration and verification.
