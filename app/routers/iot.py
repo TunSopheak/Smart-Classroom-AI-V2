@@ -14,7 +14,7 @@ from app.core.config import (
     AI_FRAME_SAMPLING_MIN_INTERVAL_SECONDS,
 )
 from app.core.database import SessionLocal, get_db
-from app.services import ai_service, iot_service
+from app.services import ai_service, iot_event_service, iot_service
 
 
 router = APIRouter(prefix="/iot", tags=["iot"])
@@ -209,6 +209,7 @@ async def sample_latest_camera_snapshot() -> None:
             )
             return
 
+        previous_light = iot_service.light_status()
         _sampler_state.update(
             {
                 "last_sampled_file": filename,
@@ -218,7 +219,7 @@ async def sample_latest_camera_snapshot() -> None:
             }
         )
         try:
-            await asyncio.to_thread(
+            analysis_result = await asyncio.to_thread(
                 run_sampled_camera_analysis,
                 image_bytes,
                 snapshot.get("session_id"),
@@ -230,6 +231,20 @@ async def sample_latest_camera_snapshot() -> None:
                     "skipped_reason": "AI analysis failed for the sampled snapshot.",
                 }
             )
+            return
+
+        analysis, _, _, _, current_light = analysis_result
+        try:
+            await asyncio.to_thread(
+                iot_event_service.evaluate_sampled_frame,
+                snapshot,
+                image_bytes,
+                analysis,
+                previous_light,
+                current_light,
+            )
+        except Exception as error:
+            iot_event_service.record_event_error(error)
 
 
 async def ai_frame_sampling_loop() -> None:
@@ -250,6 +265,8 @@ async def ai_frame_sampling_loop() -> None:
 
 def start_ai_frame_sampler() -> None:
     global _sampler_task
+
+    iot_event_service.initialize_event_storage()
 
     if not AI_FRAME_SAMPLING_ENABLED:
         _sampler_state.update(
@@ -453,6 +470,14 @@ async def camera_sampler_status():
     return {
         "ok": True,
         "sampler": ai_frame_sampler_status(),
+    }
+
+
+@router.get("/camera/events/status")
+async def camera_events_status():
+    return {
+        "ok": True,
+        "events": iot_event_service.event_storage_status(),
     }
 
 

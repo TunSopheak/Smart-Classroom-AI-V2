@@ -27,3 +27,42 @@ AI_FRAME_SAMPLING_INTERVAL_SECONDS = max(
     AI_FRAME_SAMPLING_MIN_INTERVAL_SECONDS,
     _ai_sampling_interval,
 )
+
+EVENT_SNAPSHOTS_ENABLED = os.getenv(
+    "SMART_CLASSROOM_EVENT_SNAPSHOTS_ENABLED",
+    "0",
+).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def env_int(name: str, default: int, minimum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        value = default
+    return max(minimum, value)
+
+
+EVENT_SNAPSHOT_RETENTION_DAYS = env_int(
+    "SMART_CLASSROOM_EVENT_SNAPSHOT_RETENTION_DAYS",
+    7,
+    1,
+)
+EVENT_SNAPSHOT_MAX_FILES = env_int(
+    "SMART_CLASSROOM_EVENT_SNAPSHOT_MAX_FILES",
+    100,
+    1,
+)
+EVENT_COOLDOWN_SECONDS = env_int(
+    "SMART_CLASSROOM_EVENT_COOLDOWN_SECONDS",
+    60,
+    1,
+)
+
+try:
+    _phone_event_confidence = float(
+        os.getenv("SMART_CLASSROOM_PHONE_EVENT_CONFIDENCE", "0.60")
+    )
+except ValueError:
+    _phone_event_confidence = 0.60
+
+PHONE_EVENT_CONFIDENCE = min(1.0, max(0.0, _phone_event_confidence))
