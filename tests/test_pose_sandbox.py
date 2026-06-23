@@ -26,7 +26,7 @@ class PoseSandboxTests(unittest.TestCase):
             )
 
         self.assertTrue(result["ok"])
-        self.assertEqual(result["phase"], "30B")
+        self.assertEqual(result["phase"], "30C")
         self.assertEqual(result["status"], "model_required")
         self.assertTrue(result["safe_mode"])
         self.assertEqual(result["generated_behavior_labels"], [])
