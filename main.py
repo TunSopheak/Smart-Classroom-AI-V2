@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from app.core.database import Base, engine
@@ -52,6 +53,16 @@ app = FastAPI(
     description="Clean FastAPI foundation for Smart Classroom academic, attendance, AI monitoring, and IoT workflows.",
     version="2.0.0",
     lifespan=lifespan,
+)
+
+# Demo CORS for Flutter web/mobile MVP testing.
+# Tighten this before any real public production deployment.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
