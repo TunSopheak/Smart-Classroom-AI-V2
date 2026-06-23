@@ -3,14 +3,14 @@ document.addEventListener("DOMContentLoaded", function () {
     return;
   }
 
-  var lightCards = document.querySelectorAll(".iot-device-card");
-  if (lightCards.length < 2) {
+  var liveCameraCard = document.getElementById("live-camera-preview");
+  if (!liveCameraCard) {
     return;
   }
 
   var card = document.createElement("section");
   card.id = "snapshot-preview";
-  card.className = "iot-device-card anchor-section";
+  card.className = "iot-device-card temporary-snapshot-card anchor-section";
 
   var header = document.createElement("div");
   header.className = "iot-device-header";
@@ -18,17 +18,17 @@ document.addEventListener("DOMContentLoaded", function () {
   var titleWrap = document.createElement("div");
   var title = document.createElement("h2");
   title.className = "iot-device-title";
-  title.textContent = "Raspberry Pi Camera Snapshot";
+  title.textContent = "Latest AI Sample Snapshot";
   var subtitle = document.createElement("p");
   subtitle.className = "iot-device-subtitle";
-  subtitle.textContent = "Latest classroom snapshot uploaded from the Raspberry Pi camera.";
+  subtitle.textContent = "Temporary snapshot used for AI sampling. Only important alert evidence is saved to reports.";
   titleWrap.appendChild(title);
   titleWrap.appendChild(subtitle);
 
   var refreshButton = document.createElement("button");
   refreshButton.type = "button";
   refreshButton.className = "iot-refresh-btn";
-  refreshButton.textContent = "Refresh Snapshot";
+  refreshButton.textContent = "Refresh Sample Status";
   refreshButton.addEventListener("click", refreshIotCameraSnapshot);
 
   header.appendChild(titleWrap);
@@ -57,6 +57,18 @@ document.addEventListener("DOMContentLoaded", function () {
   addItem("Device", "iotSnapshotDevice", "-");
   addItem("File Size", "iotSnapshotSize", "-");
 
+  var policyNote = document.createElement("div");
+  policyNote.className = "helper-note temporary-snapshot-policy";
+  policyNote.textContent = "This routine sample is temporary monitoring input, not permanent report evidence.";
+
+  var previewDetails = document.createElement("details");
+  previewDetails.id = "iotSnapshotPreviewDetails";
+  previewDetails.className = "temporary-snapshot-details";
+  previewDetails.hidden = true;
+
+  var previewSummary = document.createElement("summary");
+  previewSummary.textContent = "Show latest temporary sample image";
+
   var previewWrap = document.createElement("div");
   previewWrap.id = "iotSnapshotPreviewWrap";
   previewWrap.className = "snapshot-preview-wrap";
@@ -64,15 +76,18 @@ document.addEventListener("DOMContentLoaded", function () {
 
   var image = document.createElement("img");
   image.id = "iotSnapshotPreview";
-  image.alt = "Latest Raspberry Pi camera snapshot";
+  image.alt = "Latest temporary Raspberry Pi sample used for AI analysis";
   image.className = "snapshot-preview-image";
   previewWrap.appendChild(image);
+  previewDetails.appendChild(previewSummary);
+  previewDetails.appendChild(previewWrap);
 
   card.appendChild(header);
   card.appendChild(grid);
-  card.appendChild(previewWrap);
+  card.appendChild(policyNote);
+  card.appendChild(previewDetails);
 
-  lightCards[1].insertAdjacentElement("afterend", card);
+  liveCameraCard.insertAdjacentElement("afterend", card);
   refreshIotCameraSnapshot();
   window.setInterval(refreshIotCameraSnapshot, 10000);
 });
@@ -91,6 +106,7 @@ async function refreshIotCameraSnapshot() {
     var deviceEl = document.getElementById("iotSnapshotDevice");
     var sizeEl = document.getElementById("iotSnapshotSize");
     var previewWrap = document.getElementById("iotSnapshotPreviewWrap");
+    var previewDetails = document.getElementById("iotSnapshotPreviewDetails");
     var image = document.getElementById("iotSnapshotPreview");
 
     if (!snapshot.available) {
@@ -99,6 +115,7 @@ async function refreshIotCameraSnapshot() {
       if (deviceEl) deviceEl.textContent = "-";
       if (sizeEl) sizeEl.textContent = "-";
       if (previewWrap) previewWrap.hidden = true;
+      if (previewDetails) previewDetails.hidden = true;
       return;
     }
 
@@ -112,6 +129,7 @@ async function refreshIotCameraSnapshot() {
       image.src = snapshot.url + "?t=" + Date.now();
     }
     if (previewWrap) previewWrap.hidden = false;
+    if (previewDetails) previewDetails.hidden = false;
   } catch (error) {
     statusEl.textContent = "Snapshot status failed";
   }

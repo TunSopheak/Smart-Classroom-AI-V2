@@ -25,13 +25,57 @@ endblock %} {% block content %}
 
 <nav class="monitor-jump-nav" aria-label="AI monitoring sections">
   <span>Jump to</span>
+  <a href="#live-camera-preview">Live camera</a>
   <a href="#iot-device-status">Device</a>
-  <a href="#snapshot-preview">Snapshot</a>
-  <a href="#iot-ai-results">AI result</a>
-  <a href="#live-camera-preview">Live preview</a>
+  <a href="#snapshot-preview">AI sample</a>
+  <a href="#iot-ai-results">AI status</a>
   <a href="#classroom-status">Occupancy &amp; light</a>
   <a href="#recent-ai-events">Recent events</a>
 </nav>
+
+<section id="live-camera-preview" class="iot-device-card live-camera-primary-card anchor-section">
+  <div class="iot-device-header">
+    <div>
+      <p class="eyebrow">Primary Monitoring View</p>
+      <h2 class="iot-device-title">Real Live Camera</h2>
+      <p class="iot-device-subtitle">
+        Direct 4:3 MJPEG video from the Raspberry Pi. AI boxes use the latest sampled analysis, not frame-by-frame inference.
+      </p>
+    </div>
+    <div class="iot-header-actions">
+      <span id="pi-live-stream-badge" class="iot-status-badge">Connecting</span>
+      <button id="retry-pi-live-stream" class="button small" type="button">Retry Direct Stream</button>
+    </div>
+  </div>
+
+  <div class="mjpeg-preview-shell live-camera-shell">
+    <p id="pi-live-stream-message" aria-live="polite">Connecting to Raspberry Pi live stream...</p>
+    <img
+      id="pi-live-stream"
+      src="{{ pi_live_stream_url }}"
+      data-direct-src="{{ pi_live_stream_url }}"
+      data-fallback-src="/iot/camera/live.mjpg"
+      class="camera-preview monitor-camera"
+      alt="Real live stream from Raspberry Pi camera"
+      referrerpolicy="no-referrer"
+    />
+    <canvas id="pi-live-ai-overlay" class="live-ai-overlay" width="640" height="480" aria-hidden="true"></canvas>
+  </div>
+  <div class="live-ai-status-row">
+    <span id="live-ai-overlay-status" class="live-ai-status waiting" role="status" aria-live="polite">Waiting for AI sample...</span>
+    <span id="live-ai-overlay-detail" class="muted">Detection boxes update when the backend analyzes a sampled snapshot.</span>
+  </div>
+  <div class="live-camera-notes">
+    <div class="helper-note">
+      <strong>Real live stream from Raspberry Pi</strong>
+      <span>The browser connects directly to the configured Pi MJPEG server.</span>
+    </div>
+    <div class="helper-note">
+      <strong>Fallback: backend latest snapshot preview</strong>
+      <span>The existing <code>/iot/camera/live.mjpg</code> preview remains available if the direct stream cannot load.</span>
+    </div>
+  </div>
+</section>
 
 <section id="iot-device-status" class="iot-device-card anchor-section">
   <div class="iot-device-header">
@@ -128,56 +172,32 @@ endblock %} {% block content %}
   </div>
 </section>
 
-<section id="live-camera-preview" class="iot-device-card anchor-section">
-  <div class="iot-device-header">
+<section class="monitor-section behavior-roadmap-card" aria-labelledby="behavior-roadmap-title">
+  <div class="section-heading">
     <div>
-      <h2 class="iot-device-title">Real Live Camera</h2>
-      <p class="iot-device-subtitle">
-        Direct MJPEG video from the Raspberry Pi camera with a safe snapshot fallback.
-      </p>
+      <p class="eyebrow">Capability Roadmap</p>
+      <h3 id="behavior-roadmap-title">Behavior Monitoring Direction</h3>
     </div>
-    <div class="iot-header-actions">
-      <span id="pi-live-stream-badge" class="iot-status-badge">Connecting</span>
-      <button id="retry-pi-live-stream" class="button small" type="button">Retry Direct Stream</button>
+    <span class="status info">Honest AI Scope</span>
+  </div>
+  <div class="behavior-roadmap-grid">
+    <div class="roadmap-column current">
+      <strong>Current</strong>
+      <ul>
+        <li>Person detection</li>
+        <li>Phone object detection when detected by the model</li>
+        <li>Occupancy synchronization</li>
+        <li>Event snapshot saving for qualified alerts</li>
+      </ul>
     </div>
-  </div>
-
-  <div class="mjpeg-preview-shell">
-    <p id="pi-live-stream-message" aria-live="polite">Connecting to Raspberry Pi live stream...</p>
-    <img
-      id="pi-live-stream"
-      src="{{ pi_live_stream_url }}"
-      data-direct-src="{{ pi_live_stream_url }}"
-      data-fallback-src="/iot/camera/live.mjpg"
-      class="camera-preview monitor-camera"
-      alt="Real live stream from Raspberry Pi camera"
-      referrerpolicy="no-referrer"
-    />
-  </div>
-  <div class="live-camera-notes">
-    <div class="helper-note">
-      <strong>Real live stream from Raspberry Pi</strong>
-      <span>The browser connects directly to the configured Pi MJPEG server.</span>
+    <div class="roadmap-column next">
+      <strong>Coming next</strong>
+      <ul>
+        <li>Sleeping / head-down detection</li>
+        <li>Inattentive / looking-away monitoring</li>
+        <li>Behavior timeline and reports</li>
+      </ul>
     </div>
-    <div class="helper-note">
-      <strong>Fallback: backend latest snapshot preview</strong>
-      <span>The existing <code>/iot/camera/live.mjpg</code> preview remains available if the direct stream cannot load.</span>
-    </div>
-  </div>
-</section>
-
-<section class="monitor-note-grid" aria-label="AI monitoring notes">
-  <div class="helper-note">
-    Version 2 logs AI monitoring events linked to active sessions. Sleep
-    detection and noise/talking detection are future improvements.
-  </div>
-  <div class="helper-note">
-    Phone detection is a prototype and depends on camera angle, lighting, and
-    model accuracy.
-  </div>
-  <div class="helper-note">
-    Attention detection is a prototype estimate based on camera view and may be
-    inaccurate. It does not prove student behavior.
   </div>
 </section>
 
@@ -622,6 +642,11 @@ endblock %} {% block content %}
   </div>
 </details>
 {% endif %}
+
+<div class="helper-note evidence-policy-note">
+  <strong>Evidence snapshot policy</strong>
+  <span>Routine AI samples are temporary. Report evidence is retained only for qualified alert events, currently including supported phone-object alerts and light auto-off transitions. Unexpected occupancy evidence and sleeping/head-down evidence are planned capabilities.</span>
+</div>
 
 <section id="recent-ai-events" class="table-panel ai-events monitor-events-section anchor-section">
   <div class="table-heading">

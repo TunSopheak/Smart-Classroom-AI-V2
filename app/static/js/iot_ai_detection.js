@@ -20,17 +20,17 @@ document.addEventListener("DOMContentLoaded", function () {
   var titleWrap = document.createElement("div");
   var title = document.createElement("h2");
   title.className = "iot-device-title";
-  title.textContent = "AI Detection from Pi Camera";
+  title.textContent = "Latest AI Sample Analysis";
   var subtitle = document.createElement("p");
   subtitle.className = "iot-device-subtitle";
-  subtitle.textContent = "Analyze the latest Raspberry Pi camera snapshot and sync person count to occupancy.";
+  subtitle.textContent = "Review the latest sampled detection result and occupancy synchronization. This is sampled AI, not continuous frame-by-frame inference.";
   titleWrap.appendChild(title);
   titleWrap.appendChild(subtitle);
 
   var analyzeButton = document.createElement("button");
   analyzeButton.type = "button";
   analyzeButton.className = "iot-refresh-btn";
-  analyzeButton.textContent = "Analyze Latest Snapshot";
+  analyzeButton.textContent = "Analyze Latest Sample";
   analyzeButton.addEventListener("click", analyzeLatestIotSnapshot);
 
   header.appendChild(titleWrap);

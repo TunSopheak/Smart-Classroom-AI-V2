@@ -1181,14 +1181,14 @@ td a:not(.button):not(.action-button):hover {
 
 /* AI Monitoring */
 .monitor-jump-nav {
-  position: sticky;
-  top: 70px;
+  position: static;
+  top: auto;
   z-index: 20;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 7px;
-  margin-bottom: 15px;
+  margin-bottom: 1.25rem;
   padding: 8px;
   background: rgba(255, 255, 255, 0.93);
   border: 1px solid var(--line);
@@ -1615,6 +1615,13 @@ td a:not(.button):not(.action-button):hover {
   border-color: #ecdc9d;
 }
 
+.live-camera-primary-card {
+  margin-top: 1.25rem;
+  scroll-margin-top: 82px;
+  border-color: #aed8d1;
+  box-shadow: 0 12px 34px rgba(20, 118, 108, 0.1);
+}
+
 .mjpeg-preview-shell {
   position: relative;
   width: 100%;
@@ -1656,6 +1663,76 @@ td a:not(.button):not(.action-button):hover {
   object-fit: contain;
 }
 
+.mjpeg-preview-shell.live-camera-shell {
+  width: min(100%, 760px);
+  min-height: 0;
+  aspect-ratio: 4 / 3;
+  margin-inline: auto;
+  overflow: hidden;
+  background: #0f172a;
+}
+
+.mjpeg-preview-shell.live-camera-shell .monitor-camera {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  max-height: none;
+  object-fit: contain;
+  filter: none;
+  opacity: 1;
+  mix-blend-mode: normal;
+}
+
+.live-ai-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  filter: none;
+  opacity: 1;
+  mix-blend-mode: normal;
+  pointer-events: none;
+}
+
+.live-ai-status-row {
+  display: flex;
+  width: min(100%, 760px);
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  margin: 10px auto 0;
+}
+
+.live-ai-status {
+  display: inline-flex;
+  min-height: 29px;
+  align-items: center;
+  padding: 4px 10px;
+  color: var(--success);
+  background: var(--success-soft);
+  border: 1px solid #c7e5d3;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.live-ai-status.waiting {
+  color: var(--blue);
+  background: var(--blue-soft);
+  border-color: #ccddf0;
+}
+
+.live-ai-status.stale,
+.live-ai-status.unavailable {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: #ecdc9d;
+}
+
 .live-camera-notes {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1677,6 +1754,37 @@ td a:not(.button):not(.action-button):hover {
   overflow-wrap: anywhere;
 }
 
+.temporary-snapshot-card {
+  border-style: dashed;
+  box-shadow: none;
+}
+
+.temporary-snapshot-card .iot-device-grid {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+}
+
+.temporary-snapshot-card .iot-device-item {
+  min-height: 64px;
+  padding: 10px;
+}
+
+.temporary-snapshot-policy {
+  margin-top: 11px;
+}
+
+.temporary-snapshot-details {
+  margin-top: 11px;
+  border-top: 1px solid var(--line);
+}
+
+.temporary-snapshot-details summary {
+  padding: 11px 2px 0;
+  color: var(--primary-strong);
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 .snapshot-preview-wrap {
   margin-top: 14px;
 }
@@ -1687,12 +1795,67 @@ td a:not(.button):not(.action-button):hover {
 
 .snapshot-preview-image {
   display: block;
-  width: 100%;
-  max-height: 470px;
+  width: min(100%, 480px);
+  max-height: 320px;
+  margin-inline: auto;
   object-fit: contain;
   background: #101820;
   border: 1px solid var(--line);
   border-radius: var(--radius);
+}
+
+.behavior-roadmap-card {
+  border-color: #cdddea;
+}
+
+.behavior-roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 11px;
+}
+
+.roadmap-column {
+  padding: 13px;
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+}
+
+.roadmap-column.current {
+  background: var(--surface-teal);
+  border-color: #cae3df;
+}
+
+.roadmap-column > strong {
+  color: var(--primary-strong);
+  font-size: 0.82rem;
+  text-transform: uppercase;
+}
+
+.roadmap-column.next > strong {
+  color: var(--blue);
+}
+
+.roadmap-column ul {
+  display: grid;
+  gap: 5px;
+  margin: 9px 0 0;
+  padding-left: 19px;
+  color: #4f5d70;
+  font-size: 0.86rem;
+}
+
+.evidence-policy-note {
+  display: grid;
+  gap: 4px;
+  margin: 18px 0 12px;
+  color: #345a75;
+  background: var(--blue-soft);
+  border-color: #ccddf0;
+}
+
+.evidence-policy-note strong {
+  color: #234b68;
 }
 
 .iot-detection-details {
@@ -1887,7 +2050,16 @@ td a:not(.button):not(.action-button):hover {
     min-height: 210px;
   }
 
+  .mjpeg-preview-shell.live-camera-shell,
+  .mjpeg-preview-shell.live-camera-shell .monitor-camera {
+    min-height: 0;
+  }
+
   .live-camera-notes {
+    grid-template-columns: 1fr;
+  }
+
+  .behavior-roadmap-grid {
     grid-template-columns: 1fr;
   }
 }
