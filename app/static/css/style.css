@@ -1830,6 +1830,13 @@ td a:not(.button):not(.action-button):hover {
   color: #234b68;
 }
 
+.behavior-adapter-strip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .behavior-roadmap-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

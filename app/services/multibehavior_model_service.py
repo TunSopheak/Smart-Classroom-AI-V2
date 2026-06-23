@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from copy import deepcopy
 
+from app.services.model_adapters import default_model_adapters
+
 
 MODEL_REQUIREMENTS: dict[str, dict] = {
     "normal_sitting": {
@@ -90,6 +92,7 @@ ACTIVE_MODEL_ADAPTERS = {
     "pose_model": False,
     "head_landmark_model": False,
     "face_orientation_model": False,
+    "head_orientation_model": False,
     "face_landmark_model": False,
     "eye_state_model": False,
     "face_emotion_model": False,
@@ -100,10 +103,31 @@ ACTIVE_MODEL_ADAPTERS = {
 def model_capability_status() -> dict:
     """Return a UI-friendly status for available and future behavior models."""
 
+    adapter_status = [
+        adapter.capability_status() for adapter in default_model_adapters()
+    ]
+    adapter_availability = {
+        status["capability"]: bool(status["available"])
+        for status in adapter_status
+    }
+    active_models = deepcopy(ACTIVE_MODEL_ADAPTERS)
+    active_models["pose_model"] = adapter_availability.get("pose_model", False)
+    active_models["face_emotion_model"] = adapter_availability.get(
+        "face_emotion_model",
+        False,
+    )
+    active_models["head_orientation_model"] = adapter_availability.get(
+        "head_orientation_model",
+        False,
+    )
+    active_models["face_orientation_model"] = active_models[
+        "head_orientation_model"
+    ]
+
     catalog = []
     for behavior_key, details in MODEL_REQUIREMENTS.items():
         required = details["required_models"]
-        ready = all(ACTIVE_MODEL_ADAPTERS.get(model, False) for model in required)
+        ready = all(active_models.get(model, False) for model in required)
         catalog.append(
             {
                 "behavior": behavior_key,
@@ -115,20 +139,26 @@ def model_capability_status() -> dict:
                 "implemented": bool(details["active"]),
                 "model_ready": ready,
                 "required_models": required,
-                "missing_models": [model for model in required if not ACTIVE_MODEL_ADAPTERS.get(model, False)],
+                "missing_models": [
+                    model for model in required if not active_models.get(model, False)
+                ],
                 "description": details["description"],
             }
         )
 
     return {
-        "schema_version": "multi-behavior-model-plan-v1",
+        "schema_version": "multi-behavior-model-plan-v2",
         "object_detector_active": True,
-        "pose_model_active": False,
-        "emotion_model_active": False,
+        "pose_model_active": active_models["pose_model"],
+        "emotion_model_active": active_models["face_emotion_model"],
+        "head_orientation_model_active": active_models[
+            "head_orientation_model"
+        ],
         "tracking_active": False,
         "temporal_smoothing_active": False,
         "safe_mode": True,
         "message": "Object-based behavior overlay is active. Pose, head, and emotion models are planned, not active.",
+        "adapter_status": adapter_status,
         "catalog": catalog,
     }
 

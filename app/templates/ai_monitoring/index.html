@@ -204,6 +204,11 @@ endblock %} {% block content %}
     <span>{{ behavior_status.message }}</span>
     <span>Reliable head-down monitoring requires pose/head landmarks; looking-away monitoring requires validated face or head orientation.</span>
   </div>
+  <div class="behavior-adapter-strip" aria-label="Behavior model capability summary">
+    <span class="status active">Active: Object detector</span>
+    <span class="status info">Planned: Pose, head orientation, face emotion, temporal smoothing</span>
+    <span class="status closed">Safe mode: {% if model_capabilities.safe_mode %}ON{% else %}OFF{% endif %}</span>
+  </div>
   <div class="behavior-roadmap-grid">
     <div class="roadmap-column current">
       <strong>Current</strong>

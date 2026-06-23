@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 
-from app.services import multibehavior_model_service
+from app.services import behavior_decision_engine, multibehavior_model_service
 
 
 BEHAVIOR_STYLES: dict[str, dict[str, str]] = {
@@ -273,4 +273,4 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
             "Person box alone is not enough to claim emotional state or attention state.",
         ],
     }
-    return enriched
+    return behavior_decision_engine.analyze_with_model_adapters(b"", enriched)
