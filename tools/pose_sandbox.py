@@ -1,4 +1,4 @@
-"""Saved-snapshot pose sandbox for Phase 30B.
+"""Saved-snapshot pose sandbox for Phase 30B/30C.
 
 This tool is intentionally isolated from the FastAPI dashboard, database, and
 Raspberry Pi services. It lets the team test a real pose model on saved images
@@ -7,15 +7,15 @@ before connecting any posture/head-down logic to the live monitoring system.
 Usage examples:
 
     python tools/pose_sandbox.py --image app/static/uploads/iot_snapshots/latest.jpg
-    python tools/pose_sandbox.py --image sample.jpg --model models/pose_landmarker.task
-    python tools/pose_sandbox.py --image sample.jpg --model models/pose_landmarker.task --pretty
+    python tools/pose_sandbox.py --image sample.jpg --model models/pose_landmarker_lite.task
+    python tools/pose_sandbox.py --image sample.jpg --model models/pose_landmarker_lite.task --pretty
 
 Notes:
 - MediaPipe is optional. If it is not installed, the script returns a safe JSON
   status instead of failing the project.
 - A Pose Landmarker .task model is required for real inference.
 - The script does not generate sleeping/emotion labels. It only reports pose
-  landmarks and model-readiness information.
+  landmarks, visibility, and model-readiness information.
 """
 
 from __future__ import annotations
@@ -90,6 +90,35 @@ def image_metadata(image_path: str | Path) -> dict[str, Any]:
     }
 
 
+def landmark_to_dict(point: Any, index: int) -> dict[str, Any]:
+    return {
+        "index": index,
+        "x": round(float(getattr(point, "x", 0.0)), 6),
+        "y": round(float(getattr(point, "y", 0.0)), 6),
+        "z": round(float(getattr(point, "z", 0.0)), 6),
+        "visibility": round(float(getattr(point, "visibility", 0.0)), 6)
+        if getattr(point, "visibility", None) is not None
+        else None,
+        "presence": round(float(getattr(point, "presence", 0.0)), 6)
+        if getattr(point, "presence", None) is not None
+        else None,
+    }
+
+
+def select_key_landmarks(points: list[Any]) -> dict[str, dict[str, Any] | None]:
+    landmark_names = {
+        "nose": 0,
+        "left_shoulder": 11,
+        "right_shoulder": 12,
+        "left_hip": 23,
+        "right_hip": 24,
+    }
+    return {
+        name: landmark_to_dict(points[index], index) if index < len(points) else None
+        for name, index in landmark_names.items()
+    }
+
+
 def summarize_pose_landmarks(pose_landmarks: list[Any]) -> list[dict[str, Any]]:
     summaries: list[dict[str, Any]] = []
     for pose_index, landmarks in enumerate(pose_landmarks):
@@ -109,7 +138,8 @@ def summarize_pose_landmarks(pose_landmarks: list[Any]) -> list[dict[str, Any]]:
                 "average_visibility": round(average_visibility, 4)
                 if average_visibility is not None
                 else None,
-                "note": "Pose landmarks found. Behavior labels are not generated in Phase 30B.",
+                "key_landmarks": select_key_landmarks(points),
+                "note": "Pose landmarks found. Behavior labels are not generated in Phase 30C.",
             }
         )
     return summaries
@@ -122,7 +152,7 @@ def run_pose_landmarker(image_path: str | Path, model_path: str | Path) -> dict[
     if not image_status.exists:
         return {
             "ok": False,
-            "phase": "30B",
+            "phase": "30C",
             "status": "image_not_found",
             "image": image_status.__dict__,
             "message": "Saved snapshot image was not found.",
@@ -132,7 +162,7 @@ def run_pose_landmarker(image_path: str | Path, model_path: str | Path) -> dict[
     if not model_file.exists() or not model_file.is_file():
         return {
             "ok": True,
-            "phase": "30B",
+            "phase": "30C",
             "status": "model_required",
             "safe_mode": True,
             "image": image_status.__dict__,
@@ -146,7 +176,7 @@ def run_pose_landmarker(image_path: str | Path, model_path: str | Path) -> dict[
     if mp is None:
         return {
             "ok": True,
-            "phase": "30B",
+            "phase": "30C",
             "status": "dependency_required",
             "safe_mode": True,
             "image": image_status.__dict__,
@@ -161,7 +191,7 @@ def run_pose_landmarker(image_path: str | Path, model_path: str | Path) -> dict[
     if cv2 is None:
         return {
             "ok": True,
-            "phase": "30B",
+            "phase": "30C",
             "status": "dependency_required",
             "safe_mode": True,
             "image": image_status.__dict__,
@@ -192,7 +222,7 @@ def run_pose_landmarker(image_path: str | Path, model_path: str | Path) -> dict[
         height, width = image_rgb.shape[:2]
         return {
             "ok": True,
-            "phase": "30B",
+            "phase": "30C",
             "status": "completed",
             "safe_mode": True,
             "image": image_status.__dict__,
@@ -206,7 +236,7 @@ def run_pose_landmarker(image_path: str | Path, model_path: str | Path) -> dict[
     except Exception as exc:  # pragma: no cover - defensive optional dependency path
         return {
             "ok": False,
-            "phase": "30B",
+            "phase": "30C",
             "status": "pose_inference_failed",
             "safe_mode": True,
             "image": image_status.__dict__,
@@ -225,7 +255,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--image", required=True, help="Path to a saved snapshot image.")
     parser.add_argument(
         "--model",
-        default="models/pose_landmarker.task",
+        default="models/pose_landmarker_lite.task",
         help="Path to a MediaPipe Pose Landmarker .task model file.",
     )
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON output.")
