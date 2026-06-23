@@ -147,6 +147,60 @@ document.addEventListener("DOMContentLoaded", () => {
         context?.clearRect(0, 0, liveAiOverlay.width, liveAiOverlay.height);
     }
 
+    function normalizedLabel(value) {
+        return String(value || "").trim().toLowerCase().replace(/[-_]+/g, " ").replace(/\s+/g, " ");
+    }
+
+    function isPhoneLabel(value) {
+        const label = normalizedLabel(value);
+        return label.includes("phone") || label === "telephone";
+    }
+
+    function confidencePercent(value) {
+        const raw = Number(value);
+        if (!Number.isFinite(raw)) {
+            return 0;
+        }
+        const percent = raw <= 1 ? raw * 100 : raw;
+        return Math.max(0, Math.min(100, Math.round(percent)));
+    }
+
+    function overlayInfoForDetection(detection) {
+        const label = normalizedLabel(detection.label);
+        const confidence = confidencePercent(detection.confidence);
+        const studentPrefix = detection.student_label || (detection.track_id ? `Student ${detection.track_id}` : "");
+        let behaviorLabel = detection.behavior_label || detection.overlay_label;
+        let color = detection.overlay_color;
+        let risk = detection.risk || "info";
+
+        if (!behaviorLabel) {
+            if (label === "person") {
+                behaviorLabel = "Monitoring Person";
+                color = color || "#2dd4bf";
+                risk = "low";
+            } else if (isPhoneLabel(label)) {
+                behaviorLabel = "Phone Object";
+                color = color || "#f59e0b";
+                risk = "warning";
+            } else {
+                behaviorLabel = detection.label || "Object Detected";
+                color = color || "#60a5fa";
+            }
+        }
+
+        if (!color) {
+            color = risk === "high" ? "#ef4444" : risk === "warning" ? "#f59e0b" : "#2dd4bf";
+        }
+
+        const percentText = confidence ? ` ${confidence}%` : "";
+        const labelText = detection.overlay_label || `${studentPrefix ? `${studentPrefix} · ` : ""}${behaviorLabel}${percentText}`;
+        return { labelText, color, risk };
+    }
+
+    function labelTextColor(backgroundColor) {
+        return backgroundColor === "#f59e0b" || backgroundColor === "#2dd4bf" ? "#07131f" : "#ffffff";
+    }
+
     function drawLiveAiOverlay(state) {
         if (!liveAiOverlay || !state || !liveStreamFrameLoaded) {
             clearLiveAiOverlay();
@@ -198,26 +252,36 @@ document.addEventListener("DOMContentLoaded", () => {
                 return;
             }
 
-            const label = String(detection.label || "object");
-            const rawConfidence = Number(detection.confidence);
-            const confidence = Number.isFinite(rawConfidence)
-                ? Math.round((rawConfidence <= 1 ? rawConfidence * 100 : rawConfidence))
-                : 0;
-            const caption = `${label} ${Math.max(0, Math.min(100, confidence))}%`;
-            const color = label.toLowerCase().includes("phone") ? "#f59e0b" : "#2dd4bf";
+            const overlayInfo = overlayInfoForDetection(detection);
+            const color = overlayInfo.color;
+            const caption = overlayInfo.labelText;
 
             context.strokeStyle = color;
-            context.lineWidth = 2.5;
+            context.lineWidth = overlayInfo.risk === "high" ? 3.5 : 2.5;
             context.strokeRect(left, top, width, height);
-            context.font = "700 13px Segoe UI, Arial, sans-serif";
-            const labelWidth = context.measureText(caption).width + 12;
-            const labelHeight = 23;
+            context.font = "800 13px Segoe UI, Arial, sans-serif";
+            const labelWidth = Math.min(context.measureText(caption).width + 14, displayWidth - left - 4);
+            const labelHeight = 24;
             const labelTop = top >= labelHeight ? top - labelHeight : top;
             context.fillStyle = color;
             context.fillRect(left, labelTop, labelWidth, labelHeight);
-            context.fillStyle = "#07131f";
-            context.fillText(caption, left + 6, labelTop + 16);
+            context.fillStyle = labelTextColor(color);
+            context.fillText(caption, left + 7, labelTop + 16);
         });
+    }
+
+    function behaviorCountsLabel(analysis, detections) {
+        const summary = analysis.behavior_summary || {};
+        const counts = summary.counts || {};
+        const phoneUsage = Number(counts.possible_phone_usage || 0);
+        const phoneObjects = Number(counts.phone_object || 0);
+        if (phoneUsage > 0) {
+            return `${phoneUsage} possible phone-usage warning${phoneUsage === 1 ? "" : "s"}`;
+        }
+        if (phoneObjects > 0) {
+            return `${phoneObjects} phone object${phoneObjects === 1 ? "" : "s"} detected`;
+        }
+        return `${detections.length} monitored object${detections.length === 1 ? "" : "s"}`;
     }
 
     function renderLiveAiState(state) {
@@ -251,7 +315,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setLiveAiStatus(
                 "Using latest AI sample.",
                 "stale",
-                `${detections.length ? `${detections.length} object${detections.length === 1 ? "" : "s"}` : "No objects"} in the latest sample · ${ageLabel}`
+                `${detections.length ? behaviorCountsLabel(analysis, detections) : "No behavior objects"} · ${ageLabel}`
             );
         } else if (!detections.length) {
             setLiveAiStatus(
@@ -261,9 +325,9 @@ document.addEventListener("DOMContentLoaded", () => {
             );
         } else {
             setLiveAiStatus(
-                `${detections.length} AI object${detections.length === 1 ? "" : "s"} detected`,
+                behaviorCountsLabel(analysis, detections),
                 "",
-                `Boxes use the latest sampled analysis · ${ageLabel}`
+                `Behavior labels use the latest sampled analysis · ${ageLabel}`
             );
         }
     }
