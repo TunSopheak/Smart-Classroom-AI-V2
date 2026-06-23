@@ -14,7 +14,7 @@
         </nav>
         <p class="eyebrow">Event Evidence UX</p>
         <h2>AI Alert Report Center</h2>
-        <p class="page-subtitle">Review retained alert evidence and explore the classroom event log.</p>
+        <p class="page-subtitle">Review retained alert evidence, behavior timeline context, and classroom event history.</p>
     </div>
     <div class="page-actions">
         <a class="button" href="/dashboard">Dashboard</a>
@@ -37,9 +37,101 @@
         </div>
         <div>
             <strong>Coming next</strong>
-            <span>Sleeping/head-down behavior and reliable unexpected occupancy change evidence are planned, not active detections.</span>
+            <span>Sleeping/head-down and inattentive behavior require validated pose/head landmarks before they become active alerts.</span>
         </div>
     </div>
+</section>
+
+<section class="summary-grid report-summary-grid">
+    <article class="summary-card">
+        <span>Total saved evidence</span>
+        <strong>{{ evidence_summary.total_saved }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Phone usage alerts</span>
+        <strong>{{ evidence_summary.phone_usage }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Behavior prototype items</span>
+        <strong>{{ evidence_summary.behavior_prototype }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Legacy evidence</span>
+        <strong>{{ evidence_summary.legacy_evidence }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Light auto-off evidence</span>
+        <strong>{{ evidence_summary.light_auto_off }}</strong>
+    </article>
+    <article class="summary-card">
+        <span>Latest evidence time</span>
+        <strong>{{ evidence_summary.latest_time }}</strong>
+    </article>
+</section>
+
+<section class="alert-evidence-section" aria-labelledby="alert-timeline-title">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Behavior &amp; Alert Timeline</p>
+            <h3 id="alert-timeline-title">Saved Evidence Timeline</h3>
+            <p class="muted">Newest retained evidence appears first. Timeline items are built from saved alert snapshots and metadata when available.</p>
+        </div>
+        <span class="status info">{{ evidence_timeline|length }} timeline items</span>
+    </div>
+
+    <div class="helper-note evidence-policy-note">
+        <strong>Honest behavior policy</strong>
+        <span>Sleeping/head-down and inattentive behavior are planned through pose/head landmark validation. Current timeline items show validated or evidence-backed alerts only.</span>
+    </div>
+
+    {% if evidence_timeline %}
+    <div class="alert-evidence-grid">
+        {% for item in evidence_timeline %}
+        <article class="alert-evidence-card">
+            {% if item.image_url %}
+            <a class="alert-evidence-image-link" href="{{ item.image_url }}" target="_blank" rel="noopener" aria-label="Open {{ item.event_type_label }} evidence image">
+                <img src="{{ item.image_url }}" alt="{{ item.event_type_label }} evidence captured at {{ item.timestamp }}" loading="lazy">
+            </a>
+            {% endif %}
+            <div class="alert-evidence-card-body">
+                <div class="alert-evidence-card-heading">
+                    <span class="status {{ item.severity }}">{{ item.event_type_label }}</span>
+                    <time>{{ item.timestamp }}</time>
+                </div>
+                <h4>{{ item.title }}</h4>
+                <p>{{ item.reason }}</p>
+                <dl class="alert-evidence-meta">
+                    <div>
+                        <dt>Status</dt>
+                        <dd>{{ item.status_text }}</dd>
+                    </div>
+                    <div>
+                        <dt>Confidence</dt>
+                        <dd>{{ item.confidence_label }}</dd>
+                    </div>
+                    {% if item.label %}
+                    <div>
+                        <dt>Detected label</dt>
+                        <dd>{{ item.label }}</dd>
+                    </div>
+                    {% endif %}
+                    {% if item.source_snapshot_filename %}
+                    <div>
+                        <dt>Source sample</dt>
+                        <dd>{{ item.source_snapshot_filename }}</dd>
+                    </div>
+                    {% endif %}
+                </dl>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert-evidence-empty">
+        <strong>No behavior or alert timeline yet.</strong>
+        <span>Normal AI samples are temporary. Timeline entries appear when alert-worthy evidence is saved.</span>
+    </div>
+    {% endif %}
 </section>
 
 <section class="alert-evidence-section" aria-labelledby="alert-evidence-title">
