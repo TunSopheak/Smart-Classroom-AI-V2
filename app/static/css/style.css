@@ -1609,6 +1609,16 @@ td a:not(.button):not(.action-button):hover {
   border-color: #f0c5bf;
 }
 
+.iot-status-badge.stale {
+  color: var(--warning);
+  background: var(--warning-soft);
+  border-color: #ecdc9d;
+}
+
+.iot-device-message {
+  margin-top: 12px;
+}
+
 .iot-status-badge.fallback {
   color: var(--warning);
   background: var(--warning-soft);

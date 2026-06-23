@@ -148,6 +148,7 @@ def run_camera_analysis(
         occupancy_synced=occupancy_synced,
         occupancy_error=occupancy_error,
         light=light,
+        session_id=session_id,
     )
 
     return analysis, occupancy, occupancy_synced, occupancy_error, light
@@ -440,16 +441,29 @@ async def upload_camera_snapshot(
                 "analysis_state": iot_service.analysis_status(),
             }
         )
+        response_payload.update(
+            {
+                "session_sync_status": response_payload["analysis_state"].get(
+                    "session_sync_status"
+                ),
+                "session_sync_message": response_payload["analysis_state"].get(
+                    "session_sync_message"
+                ),
+            }
+        )
 
     return response_payload
 
 
 @router.get("/camera/latest")
 async def latest_camera_snapshot():
+    analysis_state = iot_service.analysis_status()
     return {
         "ok": True,
         "snapshot": iot_service.snapshot_status(),
-        "analysis_state": iot_service.analysis_status(),
+        "analysis_state": analysis_state,
+        "session_sync_status": analysis_state.get("session_sync_status"),
+        "session_sync_message": analysis_state.get("session_sync_message"),
     }
 
 
@@ -518,6 +532,7 @@ async def analyze_latest_camera_snapshot(
         "Latest snapshot was analyzed manually.",
     )
 
+    analysis_state = iot_service.analysis_status()
     return {
         "ok": True,
         "message": "Latest camera snapshot analyzed.",
@@ -527,7 +542,9 @@ async def analyze_latest_camera_snapshot(
         "occupancy_synced": occupancy_synced,
         "occupancy_error": occupancy_error,
         "light": light,
-        "analysis_state": iot_service.analysis_status(),
+        "analysis_state": analysis_state,
+        "session_sync_status": analysis_state.get("session_sync_status"),
+        "session_sync_message": analysis_state.get("session_sync_message"),
     }
 
 

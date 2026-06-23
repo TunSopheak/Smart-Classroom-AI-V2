@@ -141,7 +141,11 @@ function renderIotAnalysisState(state) {
   var warningCount = Number(behaviorCounts.possible_phone_usage || 0) + Number(behaviorCounts.possible_head_down || 0) + Number(behaviorCounts.possible_inattentive || 0);
   if (behaviorWarningsEl) behaviorWarningsEl.textContent = String(warningCount);
   if (imageSizeEl) imageSizeEl.textContent = (analysis.image_width || 0) + " x " + (analysis.image_height || 0);
-  if (occupancySyncEl) occupancySyncEl.textContent = state.occupancy_synced ? "Synced" : (state.occupancy_error || "Not synced");
+  if (occupancySyncEl) {
+    occupancySyncEl.textContent = state.occupancy_synced
+      ? "Synced to active session"
+      : (state.session_sync_message || state.occupancy_error || "Not synced");
+  }
   if (syncedLightEl) syncedLightEl.textContent = state.occupancy?.light_status || state.light?.light_1_label || "-";
   if (analyzedAtEl) analyzedAtEl.textContent = state.analyzed_at || "-";
 

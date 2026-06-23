@@ -83,7 +83,7 @@ endblock %} {% block content %}
     <div>
       <h2 class="iot-device-title">Raspberry Pi Device Status</h2>
       <p class="iot-device-subtitle">
-        Live IoT connection status from the Raspberry Pi client.
+        Connection health from recent snapshot uploads and optional heartbeat signals.
       </p>
     </div>
 
@@ -106,8 +106,18 @@ endblock %} {% block content %}
     </div>
 
     <div class="iot-device-item">
-      <span class="iot-device-label">Last Seen</span>
+      <span class="iot-device-label">Last Activity</span>
       <span id="iotLastSeen" class="iot-device-value">Not connected yet</span>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">Status Source</span>
+      <span id="iotStatusSource" class="iot-device-value">No Fresh Signal</span>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">Last Snapshot Age</span>
+      <span id="iotSnapshotAge" class="iot-device-value">-</span>
     </div>
 
     <div class="iot-device-item">
@@ -116,9 +126,12 @@ endblock %} {% block content %}
     </div>
 
     <div class="iot-device-item">
-      <span class="iot-device-label">Seconds Since Last Seen</span>
+      <span class="iot-device-label">Last Activity Age</span>
       <span id="iotSecondsSince" class="iot-device-value">-</span>
     </div>
+  </div>
+  <div id="iotDeviceMessage" class="helper-note iot-device-message" role="status">
+    Waiting for Raspberry Pi activity.
   </div>
 </section>
 
@@ -1913,10 +1926,13 @@ endblock %} {% block content %}
     const badge = document.getElementById("iotStatusBadge");
     const deviceName = document.getElementById("iotDeviceName");
     const lastSeen = document.getElementById("iotLastSeen");
+    const statusSource = document.getElementById("iotStatusSource");
+    const snapshotAge = document.getElementById("iotSnapshotAge");
     const ipAddress = document.getElementById("iotIpAddress");
     const secondsSince = document.getElementById("iotSecondsSince");
+    const deviceMessage = document.getElementById("iotDeviceMessage");
 
-    if (!badge || !deviceName || !lastSeen || !ipAddress || !secondsSince) {
+    if (!badge || !deviceName || !lastSeen || !statusSource || !snapshotAge || !ipAddress || !secondsSince || !deviceMessage) {
       return;
     }
 
@@ -1933,14 +1949,24 @@ endblock %} {% block content %}
       const data = await response.json();
       const device = data.device || {};
       const isOnline = Boolean(device.online);
+      const isStale = device.status_label === "Stale";
 
-      badge.textContent = device.status || "Offline";
+      badge.textContent = device.status_label || device.status || "Offline";
       badge.classList.toggle("online", isOnline);
-      badge.classList.toggle("offline", !isOnline);
+      badge.classList.toggle("stale", isStale);
+      badge.classList.toggle("offline", !isOnline && !isStale);
 
       deviceName.textContent = device.device_name || "Raspberry Pi 5";
       lastSeen.textContent = device.last_seen_at || "Not connected yet";
+      statusSource.textContent = device.status_source || "No Fresh Signal";
       ipAddress.textContent = device.ip_address || "-";
+      deviceMessage.textContent = device.message || "Waiting for Raspberry Pi activity.";
+
+      if (device.latest_snapshot_age_seconds === null || device.latest_snapshot_age_seconds === undefined) {
+        snapshotAge.textContent = "Not received";
+      } else {
+        snapshotAge.textContent = `${device.latest_snapshot_age_seconds}s`;
+      }
 
       if (
         device.seconds_since_last_seen === null ||
@@ -1953,11 +1979,15 @@ endblock %} {% block content %}
     } catch (error) {
       badge.textContent = "Offline";
       badge.classList.remove("online");
+      badge.classList.remove("stale");
       badge.classList.add("offline");
 
       lastSeen.textContent = "Unable to connect";
+      statusSource.textContent = "Status unavailable";
+      snapshotAge.textContent = "-";
       ipAddress.textContent = "-";
       secondsSince.textContent = "-";
+      deviceMessage.textContent = "Device status could not be loaded.";
     }
   }
 
