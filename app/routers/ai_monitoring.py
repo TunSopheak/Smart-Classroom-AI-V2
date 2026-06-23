@@ -9,7 +9,7 @@ from app.ai.frame_utils import decode_base64_image
 from app.ai.yolo_detector import get_yolo_detector
 from app.core.config import PI_LIVE_STREAM_URL
 from app.core.database import get_db
-from app.services import ai_service
+from app.services import ai_service, behavior_detection_service, iot_service
 
 
 router = APIRouter(prefix="/ai-monitoring", tags=["ai monitoring"])
@@ -30,6 +30,10 @@ async def ai_monitoring_page(
 ):
     selected_session, active_sessions, selection_error = ai_service.resolve_selected_session(db, session_id)
     occupancy = ai_service.occupancy_context(db, selected_session) if selected_session else None
+    latest_analysis_state = iot_service.analysis_status()
+    behavior_status = behavior_detection_service.analyze_behavior_from_ai_result(
+        latest_analysis_state.get("analysis") or {}
+    )
     return templates.TemplateResponse(
         request,
         "ai_monitoring/index.html",
@@ -40,6 +44,7 @@ async def ai_monitoring_page(
             "selection_error": selection_error,
             "events": ai_service.recent_events(db, selected_session.id if selected_session else None),
             "occupancy": occupancy,
+            "behavior_status": behavior_status,
             "pi_live_stream_url": PI_LIVE_STREAM_URL,
             "message": message,
             "error": error,

@@ -1808,6 +1808,28 @@ td a:not(.button):not(.action-button):hover {
   border-color: #cdddea;
 }
 
+.behavior-status-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-bottom: 0;
+}
+
+.behavior-status-grid .summary-card strong {
+  font-size: 0.95rem;
+  line-height: 1.35;
+}
+
+.behavior-prototype-note {
+  display: grid;
+  gap: 4px;
+  color: #345a75;
+  background: var(--blue-soft);
+  border-color: #ccddf0;
+}
+
+.behavior-prototype-note strong {
+  color: #234b68;
+}
+
 .behavior-roadmap-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2084,6 +2106,10 @@ td a:not(.button):not(.action-button):hover {
     grid-template-columns: 1fr;
   }
 
+  .behavior-status-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .monitor-grid,
   .monitor-note-grid {
     grid-template-columns: 1fr;
@@ -2172,6 +2198,10 @@ td a:not(.button):not(.action-button):hover {
   }
 
   .alert-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .behavior-status-grid {
     grid-template-columns: 1fr;
   }
 

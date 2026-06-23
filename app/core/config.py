@@ -66,3 +66,18 @@ except ValueError:
     _phone_event_confidence = 0.60
 
 PHONE_EVENT_CONFIDENCE = min(1.0, max(0.0, _phone_event_confidence))
+
+BEHAVIOR_ALERTS_ENABLED = os.getenv(
+    "SMART_CLASSROOM_BEHAVIOR_ALERTS_ENABLED",
+    "0",
+).strip().lower() in {"1", "true", "yes", "on"}
+BEHAVIOR_REQUIRED_SAMPLES = env_int(
+    "SMART_CLASSROOM_BEHAVIOR_REQUIRED_SAMPLES",
+    3,
+    3,
+)
+HEAD_DOWN_EVENT_COOLDOWN_SECONDS = env_int(
+    "SMART_CLASSROOM_HEAD_DOWN_EVENT_COOLDOWN_SECONDS",
+    120,
+    30,
+)

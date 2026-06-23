@@ -29,6 +29,7 @@ endblock %} {% block content %}
   <a href="#iot-device-status">Device</a>
   <a href="#snapshot-preview">AI sample</a>
   <a href="#iot-ai-results">AI status</a>
+  <a href="#behavior-ai-status">Behavior AI</a>
   <a href="#classroom-status">Occupancy &amp; light</a>
   <a href="#recent-ai-events">Recent events</a>
 </nav>
@@ -172,13 +173,36 @@ endblock %} {% block content %}
   </div>
 </section>
 
-<section class="monitor-section behavior-roadmap-card" aria-labelledby="behavior-roadmap-title">
+<section id="behavior-ai-status" class="monitor-section behavior-roadmap-card anchor-section" aria-labelledby="behavior-roadmap-title">
   <div class="section-heading">
     <div>
-      <p class="eyebrow">Capability Roadmap</p>
-      <h3 id="behavior-roadmap-title">Behavior Monitoring Direction</h3>
+      <p class="eyebrow">Conservative Prototype</p>
+      <h3 id="behavior-roadmap-title">Behavior AI</h3>
     </div>
-    <span class="status info">Honest AI Scope</span>
+    <span class="status info">{% if behavior_status.alerts_enabled %}Prototype enabled{% else %}Alerts disabled for validation{% endif %}</span>
+  </div>
+  <div class="summary-grid behavior-status-grid">
+    <article class="summary-card">
+      <span>People in latest sample</span>
+      <strong>{{ behavior_status.person_count }}</strong>
+    </article>
+    <article class="summary-card">
+      <span>Pose / head landmarks</span>
+      <strong>{% if behavior_status.behavior_supported %}Prototype input available{% else %}Required{% endif %}</strong>
+    </article>
+    <article class="summary-card">
+      <span>Temporal confirmation</span>
+      <strong>{{ behavior_status.current_consecutive_count }} / {{ behavior_status.required_consecutive_samples }} samples</strong>
+    </article>
+    <article class="summary-card">
+      <span>Behavior evidence saving</span>
+      <strong>{% if behavior_status.alerts_enabled %}Prototype only{% else %}Disabled{% endif %}</strong>
+    </article>
+  </div>
+  <div class="helper-note behavior-prototype-note">
+    <strong>Current assessment</strong>
+    <span>{{ behavior_status.message }}</span>
+    <span>Reliable head-down monitoring requires pose/head landmarks; looking-away monitoring requires validated face or head orientation.</span>
   </div>
   <div class="behavior-roadmap-grid">
     <div class="roadmap-column current">
@@ -188,13 +212,15 @@ endblock %} {% block content %}
         <li>Phone object detection when detected by the model</li>
         <li>Occupancy synchronization</li>
         <li>Event snapshot saving for qualified alerts</li>
+        <li>Safe behavior state and 3-sample temporal foundation</li>
       </ul>
     </div>
     <div class="roadmap-column next">
       <strong>Coming next</strong>
       <ul>
-        <li>Sleeping / head-down detection</li>
-        <li>Inattentive / looking-away monitoring</li>
+        <li>Possible head-down detection with a validated pose/head model</li>
+        <li>Possible inattentive detection using face/head orientation</li>
+        <li>Higher-resolution, well-positioned camera testing for distant students</li>
         <li>Behavior timeline and reports</li>
       </ul>
     </div>
