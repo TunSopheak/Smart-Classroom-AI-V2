@@ -26,10 +26,6 @@ def redirect_with(path: str, **params: str) -> RedirectResponse:
     return RedirectResponse(f"{path}?{urlencode(params)}", status_code=303)
 
 
-def redirect_with(path: str, **params: str) -> RedirectResponse:
-    return RedirectResponse(f"{path}?{urlencode(params)}", status_code=303)
-
-
 def default_behavior_status(message: str | None = None) -> dict:
     """Return a safe behavior-status payload for the monitoring template."""
 
