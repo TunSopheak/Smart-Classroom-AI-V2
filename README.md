@@ -10,9 +10,18 @@ Teacher + Subject + Class + Day + Time + Room -> WeeklySchedule -> Session -> At
 
 The system is designed so academic scheduling, attendance, AI monitoring, and IoT device status can grow together.
 
-## Current Scope
+## Current Demo Status
 
-Implemented now:
+Smart Classroom AI Monitoring Version 2 currently supports a real Raspberry Pi
+live stream, periodic snapshot uploads, backend AI sampling, person/phone object
+overlays, alert evidence reports, and demo-safe device reliability status. The
+behavior architecture includes safe adapters for future pose, head orientation,
+face emotion, and temporal models; those optional models are planned and are
+not active in the current demo.
+
+## Original Foundation Scope
+
+The original clean-slate milestone included:
 
 - FastAPI application foundation.
 - SQLite development database setup.
@@ -23,7 +32,7 @@ Implemented now:
 - Jinja2 templates and static assets.
 - Architecture and planning documentation.
 
-Not implemented yet:
+Deferred from that original milestone and implemented in later phases where noted:
 
 - CRUD screens or APIs.
 - QR attendance scanning.

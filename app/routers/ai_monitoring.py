@@ -61,6 +61,7 @@ async def ai_monitoring_page(
     selected_session, active_sessions, selection_error = ai_service.resolve_selected_session(db, session_id)
     occupancy = ai_service.occupancy_context(db, selected_session) if selected_session else None
     latest_analysis_state = iot_service.analysis_status()
+    device_status = iot_service.device_status()
     behavior_status = behavior_status_from_analysis(latest_analysis_state)
     return templates.TemplateResponse(
         request,
@@ -73,6 +74,8 @@ async def ai_monitoring_page(
             "events": ai_service.recent_events(db, selected_session.id if selected_session else None),
             "occupancy": occupancy,
             "behavior_status": behavior_status,
+            "device_status": device_status,
+            "latest_analysis_state": latest_analysis_state,
             "model_capabilities": multibehavior_model_service.model_capability_status(),
             "pi_live_stream_url": PI_LIVE_STREAM_URL,
             "message": message,

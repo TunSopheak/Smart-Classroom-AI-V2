@@ -54,12 +54,12 @@ document.addEventListener("DOMContentLoaded", function () {
     grid.appendChild(item);
   }
 
-  addItem("AI Status", "iotAiStatus", "Not analyzed yet");
+  addItem("AI Sampling", "iotAiStatus", "Waiting");
   addItem("Person Count", "iotAiPersonCount", "-");
   addItem("Phone Count", "iotAiPhoneCount", "-");
   addItem("Behavior Warnings", "iotAiBehaviorWarnings", "-");
   addItem("Image Size", "iotAiImageSize", "-");
-  addItem("Occupancy Sync", "iotAiOccupancySync", "Not synced yet");
+  addItem("Session Sync", "iotAiOccupancySync", "Skipped until active session");
   addItem("Synced Light", "iotAiSyncedLight", "-");
   addItem("Analyzed At", "iotAiAnalyzedAt", "-");
 
@@ -120,6 +120,14 @@ function detectionBehaviorText(item, index) {
 
 function renderIotAnalysisState(state) {
   if (!state || !state.available) {
+    var waitingStatusEl = document.getElementById("iotAiStatus");
+    var waitingSyncEl = document.getElementById("iotAiOccupancySync");
+    if (waitingStatusEl) waitingStatusEl.textContent = "Waiting";
+    if (waitingSyncEl) waitingSyncEl.textContent = "Skipped until an active sample is analyzed";
+    if (typeof window.updateDemoReadinessItem === "function") {
+      window.updateDemoReadinessItem("demoReadyAi", "Waiting", "neutral", "No completed sample yet");
+      window.updateDemoReadinessItem("demoReadyOccupancy", "Skipped", "neutral", state?.session_sync_message || "Waiting for active session");
+    }
     return;
   }
 
@@ -134,7 +142,8 @@ function renderIotAnalysisState(state) {
   var analyzedAtEl = document.getElementById("iotAiAnalyzedAt");
   var detectionsEl = document.getElementById("iotAiDetections");
 
-  if (statusEl) statusEl.textContent = analysis.available ? "Completed" : "Unavailable";
+  var aiCompleted = analysis.available !== false;
+  if (statusEl) statusEl.textContent = aiCompleted ? "Completed" : "Waiting";
   if (personEl) personEl.textContent = String(analysis.person_count ?? 0);
   if (phoneEl) phoneEl.textContent = String(analysis.phone_count ?? 0);
   var behaviorCounts = analysis.behavior_summary?.counts || {};
@@ -142,12 +151,34 @@ function renderIotAnalysisState(state) {
   if (behaviorWarningsEl) behaviorWarningsEl.textContent = String(warningCount);
   if (imageSizeEl) imageSizeEl.textContent = (analysis.image_width || 0) + " x " + (analysis.image_height || 0);
   if (occupancySyncEl) {
-    occupancySyncEl.textContent = state.occupancy_synced
-      ? "Synced to active session"
-      : (state.session_sync_message || state.occupancy_error || "Not synced");
+    var sessionSyncLabel = state.session_sync_status === "active"
+      ? "Active"
+      : (state.session_sync_status === "not_active" ? "Not Active" : "Skipped");
+    occupancySyncEl.textContent = sessionSyncLabel + " — " + (state.session_sync_message || state.occupancy_error || "Not synced");
   }
   if (syncedLightEl) syncedLightEl.textContent = state.occupancy?.light_status || state.light?.light_1_label || "-";
   if (analyzedAtEl) analyzedAtEl.textContent = state.analyzed_at || "-";
+
+  if (typeof window.updateDemoReadinessItem === "function") {
+    window.updateDemoReadinessItem(
+      "demoReadyAi",
+      aiCompleted ? "Completed" : "Waiting",
+      aiCompleted ? "ready" : "neutral",
+      aiCompleted ? (state.analyzed_at || "Analysis timestamp unavailable") : "Detector result unavailable; waiting for next sample"
+    );
+    var syncMode = state.session_sync_status === "active"
+      ? "ready"
+      : (state.session_sync_status === "not_active" ? "warning" : "neutral");
+    var syncValue = state.session_sync_status === "active"
+      ? "Ready"
+      : (state.session_sync_status === "not_active" ? "Not Active" : "Skipped");
+    window.updateDemoReadinessItem(
+      "demoReadyOccupancy",
+      syncValue,
+      syncMode,
+      state.session_sync_message || "Waiting for active session"
+    );
+  }
 
   updateOccupancyDashboard(state.occupancy);
 

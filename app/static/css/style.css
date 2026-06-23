@@ -1225,6 +1225,58 @@ td a:not(.button):not(.action-button):hover {
   scroll-margin-top: 165px;
 }
 
+.demo-readiness-card {
+  border-color: #cdddea;
+  background: linear-gradient(135deg, #ffffff 0%, #f7fbfd 100%);
+}
+
+.demo-readiness-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.demo-readiness-item {
+  display: grid;
+  min-width: 0;
+  gap: 4px;
+  padding: 11px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-left: 4px solid #94a3b8;
+  border-radius: var(--radius-sm);
+}
+
+.demo-readiness-item.ready {
+  border-left-color: var(--success);
+}
+
+.demo-readiness-item.warning {
+  border-left-color: var(--warning);
+}
+
+.demo-readiness-item.offline {
+  border-left-color: var(--danger);
+}
+
+.demo-readiness-item > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.demo-readiness-item > strong {
+  color: var(--primary-strong);
+  font-size: 0.9rem;
+}
+
+.demo-readiness-item > small {
+  overflow-wrap: anywhere;
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
 .monitor-section {
   display: grid;
   gap: 13px;
@@ -2127,6 +2179,10 @@ td a:not(.button):not(.action-button):hover {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .demo-readiness-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .monitor-grid,
   .monitor-note-grid {
     grid-template-columns: 1fr;
@@ -2219,6 +2275,10 @@ td a:not(.button):not(.action-button):hover {
   }
 
   .behavior-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .demo-readiness-grid {
     grid-template-columns: 1fr;
   }
 

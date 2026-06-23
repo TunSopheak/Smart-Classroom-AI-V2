@@ -34,6 +34,47 @@ endblock %} {% block content %}
   <a href="#recent-ai-events">Recent events</a>
 </nav>
 
+<section id="demo-readiness" class="monitor-section demo-readiness-card anchor-section" aria-labelledby="demo-readiness-title">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Presentation Readiness</p>
+      <h3 id="demo-readiness-title">Demo Checklist</h3>
+      <p class="muted">Live checks update automatically from the browser and backend.</p>
+    </div>
+    <span class="status info">Demo Safe Mode</span>
+  </div>
+  <div class="demo-readiness-grid">
+    <article id="demoReadyBackend" class="demo-readiness-item ready">
+      <span>Backend</span><strong>Running</strong><small>AI Monitoring page rendered</small>
+    </article>
+    <article id="demoReadyStream" class="demo-readiness-item neutral">
+      <span>Pi Stream</span><strong>Connecting</strong><small>Waiting for browser stream</small>
+    </article>
+    <article id="demoReadySnapshot" class="demo-readiness-item {% if device_status.snapshot_upload_online %}ready{% elif device_status.snapshot.available %}warning{% else %}neutral{% endif %}">
+      <span>Snapshot Upload</span>
+      <strong>{% if device_status.snapshot_upload_online %}Online{% elif device_status.snapshot.available %}Stale{% else %}Offline{% endif %}</strong>
+      <small>{% if device_status.latest_snapshot_age_seconds is not none %}{{ device_status.latest_snapshot_age_seconds }}s old{% else %}Waiting for upload{% endif %}</small>
+    </article>
+    <article id="demoReadyAi" class="demo-readiness-item {% if latest_analysis_state.available %}ready{% else %}neutral{% endif %}">
+      <span>AI Sampling</span><strong>{% if latest_analysis_state.available %}Completed{% else %}Waiting{% endif %}</strong><small>{{ latest_analysis_state.analyzed_at or "No completed sample yet" }}</small>
+    </article>
+    <article id="demoReadySession" class="demo-readiness-item {% if active_session %}ready{% else %}neutral{% endif %}">
+      <span>Active Session</span><strong>{% if active_session %}Selected{% else %}Not Selected{% endif %}</strong><small>{% if active_session %}{{ active_session.class_group.class_code }} · {{ active_session.subject.code }}{% else %}Select a session for occupancy sync{% endif %}</small>
+    </article>
+    <article id="demoReadyOccupancy" class="demo-readiness-item {% if latest_analysis_state.session_sync_status == 'active' %}ready{% elif latest_analysis_state.session_sync_status == 'not_active' %}warning{% else %}neutral{% endif %}">
+      <span>Occupancy Sync</span>
+      <strong>{% if latest_analysis_state.session_sync_status == 'active' %}Ready{% elif latest_analysis_state.session_sync_status == 'not_active' %}Not Active{% else %}Skipped{% endif %}</strong>
+      <small>{{ latest_analysis_state.session_sync_message or "Waiting for active session" }}</small>
+    </article>
+    <article id="demoReadyBehavior" class="demo-readiness-item ready">
+      <span>Behavior AI</span><strong>Safe Mode ON</strong><small>Optional models planned, not active</small>
+    </article>
+    <article id="demoReadyReports" class="demo-readiness-item ready">
+      <span>Reports</span><strong>Available</strong><small><a href="/ai-reports">Open AI Alert Reports</a></small>
+    </article>
+  </div>
+</section>
+
 <section id="live-camera-preview" class="iot-device-card live-camera-primary-card anchor-section">
   <div class="iot-device-header">
     <div>
@@ -108,6 +149,11 @@ endblock %} {% block content %}
     <div class="iot-device-item">
       <span class="iot-device-label">Last Activity</span>
       <span id="iotLastSeen" class="iot-device-value">Not connected yet</span>
+    </div>
+
+    <div class="iot-device-item">
+      <span class="iot-device-label">Snapshot Upload</span>
+      <span id="iotSnapshotUploadStatus" class="iot-device-value">Checking</span>
     </div>
 
     <div class="iot-device-item">
@@ -1922,17 +1968,29 @@ endblock %} {% block content %}
 </script>
 
 <script>
+  window.updateDemoReadinessItem = function (id, value, mode, detail) {
+    const item = document.getElementById(id);
+    if (!item) return;
+    item.classList.remove("ready", "warning", "offline", "neutral");
+    item.classList.add(mode || "neutral");
+    const valueElement = item.querySelector("strong");
+    const detailElement = item.querySelector("small");
+    if (valueElement) valueElement.textContent = value;
+    if (detailElement && detail) detailElement.textContent = detail;
+  };
+
   async function refreshIotDeviceStatus() {
     const badge = document.getElementById("iotStatusBadge");
     const deviceName = document.getElementById("iotDeviceName");
     const lastSeen = document.getElementById("iotLastSeen");
+    const snapshotUploadStatus = document.getElementById("iotSnapshotUploadStatus");
     const statusSource = document.getElementById("iotStatusSource");
     const snapshotAge = document.getElementById("iotSnapshotAge");
     const ipAddress = document.getElementById("iotIpAddress");
     const secondsSince = document.getElementById("iotSecondsSince");
     const deviceMessage = document.getElementById("iotDeviceMessage");
 
-    if (!badge || !deviceName || !lastSeen || !statusSource || !snapshotAge || !ipAddress || !secondsSince || !deviceMessage) {
+    if (!badge || !deviceName || !lastSeen || !snapshotUploadStatus || !statusSource || !snapshotAge || !ipAddress || !secondsSince || !deviceMessage) {
       return;
     }
 
@@ -1958,6 +2016,10 @@ endblock %} {% block content %}
 
       deviceName.textContent = device.device_name || "Raspberry Pi 5";
       lastSeen.textContent = device.last_seen_at || "Not connected yet";
+      const snapshotState = device.snapshot_upload_online
+        ? "Online"
+        : (device.snapshot?.available ? "Stale" : "Offline");
+      snapshotUploadStatus.textContent = snapshotState;
       statusSource.textContent = device.status_source || "No Fresh Signal";
       ipAddress.textContent = device.ip_address || "-";
       deviceMessage.textContent = device.message || "Waiting for Raspberry Pi activity.";
@@ -1966,6 +2028,17 @@ endblock %} {% block content %}
         snapshotAge.textContent = "Not received";
       } else {
         snapshotAge.textContent = `${device.latest_snapshot_age_seconds}s`;
+      }
+
+      if (typeof window.updateDemoReadinessItem === "function") {
+        window.updateDemoReadinessItem(
+          "demoReadySnapshot",
+          snapshotState,
+          snapshotState === "Online" ? "ready" : (snapshotState === "Stale" ? "warning" : "neutral"),
+          device.latest_snapshot_age_seconds === null || device.latest_snapshot_age_seconds === undefined
+            ? "Waiting for upload"
+            : `${device.latest_snapshot_age_seconds}s old`
+        );
       }
 
       if (
@@ -1984,10 +2057,14 @@ endblock %} {% block content %}
 
       lastSeen.textContent = "Unable to connect";
       statusSource.textContent = "Status unavailable";
+      snapshotUploadStatus.textContent = "Offline";
       snapshotAge.textContent = "-";
       ipAddress.textContent = "-";
       secondsSince.textContent = "-";
       deviceMessage.textContent = "Device status could not be loaded.";
+      if (typeof window.updateDemoReadinessItem === "function") {
+        window.updateDemoReadinessItem("demoReadySnapshot", "Unavailable", "warning", "Device status request failed");
+      }
     }
   }
 

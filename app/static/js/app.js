@@ -64,6 +64,28 @@ document.addEventListener("DOMContentLoaded", () => {
         if (liveStreamMessage) {
             liveStreamMessage.textContent = message;
         }
+        if (typeof window.updateDemoReadinessItem === "function") {
+            const checklistLabel = mode === "online"
+                ? "Online"
+                : mode === "fallback"
+                    ? "Fallback"
+                    : mode === "offline"
+                        ? "Offline"
+                        : "Connecting";
+            const checklistMode = mode === "online"
+                ? "ready"
+                : mode === "fallback"
+                    ? "warning"
+                    : mode === "offline"
+                        ? "offline"
+                        : "neutral";
+            window.updateDemoReadinessItem(
+                "demoReadyStream",
+                checklistLabel,
+                checklistMode,
+                message
+            );
+        }
     }
 
     function useSnapshotFallback() {
@@ -97,13 +119,18 @@ document.addEventListener("DOMContentLoaded", () => {
             liveStreamFrameLoaded = true;
             drawLiveAiOverlay(latestOverlayState);
             if (!liveStreamFallbackActive) {
-                setLiveStreamState("Live from Pi", "online", "Real live stream from Raspberry Pi");
+                setLiveStreamState("Live Stream Online", "online", "Real live stream from Raspberry Pi");
             }
         });
         liveStreamImage.addEventListener("error", () => {
             liveStreamFrameLoaded = false;
             clearLiveAiOverlay();
             if (liveStreamFallbackActive) {
+                setLiveStreamState(
+                    "Live Stream Offline",
+                    "offline",
+                    "Direct stream and snapshot fallback are unavailable."
+                );
                 return;
             }
             useSnapshotFallback();
