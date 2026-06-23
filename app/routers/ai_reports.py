@@ -114,6 +114,101 @@ def has_explicit_filter(*values: str | None) -> bool:
     return any(value is not None and value.strip() != "" for value in values)
 
 
+def timeline_title(event: dict) -> str:
+    event_type = str(event.get("event_type") or "ai_evidence")
+    if event.get("title"):
+        return str(event["title"])
+    if event_type == "phone_usage":
+        return "Possible phone usage detected"
+    if event_type == "light_auto_off":
+        return "Lights auto-off evidence"
+    if event_type in {"possible_head_down", "possible_inattentive"}:
+        return event_type.replace("_", " ").title()
+    return "AI evidence snapshot"
+
+
+def timeline_severity(event: dict) -> str:
+    event_type = str(event.get("event_type") or "ai_evidence")
+    if event_type in {"phone_usage", "possible_head_down", "possible_inattentive"}:
+        return "warning"
+    if event_type == "light_auto_off":
+        return "info"
+    return "info"
+
+
+def build_evidence_timeline(evidence_status: dict, limit: int = 50) -> list[dict]:
+    timeline: list[dict] = []
+    for item in evidence_status.get("recent_events") or []:
+        if not isinstance(item, dict):
+            continue
+        event_type = str(item.get("event_type") or "ai_evidence")
+        timeline.append(
+            {
+                **item,
+                "event_type": event_type,
+                "event_type_label": item.get("event_type_label")
+                or event_type.replace("_", " ").title(),
+                "title": timeline_title(item),
+                "reason": item.get("reason") or "Legacy evidence file without metadata.",
+                "timestamp": item.get("created_at") or item.get("modified_at") or "Time unavailable",
+                "severity": timeline_severity(item),
+                "status_text": "Saved evidence",
+                "confidence_label": (
+                    f"{float(item['confidence']) * 100:.1f}%"
+                    if item.get("confidence") is not None
+                    else "Not recorded"
+                ),
+            }
+        )
+    return timeline[:limit]
+
+
+def build_evidence_summary(evidence_status: dict, timeline: list[dict]) -> dict:
+    event_types = [str(item.get("event_type") or "ai_evidence") for item in timeline]
+    latest = timeline[0]["timestamp"] if timeline else "Not recorded"
+    return {
+        "total_saved": evidence_status.get("total_event_files", 0),
+        "phone_usage": event_types.count("phone_usage"),
+        "behavior_prototype": sum(
+            1 for item in event_types if item in {"possible_head_down", "possible_inattentive"}
+        ),
+        "legacy_evidence": event_types.count("ai_evidence"),
+        "light_auto_off": event_types.count("light_auto_off"),
+        "latest_time": latest,
+    }
+
+
+def report_context(
+    request: Request,
+    db: DatabaseSession,
+    events,
+    filters: dict,
+    message: str | None,
+    error: str | None,
+) -> dict:
+    evidence_status = iot_event_service.event_storage_status()
+    evidence_timeline = build_evidence_timeline(evidence_status)
+    evidence_summary = build_evidence_summary(evidence_status, evidence_timeline)
+    return {
+        "events": events,
+        "summary": ai_service.ai_event_summary(events),
+        "filters": filters,
+        "export_query": export_query(filters),
+        "classes": academic_service.list_classes(db),
+        "sessions": session_service.list_sessions(db, view="all"),
+        "subjects": academic_service.list_subjects(db),
+        "teachers": academic_service.list_teachers(db),
+        "event_types": list(ai_service.EVENTS.keys()),
+        "severities": SEVERITIES,
+        "evidence_status": evidence_status,
+        "evidence_timeline": evidence_timeline,
+        "evidence_summary": evidence_summary,
+        "report_page_path": request.url.path,
+        "message": message,
+        "error": error,
+    }
+
+
 @router.get("")
 async def list_ai_events(
     request: Request,
@@ -141,22 +236,7 @@ async def list_ai_events(
     return templates.TemplateResponse(
         request,
         "ai_reports/list.html",
-        {
-            "events": events,
-            "summary": ai_service.ai_event_summary(events),
-            "filters": filters,
-            "export_query": export_query(filters),
-            "classes": academic_service.list_classes(db),
-            "sessions": session_service.list_sessions(db, view="all"),
-            "subjects": academic_service.list_subjects(db),
-            "teachers": academic_service.list_teachers(db),
-            "event_types": list(ai_service.EVENTS.keys()),
-            "severities": SEVERITIES,
-            "evidence_status": iot_event_service.event_storage_status(),
-            "report_page_path": request.url.path,
-            "message": message,
-            "error": error,
-        },
+        report_context(request, db, events, filters, message, error),
     )
 
 
