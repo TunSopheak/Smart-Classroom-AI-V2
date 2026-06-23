@@ -20,6 +20,30 @@ def redirect_with(path: str, **params: str) -> RedirectResponse:
     return RedirectResponse(f"{path}?{urlencode(params)}", status_code=303)
 
 
+def default_behavior_status(message: str | None = None) -> dict:
+    """Return a safe behavior-status payload for the monitoring template."""
+
+    status = behavior_detection_service.analyze_behavior_from_ai_result({})
+    if message:
+        status["message"] = message
+        status["reason"] = message
+    return status
+
+
+def behavior_status_from_analysis(latest_analysis_state: dict | None) -> dict:
+    """Build behavior status defensively so /ai-monitoring never fails on prototype data."""
+
+    try:
+        analysis = latest_analysis_state.get("analysis") if isinstance(latest_analysis_state, dict) else None
+        return behavior_detection_service.analyze_behavior_from_ai_result(
+            analysis if isinstance(analysis, dict) else {}
+        )
+    except Exception as error:  # pragma: no cover - defensive UI fallback
+        return default_behavior_status(
+            f"Behavior AI prototype status is temporarily unavailable: {error}"
+        )
+
+
 @router.get("")
 async def ai_monitoring_page(
     request: Request,
@@ -31,9 +55,7 @@ async def ai_monitoring_page(
     selected_session, active_sessions, selection_error = ai_service.resolve_selected_session(db, session_id)
     occupancy = ai_service.occupancy_context(db, selected_session) if selected_session else None
     latest_analysis_state = iot_service.analysis_status()
-    behavior_status = behavior_detection_service.analyze_behavior_from_ai_result(
-        latest_analysis_state.get("analysis") or {}
-    )
+    behavior_status = behavior_status_from_analysis(latest_analysis_state)
     return templates.TemplateResponse(
         request,
         "ai_monitoring/index.html",
