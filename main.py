@@ -26,6 +26,7 @@ from app.routers import (
     devices,
     enrollments,
     iot,
+    mobile_api,
     schedules,
     sessions,
     students,
@@ -70,3 +71,4 @@ app.include_router(ai_reports.router)
 app.include_router(ai_reports.reports_router)
 app.include_router(devices.router)
 app.include_router(iot.router)
+app.include_router(mobile_api.router)
