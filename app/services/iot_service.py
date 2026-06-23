@@ -3,6 +3,8 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
+from app.services import behavior_overlay_service
+
 DEVICE_NAME_DEFAULT = "Raspberry Pi 5"
 HEARTBEAT_TIMEOUT_SECONDS = 15
 SNAPSHOT_UPLOAD_DIR = Path("app/static/uploads/iot_snapshots")
@@ -180,11 +182,16 @@ def save_camera_analysis(
     occupancy_error: str | None = None,
     light: dict | None = None,
 ) -> dict:
+    enriched_analysis = (
+        behavior_overlay_service.enrich_analysis_for_behavior_overlay(analysis)
+        if analysis
+        else analysis
+    )
     _camera_analysis_state.update(
         {
-            "available": bool(analysis),
+            "available": bool(enriched_analysis),
             "analyzed_at": utc_now(),
-            "analysis": analysis,
+            "analysis": enriched_analysis,
             "occupancy": occupancy,
             "occupancy_synced": occupancy_synced,
             "occupancy_error": occupancy_error,
