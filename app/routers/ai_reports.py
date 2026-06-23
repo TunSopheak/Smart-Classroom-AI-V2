@@ -136,6 +136,20 @@ def timeline_severity(event: dict) -> str:
     return "info"
 
 
+def confidence_label(value) -> str:
+    if value is None or value == "":
+        return "Not recorded"
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return "Not recorded"
+    if confidence < 0:
+        return "Not recorded"
+    if confidence > 1:
+        confidence = confidence / 100
+    return f"{confidence * 100:.1f}%"
+
+
 def build_evidence_timeline(evidence_status: dict, limit: int = 50) -> list[dict]:
     timeline: list[dict] = []
     for item in evidence_status.get("recent_events") or []:
@@ -153,11 +167,7 @@ def build_evidence_timeline(evidence_status: dict, limit: int = 50) -> list[dict
                 "timestamp": item.get("created_at") or item.get("modified_at") or "Time unavailable",
                 "severity": timeline_severity(item),
                 "status_text": "Saved evidence",
-                "confidence_label": (
-                    f"{float(item['confidence']) * 100:.1f}%"
-                    if item.get("confidence") is not None
-                    else "Not recorded"
-                ),
+                "confidence_label": confidence_label(item.get("confidence")),
             }
         )
     return timeline[:limit]
