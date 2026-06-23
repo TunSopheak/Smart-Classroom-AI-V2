@@ -7,10 +7,17 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session as DatabaseSession
 
 from app.core.database import get_db
-from app.services import academic_service, ai_service, report_service, session_service
+from app.services import (
+    academic_service,
+    ai_service,
+    iot_event_service,
+    report_service,
+    session_service,
+)
 
 
 router = APIRouter(prefix="/ai-events", tags=["ai events"])
+reports_router = APIRouter(tags=["ai reports"])
 templates = Jinja2Templates(directory="app/templates")
 
 SEVERITIES = ["info", "warning", "critical"]
@@ -145,9 +152,40 @@ async def list_ai_events(
             "teachers": academic_service.list_teachers(db),
             "event_types": list(ai_service.EVENTS.keys()),
             "severities": SEVERITIES,
+            "evidence_status": iot_event_service.event_storage_status(),
+            "report_page_path": request.url.path,
             "message": message,
             "error": error,
         },
+    )
+
+
+@reports_router.get("/ai-reports")
+async def list_ai_reports(
+    request: Request,
+    db: DatabaseSession = Depends(get_db),
+    class_group_id: str | None = None,
+    session_id: str | None = None,
+    subject_id: str | None = None,
+    teacher_id: str | None = None,
+    event_type: str | None = None,
+    severity: str | None = None,
+    date: str | None = None,
+    message: str | None = None,
+    error: str | None = None,
+):
+    return await list_ai_events(
+        request=request,
+        db=db,
+        class_group_id=class_group_id,
+        session_id=session_id,
+        subject_id=subject_id,
+        teacher_id=teacher_id,
+        event_type=event_type,
+        severity=severity,
+        date=date,
+        message=message,
+        error=error,
     )
 
 

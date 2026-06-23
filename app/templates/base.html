@@ -30,7 +30,7 @@
     {% set current_nav = request.query_params.get('nav', '') if request is defined else '' %}
     {% set dashboard_active = current_path in ['/', '/dashboard'] %}
     {% set academic_active = current_path.startswith('/students') or current_path.startswith('/teachers') or current_path.startswith('/classes') or current_path.startswith('/subjects') or current_path.startswith('/enrollments') or current_path.startswith('/schedules') %}
-    {% set reports_active = current_nav == 'reports' %}
+    {% set reports_active = current_nav == 'reports' or current_path.startswith('/ai-reports') %}
     {% set iot_active = current_nav == 'iot' %}
     {% set attendance_active = (current_path.startswith('/sessions') or current_path.startswith('/attendance') or current_path.startswith('/qr-scanner')) and not reports_active %}
     {% set ai_active = (current_path.startswith('/ai-monitoring') and not iot_active) or (current_path.startswith('/ai-events') and not reports_active) %}
@@ -118,7 +118,7 @@
                 </a>
                 <div class="nav-submenu">
                     <a href="/attendance?nav=reports" class="nav-sub-link {% if current_path.startswith('/attendance') and reports_active %}active{% endif %}" {% if current_path.startswith('/attendance') and reports_active %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-attendance"></use></svg><span>Attendance Reports</span></a>
-                    <a href="/ai-events?nav=reports" class="nav-sub-link {% if current_path.startswith('/ai-events') and reports_active %}active{% endif %}" {% if current_path.startswith('/ai-events') and reports_active %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-events"></use></svg><span>AI Event Reports</span></a>
+                    <a href="/ai-reports" class="nav-sub-link {% if current_path.startswith('/ai-reports') %}active{% endif %}" {% if current_path.startswith('/ai-reports') %}aria-current="page"{% endif %}><svg class="nav-sub-icon" aria-hidden="true"><use href="#icon-events"></use></svg><span>AI Event Reports</span></a>
                 </div>
             </section>
         </div>

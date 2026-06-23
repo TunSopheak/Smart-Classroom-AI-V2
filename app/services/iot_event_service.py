@@ -1,11 +1,13 @@
 """Conservative Raspberry Pi event-evidence storage for sampled frames."""
 
+import re
 from datetime import datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
 
 from app.core.config import (
+    BASE_DIR,
     EVENT_COOLDOWN_SECONDS,
     EVENT_SNAPSHOT_MAX_FILES,
     EVENT_SNAPSHOT_RETENTION_DAYS,
@@ -14,10 +16,18 @@ from app.core.config import (
 )
 
 
-EVENT_SNAPSHOT_DIR = Path("app/static/uploads/iot_events")
+EVENT_SNAPSHOT_DIR = BASE_DIR / "app" / "static" / "uploads" / "iot_events"
 EVENT_SNAPSHOT_URL_PREFIX = "/static/uploads/iot_events"
 EVENT_FILE_SUFFIXES = {".jpg", ".jpeg", ".png"}
 RECENT_EVENT_LIMIT = 10
+EVENT_FILENAME_PATTERN = re.compile(
+    r"^(?P<event_type>.+)_(?P<date>\d{8})_(?P<time>\d{6})_"
+    r"(?P<microseconds>\d{6})_[0-9a-fA-F]{8}$"
+)
+EVENT_REASON_LABELS = {
+    "phone_detected": "Possible phone object detected in sampled camera analysis.",
+    "light_auto_off": "Classroom lights transitioned to auto-off.",
+}
 
 _recent_events: list[dict] = []
 _saved_source_files: set[str] = set()
@@ -51,6 +61,77 @@ def event_files() -> list[Path]:
         except OSError:
             continue
     return [path for _, path in sorted(files, reverse=True)]
+
+
+def inferred_event_details(path: Path) -> dict:
+    try:
+        stat = path.stat()
+    except OSError:
+        stat = None
+
+    event_type = "ai_evidence"
+    created_at = None
+    match = EVENT_FILENAME_PATTERN.match(path.stem)
+    if match:
+        event_type = match.group("event_type")
+        try:
+            created_at = datetime.strptime(
+                "".join(
+                    (
+                        match.group("date"),
+                        match.group("time"),
+                        match.group("microseconds"),
+                    )
+                ),
+                "%Y%m%d%H%M%S%f",
+            )
+        except ValueError:
+            created_at = None
+
+    modified_at = datetime.utcfromtimestamp(stat.st_mtime) if stat else None
+    evidence_time = created_at or modified_at
+    return {
+        "event_type": event_type,
+        "event_types": [event_type],
+        "event_type_label": event_type.replace("_", " ").title(),
+        "filename": path.name,
+        "url": f"{EVENT_SNAPSHOT_URL_PREFIX}/{path.name}",
+        "created_at": time_label(evidence_time),
+        "modified_at": time_label(modified_at),
+        "size_bytes": stat.st_size if stat else None,
+        "reason": EVENT_REASON_LABELS.get(
+            event_type,
+            "Alert-worthy AI evidence retained for review.",
+        ),
+        "confidence": None,
+    }
+
+
+def recent_event_files(files: list[Path] | None = None) -> list[dict]:
+    live_metadata = {
+        event.get("filename"): event
+        for event in _recent_events
+        if event.get("filename")
+    }
+    recent: list[dict] = []
+    candidates = event_files() if files is None else files
+    for path in candidates[:RECENT_EVENT_LIMIT]:
+        inferred = inferred_event_details(path)
+        live_event = live_metadata.get(path.name)
+        if live_event:
+            inferred.update(live_event)
+            inferred.setdefault("reason", EVENT_REASON_LABELS.get(
+                inferred.get("event_type"),
+                "Alert-worthy AI evidence retained for review.",
+            ))
+            inferred.setdefault(
+                "event_type_label",
+                str(inferred.get("event_type") or "AI evidence")
+                .replace("_", " ")
+                .title(),
+            )
+        recent.append(inferred)
+    return recent
 
 
 def prune_recent_events() -> None:
@@ -107,7 +188,7 @@ def event_storage_status() -> dict:
         "cooldown_seconds": EVENT_COOLDOWN_SECONDS,
         "phone_confidence_threshold": PHONE_EVENT_CONFIDENCE,
         "total_event_files": len(files),
-        "recent_events": list(_recent_events[:RECENT_EVENT_LIMIT]),
+        "recent_events": recent_event_files(files),
         "last_error": _last_error,
     }
 
