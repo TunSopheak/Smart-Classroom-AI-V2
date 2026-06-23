@@ -14,11 +14,16 @@ from app.services import (
     behavior_detection_service,
     behavior_overlay_service,
     iot_service,
+    multibehavior_model_service,
 )
 
 
 router = APIRouter(prefix="/ai-monitoring", tags=["ai monitoring"])
 templates = Jinja2Templates(directory="app/templates")
+
+
+def redirect_with(path: str, **params: str) -> RedirectResponse:
+    return RedirectResponse(f"{path}?{urlencode(params)}", status_code=303)
 
 
 def redirect_with(path: str, **params: str) -> RedirectResponse:
@@ -72,6 +77,7 @@ async def ai_monitoring_page(
             "events": ai_service.recent_events(db, selected_session.id if selected_session else None),
             "occupancy": occupancy,
             "behavior_status": behavior_status,
+            "model_capabilities": multibehavior_model_service.model_capability_status(),
             "pi_live_stream_url": PI_LIVE_STREAM_URL,
             "message": message,
             "error": error,
