@@ -1,13 +1,16 @@
 """Unified behavior-overlay helpers for Pi and browser camera analysis.
 
-This module does not claim to solve sleeping/head-down detection yet. It prepares
-one response format that the frontend can draw consistently for Raspberry Pi and
-computer-camera frames.
+This module does not claim to solve sleeping/head-down or emotion detection yet.
+It prepares one response format that the frontend can draw consistently for
+Raspberry Pi and computer-camera frames, while making future model requirements
+explicit.
 """
 
 from __future__ import annotations
 
 from copy import deepcopy
+
+from app.services import multibehavior_model_service
 
 
 BEHAVIOR_STYLES: dict[str, dict[str, str]] = {
@@ -35,11 +38,41 @@ BEHAVIOR_STYLES: dict[str, dict[str, str]] = {
         "color": "#ef4444",
         "reason": "Reserved for validated pose/head-landmark behavior signals.",
     },
+    "looking_around": {
+        "label": "Looking Around",
+        "risk": "warning",
+        "color": "#a855f7",
+        "reason": "Reserved for validated face/head-orientation behavior signals.",
+    },
     "possible_inattentive": {
         "label": "Possible Inattentive",
         "risk": "warning",
         "color": "#a855f7",
         "reason": "Reserved for validated head-orientation behavior signals.",
+    },
+    "sleepy_drowsy": {
+        "label": "Sleepy / Drowsy",
+        "risk": "warning",
+        "color": "#f97316",
+        "reason": "Reserved for validated eye/head landmark signals over time.",
+    },
+    "happy_smile": {
+        "label": "Happy / Smile",
+        "risk": "low",
+        "color": "#22c55e",
+        "reason": "Reserved for a validated face-emotion model.",
+    },
+    "laughing": {
+        "label": "Laughing",
+        "risk": "low",
+        "color": "#22c55e",
+        "reason": "Reserved for a validated face-emotion model.",
+    },
+    "sad_tired": {
+        "label": "Sad / Tired",
+        "risk": "warning",
+        "color": "#64748b",
+        "reason": "Reserved for a validated face-emotion model and careful interpretation.",
     },
     "object_detected": {
         "label": "Object Detected",
@@ -136,6 +169,10 @@ def apply_overlay_fields(
     detection["overlay_color"] = style["color"]
     detection["behavior_reason"] = reason or style["reason"]
     detection["overlay_label"] = f"{behavior_label} {confidence}%" if confidence else behavior_label
+    detection.setdefault("attention_label", "Monitoring")
+    detection.setdefault("emotion_label", "Model Required")
+    detection.setdefault("posture_label", "Model Required")
+    detection.setdefault("model_status", "object_model_only")
     if track_id is not None:
         detection["track_id"] = track_id
         detection["student_label"] = f"Student {track_id}"
@@ -168,7 +205,6 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
         elif is_phone_label(label):
             phone_indexes.append(index)
 
-    # Lightweight left-to-right IDs. True cross-frame tracking remains a future layer.
     sorted_person_indexes = sorted(
         person_indexes,
         key=lambda item: boxes.get(item, [0.0, 0.0, 0.0, 0.0])[0],
@@ -192,6 +228,11 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
         "phone_object": 0,
         "possible_head_down": 0,
         "possible_inattentive": 0,
+        "looking_around": 0,
+        "sleepy_drowsy": 0,
+        "happy_smile": 0,
+        "laughing": 0,
+        "sad_tired": 0,
     }
 
     for index, detection in enumerate(detections):
@@ -217,16 +258,19 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
             apply_overlay_fields(detection, "object_detected")
 
     enriched["detections"] = detections
+    enriched = multibehavior_model_service.attach_candidate_model_fields(enriched)
     enriched["behavior_summary"] = {
-        "schema_version": "behavior-overlay-v1",
+        "schema_version": "behavior-overlay-v2",
         "tracking_mode": "left_to_right_frame_index",
         "tracking_note": "Track IDs are stable only within the latest sampled frame; cross-frame tracking is planned.",
         "supported_sources": ["raspberry_pi_camera", "computer_camera"],
-        "behavior_model_status": "prototype_overlay_schema",
+        "behavior_model_status": "object_model_active_pose_emotion_planned",
         "counts": behavior_counts,
+        "capabilities": multibehavior_model_service.model_capability_status(),
         "limitations": [
-            "Sleeping/head-down behavior still needs a validated pose or head-landmark model.",
-            "Person box alone is not enough to claim sleeping or inattentive behavior.",
+            "Sleepy/head-down behavior needs a validated pose or head-landmark model.",
+            "Smile, laugh, sad, and tired labels need a validated face-emotion model.",
+            "Person box alone is not enough to claim emotional state or attention state.",
         ],
     }
     return enriched
