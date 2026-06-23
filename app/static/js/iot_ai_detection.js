@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", function () {
   title.textContent = "Latest AI Sample Analysis";
   var subtitle = document.createElement("p");
   subtitle.className = "iot-device-subtitle";
-  subtitle.textContent = "Review the latest sampled detection result and occupancy synchronization. This is sampled AI, not continuous frame-by-frame inference.";
+  subtitle.textContent = "Review the latest sampled behavior-overlay result and occupancy synchronization. This is sampled AI, not continuous frame-by-frame inference.";
   titleWrap.appendChild(title);
   titleWrap.appendChild(subtitle);
 
@@ -57,6 +57,7 @@ document.addEventListener("DOMContentLoaded", function () {
   addItem("AI Status", "iotAiStatus", "Not analyzed yet");
   addItem("Person Count", "iotAiPersonCount", "-");
   addItem("Phone Count", "iotAiPhoneCount", "-");
+  addItem("Behavior Warnings", "iotAiBehaviorWarnings", "-");
   addItem("Image Size", "iotAiImageSize", "-");
   addItem("Occupancy Sync", "iotAiOccupancySync", "Not synced yet");
   addItem("Synced Light", "iotAiSyncedLight", "-");
@@ -64,7 +65,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   var details = document.createElement("div");
   details.className = "helper-note iot-detection-details";
-  details.innerHTML = '<strong>Detections</strong><pre id="iotAiDetections" class="iot-detection-output">No detection result yet.</pre>';
+  details.innerHTML = '<strong>Behavior Overlay Detections</strong><pre id="iotAiDetections" class="iot-detection-output">No detection result yet.</pre>';
 
   card.appendChild(header);
   card.appendChild(grid);
@@ -106,6 +107,17 @@ function updateOccupancyDashboard(occupancy) {
   if (lightStatus) lightStatus.textContent = occupancy.light_status || "Auto Mode";
 }
 
+function detectionBehaviorText(item, index) {
+  var track = item.student_label || (item.track_id ? "Student " + item.track_id : "Object " + (index + 1));
+  var label = item.behavior_label || item.overlay_label || item.label || "Object Detected";
+  var risk = item.risk || "info";
+  var confidence = item.confidence;
+  var confidenceText = confidence === undefined || confidence === null ? "unknown" : confidence;
+  var box = Array.isArray(item.box) ? item.box.join(", ") : "-";
+  var reason = item.behavior_reason || "No behavior-specific reason recorded.";
+  return track + " | " + label + " | risk: " + risk + " | confidence: " + confidenceText + " | box: [" + box + "] | " + reason;
+}
+
 function renderIotAnalysisState(state) {
   if (!state || !state.available) {
     return;
@@ -115,6 +127,7 @@ function renderIotAnalysisState(state) {
   var statusEl = document.getElementById("iotAiStatus");
   var personEl = document.getElementById("iotAiPersonCount");
   var phoneEl = document.getElementById("iotAiPhoneCount");
+  var behaviorWarningsEl = document.getElementById("iotAiBehaviorWarnings");
   var imageSizeEl = document.getElementById("iotAiImageSize");
   var occupancySyncEl = document.getElementById("iotAiOccupancySync");
   var syncedLightEl = document.getElementById("iotAiSyncedLight");
@@ -124,6 +137,9 @@ function renderIotAnalysisState(state) {
   if (statusEl) statusEl.textContent = analysis.available ? "Completed" : "Unavailable";
   if (personEl) personEl.textContent = String(analysis.person_count ?? 0);
   if (phoneEl) phoneEl.textContent = String(analysis.phone_count ?? 0);
+  var behaviorCounts = analysis.behavior_summary?.counts || {};
+  var warningCount = Number(behaviorCounts.possible_phone_usage || 0) + Number(behaviorCounts.possible_head_down || 0) + Number(behaviorCounts.possible_inattentive || 0);
+  if (behaviorWarningsEl) behaviorWarningsEl.textContent = String(warningCount);
   if (imageSizeEl) imageSizeEl.textContent = (analysis.image_width || 0) + " x " + (analysis.image_height || 0);
   if (occupancySyncEl) occupancySyncEl.textContent = state.occupancy_synced ? "Synced" : (state.occupancy_error || "Not synced");
   if (syncedLightEl) syncedLightEl.textContent = state.occupancy?.light_status || state.light?.light_1_label || "-";
@@ -134,12 +150,10 @@ function renderIotAnalysisState(state) {
   var detections = analysis.detections || [];
   if (detectionsEl) {
     if (!detections.length) {
-      detectionsEl.textContent = "No person or phone detected.";
+      detectionsEl.textContent = "No person, phone, or behavior object detected.";
     } else {
       detectionsEl.textContent = detections
-        .map(function (item, index) {
-          return (index + 1) + ". " + item.label + " | confidence: " + item.confidence + " | box: [" + item.box.join(", ") + "]";
-        })
+        .map(detectionBehaviorText)
         .join("\n");
     }
   }
