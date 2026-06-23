@@ -9,7 +9,12 @@ from app.ai.frame_utils import decode_base64_image
 from app.ai.yolo_detector import get_yolo_detector
 from app.core.config import PI_LIVE_STREAM_URL
 from app.core.database import get_db
-from app.services import ai_service, behavior_detection_service, iot_service
+from app.services import (
+    ai_service,
+    behavior_detection_service,
+    behavior_overlay_service,
+    iot_service,
+)
 
 
 router = APIRouter(prefix="/ai-monitoring", tags=["ai monitoring"])
@@ -172,7 +177,9 @@ async def analyze_frame(
             status_code=400,
         )
 
-    result = get_yolo_detector().analyze(image_bytes)
+    result = behavior_overlay_service.enrich_analysis_for_behavior_overlay(
+        get_yolo_detector().analyze(image_bytes)
+    )
     event_messages = []
 
     if result["available"]:
