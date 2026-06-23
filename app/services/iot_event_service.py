@@ -1,7 +1,8 @@
 """Conservative Raspberry Pi event-evidence storage for sampled frames."""
 
+import json
 import re
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
 from uuid import uuid4
@@ -25,8 +26,19 @@ EVENT_FILENAME_PATTERN = re.compile(
     r"(?P<microseconds>\d{6})_[0-9a-fA-F]{8}$"
 )
 EVENT_REASON_LABELS = {
-    "phone_detected": "Possible phone object detected in sampled camera analysis.",
+    "phone_usage": "Phone-like object detected above confidence threshold.",
     "light_auto_off": "Classroom lights transitioned to auto-off.",
+}
+EVENT_TITLE_LABELS = {
+    "phone_usage": "Possible phone usage detected",
+    "light_auto_off": "Lights auto-off evidence",
+}
+PHONE_LABELS = {"phone", "cell phone", "mobile phone"}
+PHONE_COMPACT_LABELS = {
+    "cellphone",
+    "mobilephone",
+    "smartphone",
+    "telephone",
 }
 
 _recent_events: list[dict] = []
@@ -36,7 +48,11 @@ _last_error: str | None = None
 
 
 def utc_now() -> datetime:
-    return datetime.utcnow()
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
+def utc_from_timestamp(timestamp: float) -> datetime:
+    return datetime.fromtimestamp(timestamp, timezone.utc).replace(tzinfo=None)
 
 
 def time_label(value: datetime | None) -> str | None:
@@ -69,11 +85,9 @@ def inferred_event_details(path: Path) -> dict:
     except OSError:
         stat = None
 
-    event_type = "ai_evidence"
     created_at = None
     match = EVENT_FILENAME_PATTERN.match(path.stem)
     if match:
-        event_type = match.group("event_type")
         try:
             created_at = datetime.strptime(
                 "".join(
@@ -88,23 +102,33 @@ def inferred_event_details(path: Path) -> dict:
         except ValueError:
             created_at = None
 
-    modified_at = datetime.utcfromtimestamp(stat.st_mtime) if stat else None
+    modified_at = utc_from_timestamp(stat.st_mtime) if stat else None
     evidence_time = created_at or modified_at
     return {
-        "event_type": event_type,
-        "event_types": [event_type],
-        "event_type_label": event_type.replace("_", " ").title(),
+        "event_type": "ai_evidence",
+        "event_types": ["ai_evidence"],
+        "event_type_label": "AI Evidence",
+        "title": "AI evidence",
         "filename": path.name,
         "url": f"{EVENT_SNAPSHOT_URL_PREFIX}/{path.name}",
+        "image_url": f"{EVENT_SNAPSHOT_URL_PREFIX}/{path.name}",
         "created_at": time_label(evidence_time),
         "modified_at": time_label(modified_at),
         "size_bytes": stat.st_size if stat else None,
-        "reason": EVENT_REASON_LABELS.get(
-            event_type,
-            "Alert-worthy AI evidence retained for review.",
-        ),
+        "reason": "Alert-worthy AI evidence retained for review.",
         "confidence": None,
+        "label": None,
+        "source_snapshot_filename": None,
     }
+
+
+def read_event_metadata(path: Path) -> dict:
+    metadata_path = path.with_suffix(".json")
+    try:
+        data = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def recent_event_files(files: list[Path] | None = None) -> list[dict]:
@@ -117,19 +141,37 @@ def recent_event_files(files: list[Path] | None = None) -> list[dict]:
     candidates = event_files() if files is None else files
     for path in candidates[:RECENT_EVENT_LIMIT]:
         inferred = inferred_event_details(path)
+        persisted_metadata = read_event_metadata(path)
+        if persisted_metadata:
+            inferred.update(persisted_metadata)
         live_event = live_metadata.get(path.name)
         if live_event:
             inferred.update(live_event)
-            inferred.setdefault("reason", EVENT_REASON_LABELS.get(
-                inferred.get("event_type"),
+        event_type = str(inferred.get("event_type") or "ai_evidence")
+        if event_type == "phone_usage":
+            inferred["event_type_label"] = "Phone Usage"
+        elif event_type == "ai_evidence":
+            inferred["event_type_label"] = "AI Evidence"
+        else:
+            inferred["event_type_label"] = event_type.replace("_", " ").title()
+        inferred["filename"] = path.name
+        inferred["url"] = f"{EVENT_SNAPSHOT_URL_PREFIX}/{path.name}"
+        inferred["image_url"] = inferred["url"]
+        try:
+            inferred["size_bytes"] = path.stat().st_size
+        except OSError:
+            pass
+        inferred.setdefault(
+            "title",
+            EVENT_TITLE_LABELS.get(event_type, "AI evidence"),
+        )
+        inferred.setdefault(
+            "reason",
+            EVENT_REASON_LABELS.get(
+                event_type,
                 "Alert-worthy AI evidence retained for review.",
-            ))
-            inferred.setdefault(
-                "event_type_label",
-                str(inferred.get("event_type") or "AI evidence")
-                .replace("_", " ")
-                .title(),
-            )
+            ),
+        )
         recent.append(inferred)
     return recent
 
@@ -141,6 +183,11 @@ def prune_recent_events() -> None:
         for event in _recent_events
         if event.get("filename") in retained_names
     ][:RECENT_EVENT_LIMIT]
+
+
+def delete_event_evidence(path: Path) -> None:
+    path.unlink()
+    path.with_suffix(".json").unlink(missing_ok=True)
 
 
 def cleanup_event_snapshots(now: datetime | None = None) -> dict:
@@ -156,16 +203,16 @@ def cleanup_event_snapshots(now: datetime | None = None) -> dict:
 
     for path in event_files():
         try:
-            modified_at = datetime.utcfromtimestamp(path.stat().st_mtime)
+            modified_at = utc_from_timestamp(path.stat().st_mtime)
             if modified_at < cutoff:
-                path.unlink()
+                delete_event_evidence(path)
                 removed_count += 1
         except OSError as error:
             errors.append(str(error))
 
     for path in event_files()[EVENT_SNAPSHOT_MAX_FILES:]:
         try:
-            path.unlink()
+            delete_event_evidence(path)
             removed_count += 1
         except OSError as error:
             errors.append(str(error))
@@ -204,17 +251,57 @@ def record_event_error(error: Exception) -> None:
     _last_error = str(error)
 
 
-def phone_confidence(analysis: dict) -> float | None:
-    confidences = []
+def normalize_detection_label(label: object) -> str:
+    return " ".join(
+        str(label or "")
+        .strip()
+        .lower()
+        .replace("-", " ")
+        .replace("_", " ")
+        .split()
+    )
+
+
+def is_phone_label(label: object) -> bool:
+    normalized = normalize_detection_label(label)
+    if normalized in PHONE_LABELS:
+        return True
+    words = set(normalized.split())
+    compact = normalized.replace(" ", "")
+    return bool(words.intersection({"phone", "telephone"})) or (
+        compact in PHONE_COMPACT_LABELS
+    )
+
+
+def strongest_phone_detection(analysis: dict) -> dict | None:
+    matches: list[dict] = []
     for detection in analysis.get("detections") or []:
-        label = str(detection.get("label") or "").strip().lower()
-        if label not in {"cell phone", "phone"}:
+        if not isinstance(detection, dict) or not is_phone_label(
+            detection.get("label")
+        ):
             continue
         try:
-            confidences.append(float(detection.get("confidence")))
+            confidence = float(detection.get("confidence"))
         except (TypeError, ValueError):
             continue
-    return max(confidences) if confidences else None
+        matches.append(
+            {
+                "label": str(detection.get("label") or "phone").strip(),
+                "confidence": confidence,
+                "box": detection.get("box"),
+            }
+        )
+    return max(matches, key=lambda item: item["confidence"]) if matches else None
+
+
+def qualifying_phone_detection(
+    analysis: dict,
+    threshold: float = PHONE_EVENT_CONFIDENCE,
+) -> dict | None:
+    detection = strongest_phone_detection(analysis)
+    if detection is None or detection["confidence"] < threshold:
+        return None
+    return detection
 
 
 def cooldown_ready(
@@ -249,18 +336,19 @@ def qualifying_events(
     now: datetime,
 ) -> list[dict]:
     events: list[dict] = []
-    confidence = phone_confidence(analysis)
+    phone_detection = qualifying_phone_detection(analysis)
 
     if (
-        session_id
-        and confidence is not None
-        and confidence >= PHONE_EVENT_CONFIDENCE
-        and cooldown_ready("phone_detected", session_id, device_name, now)
+        phone_detection is not None
+        and cooldown_ready("phone_usage", session_id, device_name, now)
     ):
         events.append(
             {
-                "event_type": "phone_detected",
-                "confidence": round(confidence, 3),
+                "event_type": "phone_usage",
+                "title": EVENT_TITLE_LABELS["phone_usage"],
+                "reason": EVENT_REASON_LABELS["phone_usage"],
+                "confidence": round(phone_detection["confidence"], 3),
+                "label": phone_detection["label"],
             }
         )
 
@@ -277,7 +365,15 @@ def qualifying_events(
         and is_off
         and cooldown_ready("light_auto_off", session_id, device_name, now)
     ):
-        events.append({"event_type": "light_auto_off", "confidence": None})
+        events.append(
+            {
+                "event_type": "light_auto_off",
+                "title": EVENT_TITLE_LABELS["light_auto_off"],
+                "reason": EVENT_REASON_LABELS["light_auto_off"],
+                "confidence": None,
+                "label": None,
+            }
+        )
 
     # Unexpected presence is intentionally not enabled until reliable
     # schedule and empty-room context are available to the sampler.
@@ -287,6 +383,20 @@ def qualifying_events(
 def safe_suffix(source_filename: str) -> str:
     suffix = Path(source_filename).suffix.lower()
     return suffix if suffix in EVENT_FILE_SUFFIXES else ".jpg"
+
+
+def write_event_metadata(image_path: Path, metadata: dict) -> None:
+    metadata_path = image_path.with_suffix(".json")
+    temporary_path = EVENT_SNAPSHOT_DIR / f".{uuid4().hex}.json.tmp"
+    try:
+        temporary_path.write_text(
+            json.dumps(metadata, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+        temporary_path.replace(metadata_path)
+    except OSError:
+        temporary_path.unlink(missing_ok=True)
+        raise
 
 
 def save_event_evidence(
@@ -333,11 +443,23 @@ def save_event_evidence(
             now,
         )
 
+    primary_details = events[0]
     metadata = {
         "event_type": primary_event,
         "event_types": [event["event_type"] for event in events],
+        "title": primary_details.get("title")
+        or EVENT_TITLE_LABELS.get(primary_event, "AI evidence"),
+        "reason": primary_details.get("reason")
+        or EVENT_REASON_LABELS.get(
+            primary_event,
+            "Alert-worthy AI evidence retained for review.",
+        ),
+        "label": primary_details.get("label"),
         "filename": filename,
         "url": f"{EVENT_SNAPSHOT_URL_PREFIX}/{filename}",
+        "image_filename": filename,
+        "image_url": f"{EVENT_SNAPSHOT_URL_PREFIX}/{filename}",
+        "source_snapshot_filename": source_filename,
         "source_filename": source_filename,
         "source_sha256": source_hash,
         "session_id": snapshot.get("session_id"),
@@ -354,10 +476,17 @@ def save_event_evidence(
         ),
         "created_at": time_label(now),
     }
+    metadata_error = None
+    try:
+        write_event_metadata(final_path, metadata)
+    except OSError as error:
+        metadata_error = f"Evidence image saved, but metadata could not be saved: {error}"
+
     _recent_events.insert(0, metadata)
     del _recent_events[RECENT_EVENT_LIMIT:]
-    _last_error = None
     cleanup_event_snapshots(now)
+    if metadata_error:
+        _last_error = "; ".join(filter(None, (_last_error, metadata_error)))
     return metadata
 
 

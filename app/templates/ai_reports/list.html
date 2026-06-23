@@ -64,6 +64,7 @@
                     <span class="status warning">{{ evidence.event_type_label or "AI evidence" }}</span>
                     <time>{{ evidence.created_at or evidence.modified_at or "Time unavailable" }}</time>
                 </div>
+                <h4>{{ evidence.title or "AI evidence" }}</h4>
                 <p>{{ evidence.reason or "Alert-worthy AI evidence retained for review." }}</p>
                 <dl class="alert-evidence-meta">
                     <div>
@@ -74,6 +75,12 @@
                         <dt>Confidence</dt>
                         <dd>{% if evidence.confidence is not none %}{{ (evidence.confidence * 100)|round(1) }}%{% else %}Not recorded{% endif %}</dd>
                     </div>
+                    {% if evidence.label %}
+                    <div>
+                        <dt>Detected label</dt>
+                        <dd>{{ evidence.label }}</dd>
+                    </div>
+                    {% endif %}
                 </dl>
             </div>
         </article>
