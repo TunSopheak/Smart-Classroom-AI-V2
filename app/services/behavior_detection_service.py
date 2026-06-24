@@ -11,8 +11,8 @@ from app.core.config import (
 
 PROTOTYPE_MIN_CONFIDENCE = 0.75
 LANDMARK_REQUIREMENT_MESSAGE = (
-    "Pose/head landmarks are required for reliable sleeping or head-down "
-    "detection. Person detection alone is not behavioral evidence."
+    "Model required: validated pose/head landmarks are needed for a head-down "
+    "candidate. A person candidate alone is not behavioral evidence."
 )
 
 
@@ -79,21 +79,16 @@ def analyze_behavior_from_ai_result(analysis: dict) -> dict:
     elif not supported:
         reason = LANDMARK_REQUIREMENT_MESSAGE
     elif possible_head_down:
-        reason = (
-            signals.get("reason")
-            or "Landmark-backed prototype signal indicates possible head-down behavior."
-        )
+        reason = "Sampled landmark analysis produced a head-down candidate; teacher review required."
     elif possible_inattentive:
-        reason = (
-            signals.get("reason")
-            or "Head-orientation prototype signal indicates possible inattentive behavior."
-        )
+        reason = "Sampled head-orientation analysis produced an attention candidate; teacher review required."
     else:
-        reason = "No sustained behavior warning is supported by the latest sample."
+        reason = "No candidate met the prototype threshold in the latest sampled analysis."
 
     return {
         "behavior_supported": supported,
         "behavior_stage": "prototype",
+        "review_requirement": "teacher review required",
         "alerts_enabled": BEHAVIOR_ALERTS_ENABLED,
         "person_count": person_count,
         "pose_landmarks_available": pose_available,
@@ -174,7 +169,7 @@ def evaluate_behavior_event(
         ):
             event = {
                 "event_type": "possible_head_down",
-                "title": "Possible head-down behavior detected",
+                "title": "Head-down candidate for review",
                 "reason": result["reason"],
                 "confidence": result["head_down_confidence"],
                 "source_snapshot_filename": snapshot.get("filename"),
@@ -193,7 +188,7 @@ def evaluate_behavior_event(
         ):
             event = {
                 "event_type": "possible_inattentive",
-                "title": "Possible inattentive behavior detected",
+                "title": "Attention candidate for review",
                 "reason": result["reason"],
                 "confidence": result["inattentive_confidence"],
                 "source_snapshot_filename": snapshot.get("filename"),

@@ -83,6 +83,9 @@ endblock %} {% block content %}
       <p class="iot-device-subtitle">
         Direct 4:3 MJPEG video from the Raspberry Pi. AI boxes use the latest sampled analysis, not frame-by-frame inference.
       </p>
+      <p class="helper-note compact-note">
+        AI boxes use sampled analysis only. Camera angle, lighting, and image quality affect results.
+      </p>
     </div>
     <div class="iot-header-actions">
       <span id="pi-live-stream-badge" class="iot-status-badge">Connecting</span>
@@ -259,6 +262,10 @@ endblock %} {% block content %}
     </article>
   </div>
   <div class="helper-note behavior-prototype-note">
+    <strong>Safe AI Mode</strong>
+    <span>Safe AI Mode: Results are candidates from sampled frames. They are not final behavior judgments.</span>
+  </div>
+  <div class="helper-note behavior-prototype-note">
     <strong>Current assessment</strong>
     <span>{{ behavior_status.message }}</span>
     <span>Reliable head-down monitoring requires pose/head landmarks; looking-away monitoring requires validated face or head orientation.</span>
@@ -273,7 +280,7 @@ endblock %} {% block content %}
       <strong>Current</strong>
       <ul>
         <li>Person detection</li>
-        <li>Phone object detection when detected by the model</li>
+        <li>Phone object candidates from sampled model analysis</li>
         <li>Occupancy synchronization</li>
         <li>Event snapshot saving for qualified alerts</li>
         <li>Safe behavior state and 3-sample temporal foundation</li>
@@ -282,8 +289,8 @@ endblock %} {% block content %}
     <div class="roadmap-column next">
       <strong>Coming next</strong>
       <ul>
-        <li>Possible head-down detection with a validated pose/head model</li>
-        <li>Possible inattentive detection using face/head orientation</li>
+        <li>Head-down candidate review with a validated pose/head model</li>
+        <li>Attention candidate review using validated face/head orientation</li>
         <li>Higher-resolution, well-positioned camera testing for distant students</li>
         <li>Behavior timeline and reports</li>
       </ul>
@@ -551,7 +558,7 @@ endblock %} {% block content %}
       <div class="section-heading">
         <div>
           <p class="eyebrow">Prototype Detection</p>
-          <h3>Phone and Attention</h3>
+          <h3>Phone / Attention Candidates</h3>
         </div>
         <span class="status warning">Prototype</span>
       </div>
@@ -561,9 +568,9 @@ endblock %} {% block content %}
       </p>
       <div class="control-card">
         <div>
-          <strong>Phone Usage Detection Prototype</strong>
+          <strong>Phone-use Candidate Review Prototype</strong>
           <p id="phone-detection-message" class="monitor-message">
-            Phone detection is not started.
+            Phone candidate review is not started.
           </p>
           <small id="phone-confidence" class="muted"
             >Confidence unavailable</small
@@ -580,7 +587,7 @@ endblock %} {% block content %}
               type="button"
               disabled
             >
-              Start Phone
+              Start Phone Review
             </button>
             <button
               id="stop-phone-detection"
@@ -588,16 +595,16 @@ endblock %} {% block content %}
               type="button"
               disabled
             >
-              Stop Phone
+              Stop Phone Review
             </button>
           </div>
         </div>
       </div>
       <div class="control-card">
         <div>
-          <strong>Attention / Looking-Away Detection Prototype</strong>
+          <strong>Attention Candidate Review Prototype</strong>
           <p id="attention-detection-message" class="monitor-message">
-            Attention detection is not started.
+            Attention candidate review is not started.
           </p>
           <small id="attention-confidence" class="muted"
             >Prototype estimate</small
@@ -614,7 +621,7 @@ endblock %} {% block content %}
               type="button"
               disabled
             >
-              Start Attention
+              Start Candidate Review
             </button>
             <button
               id="stop-attention-detection"
@@ -622,7 +629,7 @@ endblock %} {% block content %}
               type="button"
               disabled
             >
-              Stop Attention
+              Stop Candidate Review
             </button>
           </div>
         </div>
@@ -708,7 +715,7 @@ endblock %} {% block content %}
           action="/ai-monitoring/events/attention_warning?session_id={{ active_session.id }}"
         >
           <button class="button" type="submit">
-            Log Manual Attention Warning (uses cooldown)
+            Log Manual Attention Candidate (uses cooldown)
           </button>
         </form>
         <form
@@ -716,7 +723,7 @@ endblock %} {% block content %}
           action="/ai-monitoring/events/phone_usage_warning?session_id={{ active_session.id }}"
         >
           <button class="button" type="submit">
-            Log Manual Phone Usage Warning
+            Log Manual Phone-use Candidate
           </button>
         </form>
         <form
@@ -991,7 +998,7 @@ endblock %} {% block content %}
     function setAttentionConfidence(score) {
       attentionConfidence.textContent =
         typeof score === "number"
-          ? `Looking-away estimate: ${Math.round(score * 100)}%`
+          ? `Looking-around candidate: ${Math.round(score * 100)}%`
           : "Prototype estimate";
     }
 
@@ -1036,7 +1043,7 @@ endblock %} {% block content %}
       detections.slice(0, 8).forEach((item) => {
         const badge = document.createElement("span");
         badge.className = "detection-badge";
-        badge.textContent = `${item.label} ${Math.round(item.confidence * 100)}%`;
+        badge.textContent = `${item.label || "Object"} candidate ${Math.round(item.confidence * 100)}%`;
         backendDetections.appendChild(badge);
       });
     }
@@ -1137,7 +1144,7 @@ endblock %} {% block content %}
 
         overlayContext.strokeRect(x, y, width, height);
 
-        const text = `${label} ${Math.round(confidence * 100)}%`;
+        const text = `${label} candidate ${Math.round(confidence * 100)}%`;
         overlayContext.font =
           "600 13px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
         const textWidth = overlayContext.measureText(text).width + 12;
@@ -1247,7 +1254,7 @@ endblock %} {% block content %}
       const remainingSeconds = phoneCooldownRemainingSeconds();
       if (remainingSeconds > 0) {
         phoneDetectionMessage.textContent = phoneCooldownMessage(
-          "Phone detected, but cooldown is active.",
+          "Phone-use candidate is ready for review, but cooldown is active.",
         );
         return false;
       }
@@ -1264,11 +1271,11 @@ endblock %} {% block content %}
         if (result.cooldown_active) {
           setPhoneCooldown(result.cooldown_remaining_seconds);
           phoneDetectionMessage.textContent = phoneCooldownMessage(
-            "Phone detected, but cooldown is active.",
+            "Phone-use candidate is ready for review, but cooldown is active.",
           );
         } else {
           phoneDetectionMessage.textContent =
-            result.message || "Phone warning was not logged.";
+            result.message || "Phone-use candidate was not logged.";
         }
         return false;
       }
@@ -1276,7 +1283,7 @@ endblock %} {% block content %}
         result.cooldown_remaining_seconds || result.cooldown_seconds,
       );
       phoneDetectionMessage.textContent = phoneCooldownMessage(
-        result.message || "Phone warning logged. Waiting for cooldown.",
+        result.message || "Phone-use candidate logged for review. Waiting for cooldown.",
       );
       return true;
     }
@@ -1285,7 +1292,7 @@ endblock %} {% block content %}
       const remainingSeconds = attentionCooldownRemainingSeconds();
       if (remainingSeconds > 0) {
         attentionDetectionMessage.textContent = attentionCooldownMessage(
-          "Looking away detected, but cooldown is active.",
+          "Attention candidate is ready for review, but cooldown is active.",
         );
         return false;
       }
@@ -1302,11 +1309,11 @@ endblock %} {% block content %}
         if (result.cooldown_active) {
           setAttentionCooldown(result.cooldown_remaining_seconds);
           attentionDetectionMessage.textContent = attentionCooldownMessage(
-            "Looking away detected, but cooldown is active.",
+            "Attention candidate is ready for review, but cooldown is active.",
           );
         } else {
           attentionDetectionMessage.textContent =
-            result.message || "Attention warning was not logged.";
+            result.message || "Attention candidate was not logged.";
         }
         return false;
       }
@@ -1314,7 +1321,7 @@ endblock %} {% block content %}
         result.cooldown_remaining_seconds || result.cooldown_seconds,
       );
       attentionDetectionMessage.textContent = attentionCooldownMessage(
-        result.message || "Attention warning logged. Waiting for cooldown.",
+        result.message || "Attention candidate logged for review. Waiting for cooldown.",
       );
       return true;
     }
@@ -1390,7 +1397,7 @@ endblock %} {% block content %}
       if (!phoneLibraryReady) {
         setPhoneDetectionStatus("Detection unavailable", "status warning");
         phoneDetectionMessage.textContent =
-          "Phone detection model is still loading. You can click Start Phone again in a few seconds.";
+          "Phone candidate model is still loading. You can click Start Phone Review again in a few seconds.";
         return;
       }
 
@@ -1399,7 +1406,7 @@ endblock %} {% block content %}
         phoneDetectionRunning = true;
         startPhoneDetectionButton.disabled = true;
         stopPhoneDetectionButton.disabled = false;
-        setPhoneDetectionStatus("Detecting phone", "status info");
+        setPhoneDetectionStatus("Sampling phone candidates", "status info");
         await detectPhones();
       } catch (error) {
         stopPhoneDetection("Detection unavailable");
@@ -1419,7 +1426,7 @@ endblock %} {% block content %}
       if (!attentionLibraryReady) {
         setAttentionDetectionStatus("Detection unavailable", "status warning");
         attentionDetectionMessage.textContent =
-          "Attention detection model is still loading. You can click Start Attention again in a few seconds.";
+          "Candidate review model is still loading. You can click Start Candidate Review again in a few seconds.";
         return;
       }
 
@@ -1428,7 +1435,7 @@ endblock %} {% block content %}
         attentionDetectionRunning = true;
         startAttentionDetectionButton.disabled = true;
         stopAttentionDetectionButton.disabled = false;
-        setAttentionDetectionStatus("Detecting attention", "status info");
+        setAttentionDetectionStatus("Sampling candidates", "status info");
         await detectAttention();
       } catch (error) {
         stopAttentionDetection("Detection unavailable");
@@ -1584,17 +1591,17 @@ endblock %} {% block content %}
           phonePrediction.score >= phoneConfidenceThreshold
         ) {
           setPhoneConfidence(phonePrediction.score);
-          setPhoneDetectionStatus("Phone detected", "status warning");
+          setPhoneDetectionStatus("Phone object candidate", "status warning");
           if (phoneCooldownRemainingSeconds() > 0) {
             phoneDetectionMessage.textContent = phoneCooldownMessage(
-              "Phone detected, but cooldown is active.",
+              "Phone-use candidate is ready for review, but cooldown is active.",
             );
           } else {
             await postPhoneUsageWarning();
           }
         } else {
           setPhoneConfidence(phonePrediction?.score);
-          setPhoneDetectionStatus("No phone detected", "status active");
+          setPhoneDetectionStatus("No phone candidate", "status active");
         }
       } catch (error) {
         stopPhoneDetection("Detection unavailable");
@@ -1692,7 +1699,7 @@ endblock %} {% block content %}
         if (!estimate) {
           attentionAwaySince = null;
           setAttentionConfidence(null);
-          setAttentionDetectionStatus("Detecting attention", "status info");
+          setAttentionDetectionStatus("Sampling candidates", "status info");
           attentionDetectionMessage.textContent =
             "No reliable face landmarks found yet.";
         } else if (estimate.lookingAway) {
@@ -1700,23 +1707,23 @@ endblock %} {% block content %}
           attentionAwaySince = attentionAwaySince || now;
           const elapsedSeconds = Math.floor((now - attentionAwaySince) / 1000);
           setAttentionConfidence(estimate.score);
-          setAttentionDetectionStatus("Looking away", "status warning");
+          setAttentionDetectionStatus("Attention candidate", "status warning");
           if (elapsedSeconds >= attentionAwayThresholdMs / 1000) {
             if (attentionCooldownRemainingSeconds() > 0) {
               attentionDetectionMessage.textContent = attentionCooldownMessage(
-                "Looking away detected, but cooldown is active.",
+                "Attention candidate is ready for review, but cooldown is active.",
               );
             } else {
               await postAttentionWarning();
             }
           } else {
-            attentionDetectionMessage.textContent = `Looking away estimate for ${elapsedSeconds} seconds.`;
+            attentionDetectionMessage.textContent = `Looking-around candidate sampled for ${elapsedSeconds} seconds; teacher review required.`;
           }
         } else {
           attentionAwaySince = null;
           setAttentionConfidence(estimate.score);
-          setAttentionDetectionStatus("Looking forward", "status active");
-          attentionDetectionMessage.textContent = "Looking forward.";
+          setAttentionDetectionStatus("No attention candidate", "status active");
+          attentionDetectionMessage.textContent = "No attention candidate in the latest sampled analysis.";
         }
       } catch (error) {
         stopAttentionDetection("Detection unavailable");

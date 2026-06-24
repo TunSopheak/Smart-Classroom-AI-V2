@@ -15,70 +15,70 @@ from app.services import behavior_decision_engine, multibehavior_model_service
 
 BEHAVIOR_STYLES: dict[str, dict[str, str]] = {
     "normal_monitoring": {
-        "label": "Monitoring Person",
+        "label": "Person candidate",
         "risk": "low",
         "color": "#2dd4bf",
-        "reason": "Person detected; no behavior-specific signal is available yet.",
+        "reason": "Person candidate from a sampled frame; no behavior judgment is made.",
     },
     "possible_phone_usage": {
-        "label": "Possible Phone Usage",
+        "label": "Phone-use candidate",
         "risk": "high",
         "color": "#ef4444",
-        "reason": "Phone-like object detected near or inside this person region.",
+        "reason": "A sampled frame contains a phone-like object near this person candidate; teacher review required.",
     },
     "phone_object": {
-        "label": "Phone Object",
+        "label": "Phone object candidate",
         "risk": "warning",
         "color": "#f59e0b",
-        "reason": "Phone-like object detected by the object model.",
+        "reason": "Phone-like object candidate from sampled analysis; teacher review required.",
     },
     "possible_head_down": {
-        "label": "Possible Head Down",
+        "label": "Head-down candidate",
         "risk": "high",
         "color": "#ef4444",
-        "reason": "Reserved for validated pose/head-landmark behavior signals.",
+        "reason": "Model required; any future sampled result must remain a candidate for teacher review.",
     },
     "looking_around": {
-        "label": "Looking Around",
+        "label": "Looking-around candidate",
         "risk": "warning",
         "color": "#a855f7",
-        "reason": "Reserved for validated face/head-orientation behavior signals.",
+        "reason": "Model required; camera angle and frame quality can affect this candidate.",
     },
     "possible_inattentive": {
-        "label": "Possible Inattentive",
+        "label": "Attention candidate",
         "risk": "warning",
         "color": "#a855f7",
-        "reason": "Reserved for validated head-orientation behavior signals.",
+        "reason": "Model required; this candidate cannot establish a person's attention state.",
     },
     "sleepy_drowsy": {
-        "label": "Sleepy / Drowsy",
+        "label": "Drowsiness candidate (planned)",
         "risk": "warning",
         "color": "#f97316",
-        "reason": "Reserved for validated eye/head landmark signals over time.",
+        "reason": "Model required; no drowsiness judgment is available.",
     },
     "happy_smile": {
-        "label": "Happy / Smile",
+        "label": "Expression candidate (planned)",
         "risk": "low",
         "color": "#22c55e",
-        "reason": "Reserved for a validated face-emotion model.",
+        "reason": "Model required; no emotion judgment is available.",
     },
     "laughing": {
-        "label": "Laughing",
+        "label": "Expression candidate (planned)",
         "risk": "low",
         "color": "#22c55e",
-        "reason": "Reserved for a validated face-emotion model.",
+        "reason": "Model required; no emotion judgment is available.",
     },
     "sad_tired": {
-        "label": "Sad / Tired",
+        "label": "Expression candidate (planned)",
         "risk": "warning",
         "color": "#64748b",
-        "reason": "Reserved for a validated face-emotion model and careful interpretation.",
+        "reason": "Model required; no emotion or tiredness judgment is available.",
     },
     "object_detected": {
-        "label": "Object Detected",
+        "label": "Object candidate",
         "risk": "info",
         "color": "#60a5fa",
-        "reason": "Object detected by the model.",
+        "reason": "Object candidate from sampled model analysis.",
     },
 }
 
@@ -169,9 +169,9 @@ def apply_overlay_fields(
     detection["overlay_color"] = style["color"]
     detection["behavior_reason"] = reason or style["reason"]
     detection["overlay_label"] = f"{behavior_label} {confidence}%" if confidence else behavior_label
-    detection.setdefault("attention_label", "Monitoring")
-    detection.setdefault("emotion_label", "Model Required")
-    detection.setdefault("posture_label", "Model Required")
+    detection.setdefault("attention_label", "Teacher review required")
+    detection.setdefault("emotion_label", "Model required")
+    detection.setdefault("posture_label", "Model required")
     detection.setdefault("model_status", "object_model_only")
     if track_id is not None:
         detection["track_id"] = track_id
@@ -245,7 +245,11 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
                 detection,
                 "possible_phone_usage",
                 track_id=track_ids.get(index),
-                reason=f"Phone-like object '{phone_detection.get('label', 'phone')}' detected near this person.",
+                reason=(
+                    f"Sampled object model found a phone-like candidate "
+                    f"'{phone_detection.get('label', 'phone')}' near this person candidate; "
+                    "teacher review required."
+                ),
             )
             behavior_counts["possible_phone_usage"] += 1
         elif label == "person":
@@ -268,9 +272,11 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
         "counts": behavior_counts,
         "capabilities": multibehavior_model_service.model_capability_status(),
         "limitations": [
-            "Sleepy/head-down behavior needs a validated pose or head-landmark model.",
-            "Smile, laugh, sad, and tired labels need a validated face-emotion model.",
-            "Person box alone is not enough to claim emotional state or attention state.",
+            "All results are candidates from sampled analysis and require teacher review.",
+            "Drowsiness and head-down candidates require a validated pose or head-landmark model.",
+            "Expression candidates require a validated model; no emotion state is inferred.",
+            "A person candidate alone cannot establish emotion, attention, or behavior.",
+            "Low confidence or low_quality_frame input must not produce a final judgment.",
         ],
     }
     return behavior_decision_engine.analyze_with_model_adapters(b"", enriched)
