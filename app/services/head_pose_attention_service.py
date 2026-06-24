@@ -147,6 +147,7 @@ def analyze_student_attention_candidates(
                     "attention_candidate": ready,
                     "possible_inattentive": ready,
                     "attention_confidence": matched_face.get("attention_confidence"),
+                    "box": matched_face.get("box"),
                     "head_yaw_estimate": matched_face.get("head_yaw_estimate"),
                     "head_pitch_estimate": matched_face.get("head_pitch_estimate"),
                     "consecutive_samples": count,
@@ -164,6 +165,38 @@ def analyze_student_attention_candidates(
                     "possible_inattentive": False,
                     "attention_confidence": None,
                     "reason": "Face/head landmarks were not available for this student candidate.",
+                }
+
+        # A close-up camera view can contain reliable face landmarks while the
+        # object detector does not return a full person box. Keep this as a
+        # candidate-only signal so the UI still has a review frame to draw.
+        if not people:
+            for face_index, face in enumerate(faces, start=1):
+                if not isinstance(face, dict):
+                    continue
+                key = f"{session_id}:face:{face_index}"
+                raw_signal = bool(face.get("raw_signal"))
+                count = _STATE.get(key, 0) + 1 if raw_signal else 0
+                _STATE[key] = count
+                ready = raw_signal and count >= REQUIRED_SAMPLES
+                signals[str(face_index)] = {
+                    "track_id": face_index,
+                    "student_label": f"Student {face_index}",
+                    "validated": True,
+                    "face_only": True,
+                    "head_orientation_available": True,
+                    "attention_candidate": ready,
+                    "possible_inattentive": ready,
+                    "attention_confidence": face.get("attention_confidence"),
+                    "box": face.get("box"),
+                    "head_yaw_estimate": face.get("head_yaw_estimate"),
+                    "head_pitch_estimate": face.get("head_pitch_estimate"),
+                    "consecutive_samples": count,
+                    "required_samples": REQUIRED_SAMPLES,
+                    "reason": (
+                        "Face/upper-body candidate from sampled face landmarks; "
+                        "teacher review required."
+                    ),
                 }
     head_pose["student_attention_signals"] = signals
     return head_pose

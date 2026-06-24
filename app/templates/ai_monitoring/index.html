@@ -470,6 +470,9 @@ endblock %} {% block content %}
         aria-hidden="true"
       ></canvas>
     </div>
+    <p id="ai-overlay-frame-status" class="muted overlay-frame-status" role="status" aria-live="polite">
+      Candidate frames will appear after the next sampled analysis.
+    </p>
     <div class="backend-ai-grid" aria-label="Advanced computer camera AI status">
       <article class="summary-card metric-card">
         <span>Source</span><strong>Computer Camera</strong>
@@ -910,10 +913,12 @@ endblock %} {% block content %}
     );
     const video = document.getElementById("ai-video");
     const overlayCanvas = document.getElementById("ai-overlay-canvas");
+    const overlayFrameStatus = document.getElementById("ai-overlay-frame-status");
     const overlayContext = overlayCanvas
       ? overlayCanvas.getContext("2d")
       : null;
     let latestBackendImageSize = { width: 0, height: 0 };
+    let latestOverlayCandidates = [];
     const monitoringStatus = document.getElementById("monitoring-status");
     const qrPresentCount = document.getElementById("qr-present-count");
     const detectedCount = document.getElementById("detected-count");
@@ -1089,21 +1094,38 @@ endblock %} {% block content %}
     }
 
     function candidateLabelForDetection(item) {
-      const rawLabel = String(item.label || item.class_name || "object");
+      const rawLabel = String(
+        item.candidate_label || item.student_candidate_label || item.label || item.class_name || "object",
+      );
       const normalized = rawLabel.toLowerCase();
-      if (normalized.includes("phone")) {
-        return "Phone-use candidate";
+      let candidateLabel = "Object candidate";
+      if (item.phone_candidate || normalized.includes("phone")) {
+        candidateLabel = "Phone-use candidate";
+      } else if (
+        item.attention_candidate === "candidate" ||
+        normalized.includes("attention")
+      ) {
+        candidateLabel = "Attention candidate";
+      } else if (normalized.includes("face") || normalized.includes("upper-body")) {
+        candidateLabel = "Face/upper-body candidate";
+      } else if (normalized.includes("person")) {
+        candidateLabel = "Person candidate";
       }
-      if (item.student_candidate_label) {
-        return `${item.student_label ? `${item.student_label} · ` : ""}${item.student_candidate_label}`;
-      }
-      if (item.behavior_label) {
-        return `${item.student_label ? `${item.student_label} · ` : ""}${item.behavior_label}`;
-      }
-      if (normalized === "person") {
-        return "Person candidate";
-      }
-      return `${rawLabel} candidate`;
+      return item.student_label
+        ? `${item.student_label} | ${candidateLabel}`
+        : candidateLabel;
+    }
+
+    function overlayConfidence(item) {
+      const value =
+        item.candidate_confidence ??
+        (item.phone_candidate ? item.phone_confidence : null) ??
+        (item.attention_candidate === "candidate" ? item.attention_confidence : null) ??
+        item.person_confidence ??
+        item.confidence ??
+        item.score;
+      const confidence = Number(value);
+      return Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence > 1 ? confidence / 100 : confidence)) : null;
     }
 
     function renderBackendDetections(detections) {
@@ -1116,10 +1138,8 @@ endblock %} {% block content %}
       detections.slice(0, 8).forEach((item) => {
         const badge = document.createElement("span");
         badge.className = "detection-badge";
-        const confidence = Number(
-          item.candidate_confidence ?? item.confidence ?? 0,
-        );
-        badge.textContent = `${candidateLabelForDetection(item)} ${Math.round(confidence * 100)}%`;
+        const confidence = overlayConfidence(item);
+        badge.textContent = `${candidateLabelForDetection(item)}${confidence === null ? "" : ` ${Math.round(confidence * 100)}%`}`;
         backendDetections.appendChild(badge);
       });
     }
@@ -1225,9 +1245,47 @@ endblock %} {% block content %}
       };
     }
 
+    function boxesAreNear(a, b) {
+      if (!a || !b) {
+        return false;
+      }
+      return Math.max(
+        Math.abs(a.x1 - b.x1),
+        Math.abs(a.y1 - b.y1),
+        Math.abs(a.x2 - b.x2),
+        Math.abs(a.y2 - b.y2),
+      ) <= 4;
+    }
+
+    function buildOverlayCandidates(result) {
+      const candidates = Array.isArray(result?.detections)
+        ? result.detections.filter((item) => normalizeDetectionBox(item))
+        : [];
+
+      if (!Array.isArray(result?.student_candidates)) {
+        return candidates;
+      }
+
+      result.student_candidates.forEach((student) => {
+        const studentBox = normalizeDetectionBox(student);
+        if (!studentBox) {
+          return;
+        }
+        const duplicateIndex = candidates.findIndex((item) =>
+          boxesAreNear(normalizeDetectionBox(item), studentBox),
+        );
+        if (duplicateIndex >= 0) {
+          candidates[duplicateIndex] = { ...candidates[duplicateIndex], ...student };
+        } else {
+          candidates.push({ ...student });
+        }
+      });
+      return candidates;
+    }
+
     function drawAiOverlay(detections, imageWidth, imageHeight) {
-      if (!overlayCanvas || !overlayContext || !detections || !video) {
-        return;
+      if (!overlayCanvas || !overlayContext || !Array.isArray(detections) || !video) {
+        return 0;
       }
 
       syncOverlaySize();
@@ -1243,8 +1301,15 @@ endblock %} {% block content %}
         latestBackendImageSize.height ||
         video.videoHeight ||
         overlayCanvas.height;
-      const scaleX = overlayCanvas.width / sourceWidth;
-      const scaleY = overlayCanvas.height / sourceHeight;
+      // The video uses object-fit: cover, so boxes need the same uniform scale
+      // and crop offsets as the displayed camera frame.
+      const scale = Math.max(
+        overlayCanvas.width / sourceWidth,
+        overlayCanvas.height / sourceHeight,
+      );
+      const offsetX = (overlayCanvas.width - sourceWidth * scale) / 2;
+      const offsetY = (overlayCanvas.height - sourceHeight * scale) / 2;
+      let drawnCount = 0;
 
       detections.forEach((item) => {
         const box = normalizeDetectionBox(item);
@@ -1253,29 +1318,35 @@ endblock %} {% block content %}
         }
 
         const label = item.label || item.class_name || "object";
-        const confidence = Number(
-          item.candidate_confidence ?? item.confidence ?? item.score ?? 0,
-        );
-        const isWarning = label.toLowerCase().includes("phone");
+        const confidence = overlayConfidence(item);
+        const normalizedLabel = String(item.candidate_label || label).toLowerCase();
+        const isPhone = Boolean(item.phone_candidate) || normalizedLabel.includes("phone");
+        const isAttention =
+          item.attention_candidate === "candidate" || normalizedLabel.includes("attention");
 
-        const x = box.x1 * scaleX;
-        const y = box.y1 * scaleY;
-        const width = (box.x2 - box.x1) * scaleX;
-        const height = (box.y2 - box.y1) * scaleY;
+        const rawX1 = box.x1 * scale + offsetX;
+        const rawY1 = box.y1 * scale + offsetY;
+        const rawX2 = box.x2 * scale + offsetX;
+        const rawY2 = box.y2 * scale + offsetY;
+        const x = Math.max(1, Math.min(overlayCanvas.width - 1, rawX1));
+        const y = Math.max(1, Math.min(overlayCanvas.height - 1, rawY1));
+        const right = Math.max(1, Math.min(overlayCanvas.width - 1, rawX2));
+        const bottom = Math.max(1, Math.min(overlayCanvas.height - 1, rawY2));
+        const width = right - x;
+        const height = bottom - y;
 
         if (width <= 0 || height <= 0) {
           return;
         }
 
-        overlayContext.lineWidth = isWarning ? 3 : 2;
-        overlayContext.strokeStyle = isWarning ? "#f59e0b" : "#14b8a6";
-        overlayContext.fillStyle = isWarning
-          ? "rgba(245, 158, 11, 0.92)"
-          : "rgba(20, 184, 166, 0.92)";
+        const color = isPhone ? "#f59e0b" : isAttention ? "#8b5cf6" : "#14b8a6";
+        overlayContext.lineWidth = 3;
+        overlayContext.strokeStyle = color;
+        overlayContext.fillStyle = color;
 
         overlayContext.strokeRect(x, y, width, height);
 
-        const text = `${candidateLabelForDetection(item)} ${Math.round(confidence * 100)}%`;
+        const text = `${candidateLabelForDetection(item)}${confidence === null ? "" : ` ${Math.round(confidence * 100)}%`}`;
         overlayContext.font =
           "600 13px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
         const textWidth = overlayContext.measureText(text).width + 12;
@@ -1285,7 +1356,9 @@ endblock %} {% block content %}
         overlayContext.fillRect(x, textY, textWidth, textHeight);
         overlayContext.fillStyle = "#ffffff";
         overlayContext.fillText(text, x + 6, textY + 15);
+        drawnCount += 1;
       });
+      return drawnCount;
     }
 
     function captureVideoFrame() {
@@ -1351,11 +1424,18 @@ endblock %} {% block content %}
         height:
           result.image_height || result.frame_height || video.videoHeight || 0,
       };
-      drawAiOverlay(
-        result.detections,
+      const overlayCandidates = buildOverlayCandidates(result);
+      latestOverlayCandidates = overlayCandidates;
+      const visibleFrameCount = drawAiOverlay(
+        overlayCandidates,
         latestBackendImageSize.width,
         latestBackendImageSize.height,
       );
+      if (overlayFrameStatus) {
+        overlayFrameStatus.textContent = visibleFrameCount
+          ? `${visibleFrameCount} candidate frame${visibleFrameCount === 1 ? "" : "s"} shown from the latest sampled analysis. Teacher review required.`
+          : "No visible candidate frame in this sample. Move back to show head and upper body, then wait for the next sampled analysis.";
+      }
       if (result.occupancy) {
         renderOccupancy(result.occupancy);
       }
@@ -1942,11 +2022,25 @@ endblock %} {% block content %}
         message,
         message === "Not started" ? "status scheduled" : "status info",
       );
+      latestOverlayCandidates = [];
       clearAiOverlay();
     }
 
     const browserCameraRequirementMessage =
       "Browser camera requires localhost or HTTPS. On this laptop, open http://127.0.0.1:8000/ai-monitoring for computer camera. Use the LAN IP only for viewing dashboard from phone/team devices.";
+
+    video.addEventListener("loadedmetadata", syncOverlaySize);
+    window.addEventListener("resize", () => {
+      if (latestOverlayCandidates.length > 0) {
+        drawAiOverlay(
+          latestOverlayCandidates,
+          latestBackendImageSize.width,
+          latestBackendImageSize.height,
+        );
+      } else {
+        syncOverlaySize();
+      }
+    });
 
     startButton.addEventListener("click", async () => {
       if (!navigator.mediaDevices?.getUserMedia) {

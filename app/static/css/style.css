@@ -1478,6 +1478,11 @@ td a:not(.button):not(.action-button):hover {
   pointer-events: none;
 }
 
+.overlay-frame-status {
+  margin: 8px 0 0;
+  min-height: 1.4em;
+}
+
 .detection-list {
   display: flex;
   flex-wrap: wrap;

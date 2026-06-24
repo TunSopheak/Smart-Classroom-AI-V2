@@ -102,6 +102,54 @@ class BehaviorOverlayServiceTests(unittest.TestCase):
             result["detections"][0]["overlay_label"],
         )
 
+    def test_face_only_signal_supplies_safe_close_up_overlay_candidate(self):
+        result = behavior_overlay_service.enrich_analysis_for_behavior_overlay(
+            {
+                "available": True,
+                "frame_quality_label": "good",
+                "detections": [],
+                "student_attention_signals": {
+                    "1": {
+                        "track_id": 1,
+                        "student_label": "Student 1",
+                        "face_only": True,
+                        "attention_candidate": False,
+                        "attention_confidence": 0.42,
+                        "box": [25, 30, 125, 170],
+                        "reason": "Face/upper-body candidate; teacher review required.",
+                    }
+                },
+            }
+        )
+
+        self.assertEqual(result["detections"], [])
+        self.assertEqual(len(result["student_candidates"]), 1)
+        candidate = result["student_candidates"][0]
+        self.assertEqual(candidate["box"], [25.0, 30.0, 125.0, 170.0])
+        self.assertEqual(candidate["candidate_label"], "Face/upper-body candidate")
+        self.assertEqual(candidate["attention_candidate"], "none")
+
+    def test_face_only_attention_signal_remains_candidate_only(self):
+        result = behavior_overlay_service.enrich_analysis_for_behavior_overlay(
+            {
+                "available": True,
+                "detections": [],
+                "student_attention_signals": {
+                    "1": {
+                        "face_only": True,
+                        "attention_candidate": True,
+                        "attention_confidence": 0.81,
+                        "box": [10, 20, 110, 160],
+                    }
+                },
+            }
+        )
+
+        candidate = result["student_candidates"][0]
+        self.assertEqual(candidate["candidate_label"], "Attention candidate")
+        self.assertEqual(candidate["attention_candidate"], "candidate")
+        self.assertEqual(candidate["attention_confidence"], 0.81)
+
 
 if __name__ == "__main__":
     unittest.main()

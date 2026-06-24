@@ -420,6 +420,44 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
                 "frame_quality_label": enriched.get("frame_quality_label", "unknown"),
             }
         )
+
+    # Close-up views may produce face landmarks without a YOLO person box.
+    # Preserve that available box as a safe review candidate for the overlay.
+    if not sorted_person_indexes:
+        signals = enriched.get("student_attention_signals")
+        if isinstance(signals, dict):
+            signal_items = signals.values()
+        elif isinstance(signals, list):
+            signal_items = signals
+        else:
+            signal_items = []
+        for order, signal in enumerate(signal_items, start=1):
+            if not isinstance(signal, dict) or not signal.get("face_only"):
+                continue
+            face_box = safe_box(signal)
+            if face_box is None:
+                continue
+            is_attention_candidate = bool(signal.get("attention_candidate"))
+            attention_confidence = safe_unit_confidence(signal.get("attention_confidence"))
+            student_candidates.append(
+                {
+                    "student_label": signal.get("student_label") or f"Student {order}",
+                    "track_id": signal.get("track_id", order),
+                    "person_confidence": None,
+                    "box": face_box,
+                    "phone_candidate": False,
+                    "phone_confidence": None,
+                    "attention_candidate": "candidate" if is_attention_candidate else "none",
+                    "attention_confidence": attention_confidence,
+                    "candidate_label": (
+                        "Attention candidate"
+                        if is_attention_candidate
+                        else "Face/upper-body candidate"
+                    ),
+                    "reason": signal.get("reason") or "Teacher review required.",
+                    "frame_quality_label": enriched.get("frame_quality_label", "unknown"),
+                }
+            )
     enriched["student_candidates"] = student_candidates
     enriched = multibehavior_model_service.attach_candidate_model_fields(enriched)
     enriched["behavior_summary"] = {
