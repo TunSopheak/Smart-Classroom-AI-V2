@@ -446,6 +446,9 @@ endblock %} {% block content %}
         <button id="stop-camera" class="button" type="button" disabled>
           Stop Camera
         </button>
+        <button id="capture-review-snapshot" class="button" type="button" disabled>
+          Capture Review Snapshot
+        </button>
       </div>
     </div>
     <p class="helper-note compact-note">
@@ -473,6 +476,17 @@ endblock %} {% block content %}
     <p id="ai-overlay-frame-status" class="muted overlay-frame-status" role="status" aria-live="polite">
       Candidate frames will appear after the next sampled analysis.
     </p>
+    <div class="camera-review-status-grid" aria-label="Computer camera review overlay status">
+      <article class="summary-card metric-card">
+        <span>Frames Shown</span><strong id="candidate-frames-shown">0</strong>
+      </article>
+      <article class="summary-card metric-card">
+        <span>Last Snapshot</span><strong id="last-review-snapshot">Not captured</strong>
+      </article>
+      <article class="summary-card metric-card candidate-label-status-card">
+        <span>Current Candidate Labels</span><strong id="current-candidate-labels">No active candidate labels</strong>
+      </article>
+    </div>
     <div class="backend-ai-grid" aria-label="Advanced computer camera AI status">
       <article class="summary-card metric-card">
         <span>Source</span><strong>Computer Camera</strong>
@@ -1095,7 +1109,12 @@ endblock %} {% block content %}
 
     function candidateLabelForDetection(item) {
       const rawLabel = String(
-        item.candidate_label || item.student_candidate_label || item.label || item.class_name || "object",
+        item.candidate_label ||
+          item.student_candidate_label ||
+          item.behavior_label ||
+          item.label ||
+          item.class_name ||
+          "object",
       );
       const normalized = rawLabel.toLowerCase();
       let candidateLabel = "Object candidate";
@@ -1108,6 +1127,10 @@ endblock %} {% block content %}
         candidateLabel = "Attention candidate";
       } else if (normalized.includes("face") || normalized.includes("upper-body")) {
         candidateLabel = "Face/upper-body candidate";
+      } else if (normalized.includes("lean")) {
+        candidateLabel = "Leaning posture candidate";
+      } else if (normalized.includes("normal sitting")) {
+        candidateLabel = "Normal sitting candidate";
       } else if (normalized.includes("person")) {
         candidateLabel = "Person candidate";
       }
@@ -1202,6 +1225,8 @@ endblock %} {% block content %}
         return;
       }
       overlayContext.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+      overlayCanvas.dataset.frameCount = "0";
+      overlayCanvas.dataset.candidateLabels = "[]";
     }
 
     function syncOverlaySize() {
@@ -1310,6 +1335,7 @@ endblock %} {% block content %}
       const offsetX = (overlayCanvas.width - sourceWidth * scale) / 2;
       const offsetY = (overlayCanvas.height - sourceHeight * scale) / 2;
       let drawnCount = 0;
+      const drawnLabels = [];
 
       detections.forEach((item) => {
         const box = normalizeDetectionBox(item);
@@ -1319,10 +1345,11 @@ endblock %} {% block content %}
 
         const label = item.label || item.class_name || "object";
         const confidence = overlayConfidence(item);
-        const normalizedLabel = String(item.candidate_label || label).toLowerCase();
+        const normalizedLabel = candidateLabelForDetection(item).toLowerCase();
         const isPhone = Boolean(item.phone_candidate) || normalizedLabel.includes("phone");
         const isAttention =
           item.attention_candidate === "candidate" || normalizedLabel.includes("attention");
+        const isLeaning = normalizedLabel.includes("lean");
 
         const rawX1 = box.x1 * scale + offsetX;
         const rawY1 = box.y1 * scale + offsetY;
@@ -1339,7 +1366,13 @@ endblock %} {% block content %}
           return;
         }
 
-        const color = isPhone ? "#f59e0b" : isAttention ? "#8b5cf6" : "#14b8a6";
+        const color = isPhone
+          ? "#f59e0b"
+          : isAttention
+            ? "#8b5cf6"
+            : isLeaning
+              ? "#f97316"
+              : "#14b8a6";
         overlayContext.lineWidth = 3;
         overlayContext.strokeStyle = color;
         overlayContext.fillStyle = color;
@@ -1356,8 +1389,11 @@ endblock %} {% block content %}
         overlayContext.fillRect(x, textY, textWidth, textHeight);
         overlayContext.fillStyle = "#ffffff";
         overlayContext.fillText(text, x + 6, textY + 15);
+        drawnLabels.push(text);
         drawnCount += 1;
       });
+      overlayCanvas.dataset.frameCount = String(drawnCount);
+      overlayCanvas.dataset.candidateLabels = JSON.stringify(drawnLabels);
       return drawnCount;
     }
 

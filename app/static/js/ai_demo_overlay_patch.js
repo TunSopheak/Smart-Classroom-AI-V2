@@ -3,21 +3,95 @@
 
   if (!location.pathname.startsWith("/ai-monitoring")) return;
 
+  const COLORS = {
+    person: "#14b8a6",
+    attention: "#8b5cf6",
+    phone: "#f59e0b",
+    leaning: "#f97316",
+  };
+  const WATCHED_IDS = [
+    "phone-detection-status",
+    "phone-detection-message",
+    "phone-confidence",
+    "attention-detection-status",
+    "attention-detection-message",
+    "attention-confidence",
+    "ai-overlay-canvas",
+  ];
+
   const getText = (id) =>
     (document.getElementById(id)?.textContent || "").trim();
-  const hasPhone = () => {
-    const status = getText("phone-detection-status").toLowerCase();
-    return status === "phone object candidate" || status === "phone-use candidate";
-  };
-  const hasAttention = () => {
-    const status = getText("attention-detection-status").toLowerCase();
-    return status === "attention candidate";
-  };
-  const pct = (id) => (getText(id).match(/(\d+)%/) || [])[1];
+  const confidencePercent = (id) =>
+    (getText(id).match(/(\d+)%/) || [])[1] || null;
   const labelWithConfidence = (label, confidence) =>
     confidence ? `${label} ${confidence}%` : label;
 
-  function layer() {
+  function hasPhoneCandidate() {
+    const status = getText("phone-detection-status").toLowerCase();
+    return status === "phone object candidate" || status === "phone-use candidate";
+  }
+
+  function hasAttentionCandidate() {
+    return getText("attention-detection-status").toLowerCase() === "attention candidate";
+  }
+
+  function getBackendFrameCount() {
+    const canvas = document.getElementById("ai-overlay-canvas");
+    const count = Number(canvas?.dataset.frameCount || 0);
+    return Number.isFinite(count) ? count : 0;
+  }
+
+  function getBackendCandidateLabels() {
+    const raw = document.getElementById("ai-overlay-canvas")?.dataset
+      .candidateLabels;
+    if (!raw) return [];
+    try {
+      const labels = JSON.parse(raw);
+      return Array.isArray(labels)
+        ? labels.filter((label) => typeof label === "string" && label.trim())
+        : [];
+    } catch (_error) {
+      return [];
+    }
+  }
+
+  function getActiveCandidateFrames() {
+    const video = document.getElementById("ai-video");
+    if (!video?.srcObject || getBackendFrameCount() > 0) return [];
+
+    const frames = [];
+    if (hasAttentionCandidate()) {
+      frames.push({
+        label: labelWithConfidence(
+          "Student 1 | Attention candidate",
+          confidencePercent("attention-confidence"),
+        ),
+        color: COLORS.attention,
+        x: 0.2,
+        y: 0.12,
+        width: 0.54,
+        height: 0.58,
+        source: "sampled prototype status",
+      });
+    }
+    if (hasPhoneCandidate()) {
+      frames.push({
+        label: labelWithConfidence(
+          "Student 1 | Phone-use candidate",
+          confidencePercent("phone-confidence"),
+        ),
+        color: COLORS.phone,
+        x: 0.58,
+        y: 0.42,
+        width: 0.34,
+        height: 0.48,
+        source: "sampled prototype status",
+      });
+    }
+    return frames;
+  }
+
+  function getOverlayLayer() {
     const wrap = document.querySelector(".video-overlay-wrap");
     if (!wrap) return null;
     let node = wrap.querySelector(".candidate-demo-overlay-layer");
@@ -30,82 +104,206 @@
     return node;
   }
 
-  function box(label, color, style) {
+  function drawCandidateFrame(frame) {
     const node = document.createElement("div");
+    node.className = "candidate-demo-frame";
+    node.dataset.candidateLabel = frame.label;
+    node.style.setProperty("--candidate-color", frame.color);
     Object.assign(node.style, {
-      position: "absolute",
-      border: `4px solid ${color}`,
-      borderRadius: "14px",
-      boxShadow:
-        "0 0 0 2px rgba(255,255,255,.9), 0 8px 24px rgba(0,0,0,.2)",
-      ...style,
+      left: `${frame.x * 100}%`,
+      top: `${frame.y * 100}%`,
+      width: `${frame.width * 100}%`,
+      height: `${frame.height * 100}%`,
     });
-    const tag = document.createElement("div");
-    tag.textContent = label;
-    Object.assign(tag.style, {
-      position: "absolute",
-      left: "0",
-      top: "-32px",
-      padding: "5px 9px",
-      color: "#fff",
-      background: color,
-      borderRadius: "9px",
-      fontWeight: "800",
-      fontSize: "13px",
-      whiteSpace: "nowrap",
-    });
-    node.appendChild(tag);
+
+    const label = document.createElement("div");
+    label.className = "candidate-demo-frame-label";
+    label.textContent = frame.label;
+    node.appendChild(label);
     return node;
   }
 
-  function draw() {
-    const target = layer();
+  function updateStatusPanel(fallbackFrames) {
+    const backendCount = getBackendFrameCount();
+    const frameCount = backendCount + fallbackFrames.length;
+    const labels = [
+      ...getBackendCandidateLabels(),
+      ...fallbackFrames.map((frame) => frame.label),
+    ].filter((label, index, all) => all.indexOf(label) === index);
+    const countNode = document.getElementById("candidate-frames-shown");
+    const labelsNode = document.getElementById("current-candidate-labels");
+    const captureButton = document.getElementById("capture-review-snapshot");
     const video = document.getElementById("ai-video");
-    if (!target || !video) return;
-    const frames = [];
-    if (video.srcObject && hasAttention()) {
-      frames.push(
-        box(
-          labelWithConfidence(
-            "Attention candidate",
-            pct("attention-confidence"),
-          ),
-          "#8b5cf6",
-          { left: "20%", top: "10%", width: "54%", height: "58%" },
-        ),
-      );
+
+    if (countNode) countNode.textContent = String(frameCount);
+    if (labelsNode) {
+      labelsNode.textContent = labels.length
+        ? labels.join(" · ")
+        : "No active candidate labels";
     }
-    if (video.srcObject && hasPhone()) {
-      frames.push(
-        box(
-          labelWithConfidence("Phone-use candidate", pct("phone-confidence")),
-          "#f59e0b",
-          { right: "8%", top: "38%", width: "34%", height: "50%" },
-        ),
-      );
-    }
-    const signature = frames.map((frame) => frame.textContent).join("|");
-    if (target.dataset.signature !== signature) {
-      target.dataset.signature = signature;
-      target.replaceChildren(...frames);
-    }
-    const status = document.getElementById("ai-overlay-frame-status");
-    if (status && frames.length) {
-      status.textContent = `${frames.length} candidate review frame${frames.length === 1 ? "" : "s"} shown. Teacher review required.`;
-    }
+    if (captureButton) captureButton.disabled = !video?.srcObject;
   }
 
-  const start = () => {
-    const watchedIds = [
-      "phone-detection-status",
-      "phone-detection-message",
-      "phone-confidence",
-      "attention-detection-status",
-      "attention-detection-message",
-      "attention-confidence",
-    ];
-    const observer = new MutationObserver(draw);
-    watchedIds.forEach((id) => {
+  function renderCandidateOverlay() {
+    const target = getOverlayLayer();
+    if (!target) return;
+
+    const frames = getActiveCandidateFrames();
+    const signature = JSON.stringify(frames);
+    if (target.dataset.signature !== signature) {
+      target.dataset.signature = signature;
+      target.replaceChildren(...frames.map(drawCandidateFrame));
+    }
+
+    const status = document.getElementById("ai-overlay-frame-status");
+    if (status && frames.length) {
+      status.textContent =
+        "Demo candidate frame based on sampled prototype status. Teacher review required.";
+    }
+    updateStatusPanel(frames);
+  }
+
+  function drawVideoCover(context, video, width, height) {
+    const sourceWidth = video.videoWidth;
+    const sourceHeight = video.videoHeight;
+    const scale = Math.max(width / sourceWidth, height / sourceHeight);
+    const cropWidth = width / scale;
+    const cropHeight = height / scale;
+    const sourceX = (sourceWidth - cropWidth) / 2;
+    const sourceY = (sourceHeight - cropHeight) / 2;
+    context.drawImage(
+      video,
+      sourceX,
+      sourceY,
+      cropWidth,
+      cropHeight,
+      0,
+      0,
+      width,
+      height,
+    );
+  }
+
+  function drawSnapshotCandidateFrame(context, frame, width, height) {
+    const x = frame.x * width;
+    const y = frame.y * height;
+    const boxWidth = frame.width * width;
+    const boxHeight = frame.height * height;
+    const lineWidth = Math.max(4, Math.round(width / 320));
+    const fontSize = Math.max(16, Math.round(width / 55));
+    const paddingX = Math.max(8, Math.round(fontSize * 0.55));
+    const labelHeight = Math.round(fontSize * 1.65);
+
+    context.lineWidth = lineWidth;
+    context.strokeStyle = frame.color;
+    context.strokeRect(x, y, boxWidth, boxHeight);
+    context.font = `700 ${fontSize}px system-ui, sans-serif`;
+    const labelWidth = Math.min(
+      width - x,
+      context.measureText(frame.label).width + paddingX * 2,
+    );
+    const labelY = Math.max(0, y - labelHeight);
+    context.fillStyle = frame.color;
+    context.fillRect(x, labelY, labelWidth, labelHeight);
+    context.fillStyle = "#ffffff";
+    context.fillText(frame.label, x + paddingX, labelY + fontSize + 4);
+  }
+
+  function drawSnapshotFooter(context, width, height) {
+    const fontSize = Math.max(15, Math.round(width / 64));
+    const padding = Math.max(12, Math.round(width / 80));
+    const panelHeight = fontSize * 3.6;
+    context.fillStyle = "rgba(15, 23, 42, 0.86)";
+    context.fillRect(0, height - panelHeight, width, panelHeight);
+    context.fillStyle = "#ffffff";
+    context.font = `700 ${fontSize}px system-ui, sans-serif`;
+    context.fillText(
+      "Smart Classroom AI Review Snapshot",
+      padding,
+      height - panelHeight + fontSize + padding / 2,
+    );
+    context.font = `500 ${fontSize}px system-ui, sans-serif`;
+    context.fillText(
+      "Candidate-only result | Teacher review required",
+      padding,
+      height - padding,
+    );
+    context.textAlign = "right";
+    context.fillText(new Date().toLocaleString(), width - padding, height - padding);
+    context.textAlign = "left";
+  }
+
+  function snapshotFilename(date = new Date()) {
+    const part = (value) => String(value).padStart(2, "0");
+    return `smart-classroom-review-snapshot-${date.getFullYear()}${part(
+      date.getMonth() + 1,
+    )}${part(date.getDate())}-${part(date.getHours())}${part(
+      date.getMinutes(),
+    )}${part(date.getSeconds())}.png`;
+  }
+
+  function downloadSnapshotPng(canvas, filename) {
+    return new Promise((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          reject(new Error("Snapshot PNG could not be created."));
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        resolve();
+      }, "image/png");
+    });
+  }
+
+  async function captureReviewSnapshot() {
+    const video = document.getElementById("ai-video");
+    const wrap = document.querySelector(".video-overlay-wrap");
+    const status = document.getElementById("ai-overlay-frame-status");
+    if (!video?.srcObject || !video.videoWidth || !video.videoHeight || !wrap) {
+      if (status) status.textContent = "Start the computer camera before capturing a review snapshot.";
+      return false;
+    }
+
+    const aspectRatio = wrap.clientWidth / Math.max(1, wrap.clientHeight);
+    const width = Math.min(1920, Math.max(960, video.videoWidth));
+    const height = Math.round(width / aspectRatio);
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    if (!context) return false;
+
+    drawVideoCover(context, video, width, height);
+    const backendCanvas = document.getElementById("ai-overlay-canvas");
+    if (backendCanvas && getBackendFrameCount() > 0) {
+      context.drawImage(backendCanvas, 0, 0, width, height);
+    }
+    getActiveCandidateFrames().forEach((frame) =>
+      drawSnapshotCandidateFrame(context, frame, width, height),
+    );
+    drawSnapshotFooter(context, width, height);
+
+    await downloadSnapshotPng(canvas, snapshotFilename());
+    const capturedAt = new Date();
+    const lastSnapshot = document.getElementById("last-review-snapshot");
+    if (lastSnapshot) lastSnapshot.textContent = capturedAt.toLocaleTimeString();
+    if (status) {
+      status.textContent =
+        "Review snapshot captured. Candidate labels require teacher review.";
+    }
+    return true;
+  }
+
+  function start() {
+    const observer = new MutationObserver(renderCandidateOverlay);
+    WATCHED_IDS.forEach((id) => {
       const node = document.getElementById(id);
       if (node) {
         observer.observe(node, {
@@ -116,13 +314,34 @@
         });
       }
     });
+
     const video = document.getElementById("ai-video");
-    video?.addEventListener("loadedmetadata", draw);
-    video?.addEventListener("play", draw);
-    addEventListener("resize", draw);
-    setInterval(draw, 500);
-    draw();
+    video?.addEventListener("loadedmetadata", renderCandidateOverlay);
+    video?.addEventListener("play", renderCandidateOverlay);
+    document
+      .getElementById("capture-review-snapshot")
+      ?.addEventListener("click", () => {
+        captureReviewSnapshot().catch(() => {
+          const status = document.getElementById("ai-overlay-frame-status");
+          if (status) {
+            status.textContent =
+              "Review snapshot could not be captured. Please try the sampled frame again.";
+          }
+        });
+      });
+    addEventListener("resize", renderCandidateOverlay);
+    setInterval(renderCandidateOverlay, 500);
+    renderCandidateOverlay();
+  }
+
+  window.smartClassroomDemoOverlay = {
+    captureReviewSnapshot,
+    downloadSnapshotPng,
+    drawCandidateFrame,
+    getActiveCandidateFrames,
+    renderCandidateOverlay,
   };
+
   document.readyState === "loading"
     ? document.addEventListener("DOMContentLoaded", start)
     : start();
