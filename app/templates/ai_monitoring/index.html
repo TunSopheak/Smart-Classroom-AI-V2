@@ -951,12 +951,16 @@ endblock %} {% block content %}
     let detectionRunning = false;
     let phoneDetectionRunning = false;
     let attentionDetectionRunning = false;
+    let phoneDetectionStarting = false;
+    let attentionDetectionStarting = false;
     let backendAiRunning = false;
     let detectionTimer = null;
     let phoneDetectionTimer = null;
     let attentionDetectionTimer = null;
     let backendAiTimer = null;
     let statusTimer = null;
+    let safeDetectionAutoStartGeneration = 0;
+    let safeDetectionAutoStartPromise = null;
     let phoneCooldownUntil = 0;
     let attentionCooldownUntil = 0;
     let attentionAwaySince = null;
@@ -1308,6 +1312,28 @@ endblock %} {% block content %}
       return candidates;
     }
 
+    function drawOverlayCornerBrackets(context, x, y, width, height, color) {
+      const length = Math.max(10, Math.min(22, width / 4, height / 4));
+      context.save();
+      context.beginPath();
+      context.lineWidth = 6;
+      context.strokeStyle = color;
+      context.moveTo(x, y + length);
+      context.lineTo(x, y);
+      context.lineTo(x + length, y);
+      context.moveTo(x + width - length, y);
+      context.lineTo(x + width, y);
+      context.lineTo(x + width, y + length);
+      context.moveTo(x, y + height - length);
+      context.lineTo(x, y + height);
+      context.lineTo(x + length, y + height);
+      context.moveTo(x + width - length, y + height);
+      context.lineTo(x + width, y + height);
+      context.lineTo(x + width, y + height - length);
+      context.stroke();
+      context.restore();
+    }
+
     function drawAiOverlay(detections, imageWidth, imageHeight) {
       if (!overlayCanvas || !overlayContext || !Array.isArray(detections) || !video) {
         return 0;
@@ -1373,11 +1399,22 @@ endblock %} {% block content %}
             : isLeaning
               ? "#f97316"
               : "#14b8a6";
-        overlayContext.lineWidth = 3;
+        overlayContext.lineWidth = 4;
         overlayContext.strokeStyle = color;
         overlayContext.fillStyle = color;
+        overlayContext.shadowColor = color;
+        overlayContext.shadowBlur = 12;
 
         overlayContext.strokeRect(x, y, width, height);
+        overlayContext.shadowBlur = 0;
+        drawOverlayCornerBrackets(
+          overlayContext,
+          x,
+          y,
+          width,
+          height,
+          color,
+        );
 
         const text = `${candidateLabelForDetection(item)}${confidence === null ? "" : ` ${Math.round(confidence * 100)}%`}`;
         overlayContext.font =
@@ -1652,25 +1689,33 @@ endblock %} {% block content %}
       });
     }
 
-    async function startPhoneDetectionFromAll() {
-      if (!stream || !selectedSessionId || phoneDetectionRunning) {
+    async function startPhoneDetectionFromAll(libraryWaitMs = 7000) {
+      if (
+        !stream ||
+        !selectedSessionId ||
+        phoneDetectionRunning ||
+        phoneDetectionStarting
+      ) {
         return;
       }
-
-      const phoneLibraryReady = await waitForCondition(
-        () => Boolean(window.cocoSsd?.load),
-        7000,
-      );
-
-      if (!phoneLibraryReady) {
-        setPhoneDetectionStatus("Detection unavailable", "status warning");
-        phoneDetectionMessage.textContent =
-          "Phone candidate model is still loading. You can click Start Phone Review again in a few seconds.";
-        return;
-      }
+      phoneDetectionStarting = true;
 
       try {
+        const phoneLibraryReady = await waitForCondition(
+          () => Boolean(window.cocoSsd?.load),
+          libraryWaitMs,
+        );
+
+        if (!phoneLibraryReady) {
+          setPhoneDetectionStatus("Detection unavailable", "status warning");
+          phoneDetectionMessage.textContent =
+            "Phone candidate model is still loading. You can click Start Phone Review again in a few seconds.";
+          return;
+        }
+        if (!stream) return;
+
         await loadPhoneModel();
+        if (!stream) return;
         phoneDetectionRunning = true;
         startPhoneDetectionButton.disabled = true;
         stopPhoneDetectionButton.disabled = false;
@@ -1678,28 +1723,38 @@ endblock %} {% block content %}
         await detectPhones();
       } catch (error) {
         stopPhoneDetection("Detection unavailable");
+      } finally {
+        phoneDetectionStarting = false;
       }
     }
 
-    async function startAttentionDetectionFromAll() {
-      if (!stream || !selectedSessionId || attentionDetectionRunning) {
+    async function startAttentionDetectionFromAll(libraryWaitMs = 7000) {
+      if (
+        !stream ||
+        !selectedSessionId ||
+        attentionDetectionRunning ||
+        attentionDetectionStarting
+      ) {
         return;
       }
-
-      const attentionLibraryReady = await waitForCondition(
-        () => Boolean(window.FaceMesh),
-        7000,
-      );
-
-      if (!attentionLibraryReady) {
-        setAttentionDetectionStatus("Detection unavailable", "status warning");
-        attentionDetectionMessage.textContent =
-          "Candidate review model is still loading. You can click Start Candidate Review again in a few seconds.";
-        return;
-      }
+      attentionDetectionStarting = true;
 
       try {
+        const attentionLibraryReady = await waitForCondition(
+          () => Boolean(window.FaceMesh),
+          libraryWaitMs,
+        );
+
+        if (!attentionLibraryReady) {
+          setAttentionDetectionStatus("Detection unavailable", "status warning");
+          attentionDetectionMessage.textContent =
+            "Candidate review model is still loading. You can click Start Candidate Review again in a few seconds.";
+          return;
+        }
+        if (!stream) return;
+
         await loadAttentionModel();
+        if (!stream) return;
         attentionDetectionRunning = true;
         startAttentionDetectionButton.disabled = true;
         stopAttentionDetectionButton.disabled = false;
@@ -1707,6 +1762,8 @@ endblock %} {% block content %}
         await detectAttention();
       } catch (error) {
         stopAttentionDetection("Detection unavailable");
+      } finally {
+        attentionDetectionStarting = false;
       }
     }
 
@@ -1723,6 +1780,87 @@ endblock %} {% block content %}
         "status info",
       );
       await analyzeBackendFrameLoop();
+    }
+
+    async function startAllSafeDetectionAfterCameraReady(generation) {
+      if (!stream || generation !== safeDetectionAutoStartGeneration) {
+        return false;
+      }
+      if (!selectedSessionId) {
+        setStatus("Camera ready. Select an active session to start Safe AI candidate review.");
+        return false;
+      }
+
+      const videoReady = await waitForCondition(
+        () => Boolean(video.videoWidth && video.videoHeight),
+        5000,
+        100,
+      );
+      if (
+        !videoReady ||
+        !stream ||
+        generation !== safeDetectionAutoStartGeneration
+      ) {
+        return false;
+      }
+
+      await startBackendAiFromAll();
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        if (!stream || generation !== safeDetectionAutoStartGeneration) {
+          return false;
+        }
+        await Promise.all([
+          startPhoneDetectionFromAll(2500),
+          startAttentionDetectionFromAll(2500),
+        ]);
+        if (phoneDetectionRunning && attentionDetectionRunning) {
+          break;
+        }
+        if (!phoneDetectionRunning) {
+          phoneDetectionMessage.textContent =
+            "Phone candidate model is still loading. Safe AI review will retry automatically.";
+        }
+        if (!attentionDetectionRunning) {
+          attentionDetectionMessage.textContent =
+            "Candidate review model is still loading. Safe AI review will retry automatically.";
+        }
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
+      }
+
+      if (stream && generation === safeDetectionAutoStartGeneration) {
+        monitoringStatus.textContent = "monitoring";
+        monitoringStatus.className = "status active";
+      }
+      return backendAiRunning || phoneDetectionRunning || attentionDetectionRunning;
+    }
+
+    function scheduleDetectionAutoStart() {
+      if (!stream) {
+        return Promise.resolve(false);
+      }
+      if (safeDetectionAutoStartPromise) {
+        return safeDetectionAutoStartPromise;
+      }
+      const generation = safeDetectionAutoStartGeneration;
+      const autoStartPromise = startAllSafeDetectionAfterCameraReady(generation)
+        .catch(() => {
+          setStatus(
+            "Camera ready. Some Safe AI candidate reviews may need a manual retry.",
+          );
+          return false;
+        })
+        .finally(() => {
+          if (safeDetectionAutoStartPromise === autoStartPromise) {
+            safeDetectionAutoStartPromise = null;
+          }
+        });
+      safeDetectionAutoStartPromise = autoStartPromise;
+      return autoStartPromise;
+    }
+
+    function cancelDetectionAutoStart() {
+      safeDetectionAutoStartGeneration += 1;
+      safeDetectionAutoStartPromise = null;
     }
 
     async function startAllMonitoring() {
@@ -1760,9 +1898,7 @@ endblock %} {% block content %}
         );
       }
 
-      await startBackendAiFromAll();
-      await startPhoneDetectionFromAll();
-      await startAttentionDetectionFromAll();
+      await scheduleDetectionAutoStart();
 
       monitoringStatus.textContent = "monitoring";
       monitoringStatus.className = "status active";
@@ -2099,12 +2235,13 @@ endblock %} {% block content %}
         stopAllMonitoringButton.disabled = false;
         monitoringStatus.textContent = "camera ready";
         monitoringStatus.className = "status active";
-        setStatus("Camera ready.");
+        setStatus("Camera ready. Safe AI candidate review is starting automatically.");
         setDetectionStatus(
           faceDetectionSupported()
             ? "Detection ready."
             : "Automatic face counting is not supported in this browser.",
         );
+        scheduleDetectionAutoStart();
       } catch (error) {
         setStatus(browserCameraRequirementMessage);
         setDetectionStatus(browserCameraRequirementMessage);
@@ -2112,6 +2249,7 @@ endblock %} {% block content %}
     });
 
     stopButton.addEventListener("click", () => {
+      cancelDetectionAutoStart();
       stopDetection("Detection stopped.");
       stopPhoneDetection("Not started");
       stopAttentionDetection("Not started");
@@ -2197,6 +2335,7 @@ endblock %} {% block content %}
     });
 
     stopPhoneDetectionButton.addEventListener("click", () => {
+      cancelDetectionAutoStart();
       stopPhoneDetection("Not started");
     });
 
@@ -2218,6 +2357,7 @@ endblock %} {% block content %}
     });
 
     stopAttentionDetectionButton.addEventListener("click", () => {
+      cancelDetectionAutoStart();
       stopAttentionDetection("Not started");
     });
 
@@ -2241,6 +2381,7 @@ endblock %} {% block content %}
     });
 
     stopBackendAiButton.addEventListener("click", () => {
+      cancelDetectionAutoStart();
       stopBackendAi("Not started");
     });
 

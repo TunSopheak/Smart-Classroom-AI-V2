@@ -18,6 +18,11 @@
     "attention-confidence",
     "ai-overlay-canvas",
   ];
+  const autoSnapshotCooldownMs = 30000;
+  let lastAutoSnapshotAt = 0;
+  let lastAutoSnapshotReason = "";
+  let autoSnapshotInFlight = false;
+  let lastSnapshotMessageAt = 0;
 
   const getText = (id) =>
     (document.getElementById(id)?.textContent || "").trim();
@@ -55,12 +60,23 @@
     }
   }
 
+  function backendHasCandidateType(candidateType) {
+    const needle = candidateType.toLowerCase();
+    return getBackendCandidateLabels().some((label) =>
+      label.toLowerCase().includes(needle),
+    );
+  }
+
   function getActiveCandidateFrames() {
     const video = document.getElementById("ai-video");
-    if (!video?.srcObject || getBackendFrameCount() > 0) return [];
+    if (!video?.srcObject) return [];
 
     const frames = [];
-    if (hasAttentionCandidate()) {
+    if (
+      hasAttentionCandidate() &&
+      !backendHasCandidateType("attention") &&
+      !backendHasCandidateType("looking-around")
+    ) {
       frames.push({
         label: labelWithConfidence(
           "Student 1 | Attention candidate",
@@ -74,7 +90,7 @@
         source: "sampled prototype status",
       });
     }
-    if (hasPhoneCandidate()) {
+    if (hasPhoneCandidate() && !backendHasCandidateType("phone")) {
       frames.push({
         label: labelWithConfidence(
           "Student 1 | Phone-use candidate",
@@ -156,11 +172,16 @@
     }
 
     const status = document.getElementById("ai-overlay-frame-status");
-    if (status && frames.length) {
+    if (
+      status &&
+      frames.length &&
+      Date.now() - lastSnapshotMessageAt > 4000
+    ) {
       status.textContent =
-        "Demo candidate frame based on sampled prototype status. Teacher review required.";
+        "Demo candidate frames are based on sampled prototype status. Teacher review required.";
     }
     updateStatusPanel(frames);
+    autoCaptureSnapshotForCandidate("phone-use candidate");
   }
 
   function drawVideoCover(context, video, width, height) {
@@ -196,7 +217,26 @@
 
     context.lineWidth = lineWidth;
     context.strokeStyle = frame.color;
+    context.shadowColor = frame.color;
+    context.shadowBlur = Math.max(8, lineWidth * 3);
     context.strokeRect(x, y, boxWidth, boxHeight);
+    context.shadowBlur = 0;
+    const corner = Math.max(18, Math.min(34, boxWidth / 4, boxHeight / 4));
+    context.beginPath();
+    context.lineWidth = lineWidth * 1.75;
+    context.moveTo(x, y + corner);
+    context.lineTo(x, y);
+    context.lineTo(x + corner, y);
+    context.moveTo(x + boxWidth - corner, y);
+    context.lineTo(x + boxWidth, y);
+    context.lineTo(x + boxWidth, y + corner);
+    context.moveTo(x, y + boxHeight - corner);
+    context.lineTo(x, y + boxHeight);
+    context.lineTo(x + corner, y + boxHeight);
+    context.moveTo(x + boxWidth - corner, y + boxHeight);
+    context.lineTo(x + boxWidth, y + boxHeight);
+    context.lineTo(x + boxWidth, y + boxHeight - corner);
+    context.stroke();
     context.font = `700 ${fontSize}px system-ui, sans-serif`;
     const labelWidth = Math.min(
       width - x,
@@ -262,7 +302,7 @@
     });
   }
 
-  async function captureReviewSnapshot() {
+  async function captureReviewSnapshot(options = {}) {
     const video = document.getElementById("ai-video");
     const wrap = document.querySelector(".video-overlay-wrap");
     const status = document.getElementById("ai-overlay-frame-status");
@@ -294,10 +334,52 @@
     const capturedAt = new Date();
     const lastSnapshot = document.getElementById("last-review-snapshot");
     if (lastSnapshot) lastSnapshot.textContent = capturedAt.toLocaleTimeString();
+    lastSnapshotMessageAt = capturedAt.getTime();
     if (status) {
       status.textContent =
+        options.statusMessage ||
         "Review snapshot captured. Candidate labels require teacher review.";
     }
+    return true;
+  }
+
+  function shouldAutoCaptureSnapshot(candidateType) {
+    if (candidateType.toLowerCase() !== "phone-use candidate") return false;
+    const video = document.getElementById("ai-video");
+    if (!video?.srcObject || autoSnapshotInFlight) return false;
+    if (Date.now() - lastAutoSnapshotAt < autoSnapshotCooldownMs) return false;
+
+    const fallbackFrames = getActiveCandidateFrames();
+    const phoneFrameVisible =
+      backendHasCandidateType("phone") ||
+      fallbackFrames.some((frame) =>
+        frame.label.toLowerCase().includes("phone-use candidate"),
+      );
+    const visibleFrameCount = getBackendFrameCount() + fallbackFrames.length;
+    const phoneCandidateActive = hasPhoneCandidate() || backendHasCandidateType("phone");
+    return phoneCandidateActive && phoneFrameVisible && visibleFrameCount > 0;
+  }
+
+  function autoCaptureSnapshotForCandidate(reason) {
+    if (!shouldAutoCaptureSnapshot(reason)) return false;
+
+    autoSnapshotInFlight = true;
+    lastAutoSnapshotAt = Date.now();
+    lastAutoSnapshotReason = reason;
+    captureReviewSnapshot({
+      statusMessage:
+        "Phone-use candidate snapshot captured for teacher review.",
+    })
+      .catch(() => {
+        const status = document.getElementById("ai-overlay-frame-status");
+        if (status) {
+          status.textContent =
+            "Automatic snapshot download may be blocked. Manual Capture Review Snapshot remains available.";
+        }
+      })
+      .finally(() => {
+        autoSnapshotInFlight = false;
+      });
     return true;
   }
 
@@ -335,11 +417,18 @@
   }
 
   window.smartClassroomDemoOverlay = {
+    autoCaptureSnapshotForCandidate,
     captureReviewSnapshot,
     downloadSnapshotPng,
     drawCandidateFrame,
     getActiveCandidateFrames,
     renderCandidateOverlay,
+    shouldAutoCaptureSnapshot,
+    getAutoSnapshotState: () => ({
+      autoSnapshotCooldownMs,
+      lastAutoSnapshotAt,
+      lastAutoSnapshotReason,
+    }),
   };
 
   document.readyState === "loading"

@@ -1490,10 +1490,35 @@ td a:not(.button):not(.action-button):hover {
 .candidate-demo-frame {
   position: absolute;
   border: 4px solid var(--candidate-color, #14b8a6);
-  border-radius: 14px;
+  border-radius: 10px;
+  background:
+    linear-gradient(var(--candidate-color), var(--candidate-color)) left top / 24px 4px no-repeat,
+    linear-gradient(var(--candidate-color), var(--candidate-color)) left top / 4px 24px no-repeat,
+    linear-gradient(var(--candidate-color), var(--candidate-color)) right top / 24px 4px no-repeat,
+    linear-gradient(var(--candidate-color), var(--candidate-color)) right top / 4px 24px no-repeat,
+    linear-gradient(var(--candidate-color), var(--candidate-color)) left bottom / 24px 4px no-repeat,
+    linear-gradient(var(--candidate-color), var(--candidate-color)) left bottom / 4px 24px no-repeat,
+    linear-gradient(var(--candidate-color), var(--candidate-color)) right bottom / 24px 4px no-repeat,
+    linear-gradient(var(--candidate-color), var(--candidate-color)) right bottom / 4px 24px no-repeat;
   box-shadow:
     0 0 0 2px rgba(255, 255, 255, 0.9),
-    0 8px 24px rgba(0, 0, 0, 0.24);
+    0 0 16px var(--candidate-color, #14b8a6),
+    inset 0 0 12px rgba(255, 255, 255, 0.16),
+    0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.candidate-demo-frame::before {
+  position: absolute;
+  z-index: 0;
+  top: 8%;
+  right: 5%;
+  left: 5%;
+  height: 2px;
+  content: "";
+  background: var(--candidate-color, #14b8a6);
+  box-shadow: 0 0 12px var(--candidate-color, #14b8a6);
+  opacity: 0.72;
+  animation: candidate-scan-line 2.8s ease-in-out infinite alternate;
 }
 
 .candidate-demo-frame-label {
@@ -1506,11 +1531,28 @@ td a:not(.button):not(.action-button):hover {
   color: #fff;
   background: var(--candidate-color, #14b8a6);
   border-radius: 9px;
+  box-shadow: 0 0 12px var(--candidate-color, #14b8a6);
   font-size: 13px;
   font-weight: 800;
   line-height: 1.35;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+@keyframes candidate-scan-line {
+  from {
+    top: 8%;
+  }
+
+  to {
+    top: 92%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .candidate-demo-frame::before {
+    animation: none;
+  }
 }
 
 .camera-review-status-grid {
