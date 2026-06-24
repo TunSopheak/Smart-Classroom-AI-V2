@@ -2614,3 +2614,42 @@ td a:not(.button):not(.action-button):hover {
 .alert-evidence-meta div { padding: .55rem; border-radius: 12px; background: #f8fafc; }
 
 @media (max-width: 900px) { .professional-review-strip { grid-template-columns: 1fr; } }
+
+/* Encoding-safe icon refinement: no emoji, no mojibake */
+.monitor-jump-nav a::before {
+  content: "" !important;
+  display: inline-block;
+  width: .55rem;
+  height: .55rem;
+  margin-right: .35rem;
+  border-radius: 999px;
+  background: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, .14);
+  vertical-align: middle;
+}
+
+.professional-review-strip .review-icon {
+  position: relative;
+  overflow: hidden;
+  color: transparent !important;
+}
+
+.professional-review-strip .review-icon::before {
+  content: "";
+  display: block;
+  width: .78rem;
+  height: .78rem;
+  border-radius: 999px;
+  background: #0f766e;
+  box-shadow: 0 0 0 6px rgba(20,184,166,.16);
+}
+
+.review-pill::before {
+  content: "";
+  display: inline-block;
+  width: .48rem;
+  height: .48rem;
+  margin-right: .35rem;
+  border-radius: 999px;
+  background: currentColor;
+}

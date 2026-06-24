@@ -1,4 +1,4 @@
-﻿(() => {
+(() => {
   "use strict";
   if (!location.pathname.startsWith("/ai-monitoring")) return;
 
@@ -56,9 +56,9 @@
     strip.id = "professional-review-strip";
     strip.className = "professional-review-strip";
     strip.innerHTML = `
-      <article><span class="review-icon">ðŸ‘€</span><strong>Teacher blind spot</strong><small>One teacher cannot watch every desk at once.</small></article>
+      <article><span class="review-icon"> blind spot</strong><small>One teacher cannot watch every desk at once.</small></article>
       <article><span class="review-icon">âš‘</span><strong>Candidate highlight</strong><small>AI flags moments that may need review.</small></article>
-      <article><span class="review-icon">ðŸ§¾</span><strong>Evidence report</strong><small>Snapshots are saved for teacher decision.</small></article>
+      <article><span class="review-icon"> report</strong><small>Snapshots are saved for teacher decision.</small></article>
     `;
     target.insertAdjacentElement("beforebegin", strip);
   }
@@ -166,7 +166,7 @@
     const current = document.getElementById("current-candidate-labels");
     if (current) {
       current.innerHTML = labels.length
-        ? labels.map((label) => `<span class="review-pill">${label.includes("Phone") ? "ðŸ“±" : "ðŸ‘€"} ${label}</span>`).join(" ")
+        ? labels.map((label) => `<span class="review-pill">${label.includes("Phone") ? " : " ${label}</span>`).join(" ")
         : '<span class="review-pill neutral">âœ“ No candidate needing review</span>';
     }
     if (count && labels.length) count.textContent = String(Math.max(Number(count.textContent || 0), labels.length));
