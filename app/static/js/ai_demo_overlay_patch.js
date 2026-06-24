@@ -435,3 +435,118 @@
     ? document.addEventListener("DOMContentLoaded", start)
     : start();
 })();
+/* Friendly real-world demo patch: auto-start review and teacher-support wording */
+(() => {
+  if (!location.pathname.startsWith("/ai-monitoring")) return;
+
+  const friendlyLabel = (text) => {
+    return String(text || "")
+      .replace("Student 1 | Attention candidate", "Student 1 | Review needed · Looking-around candidate")
+      .replace("Attention candidate", "Looking-around candidate")
+      .replace("Phone object candidate", "Phone-use candidate")
+      .replace("Phone-use candidate", "Phone-use candidate");
+  };
+
+  function patchVisibleLabels() {
+    document.querySelectorAll(".candidate-demo-frame-label").forEach((node) => {
+      node.textContent = friendlyLabel(node.textContent);
+    });
+
+    const currentLabels = document.getElementById("current-candidate-labels");
+    if (currentLabels && currentLabels.textContent) {
+      currentLabels.textContent = friendlyLabel(currentLabels.textContent);
+    }
+
+    const status = document.getElementById("ai-overlay-frame-status");
+    if (status && status.textContent.includes("Demo candidate")) {
+      status.textContent =
+        "AI highlights possible classroom review points. Candidate-only result; teacher review required.";
+    }
+  }
+
+  function ensureTeacherSupportPanel() {
+    const cameraSection = document.querySelector("#classroom-status") || document.querySelector(".monitor-section");
+    if (!cameraSection || document.getElementById("teacher-review-support-panel")) return;
+
+    const panel = document.createElement("div");
+    panel.id = "teacher-review-support-panel";
+    panel.className = "helper-note";
+    panel.style.marginTop = "12px";
+    panel.innerHTML = `
+      <strong>Teacher Review Support</strong>
+      <span>
+        Real-world problem: a teacher cannot watch every student at the same time.
+        This system highlights possible review points such as phone-use candidate or looking-around candidate.
+        It does not make final judgments.
+      </span>
+    `;
+    cameraSection.prepend(panel);
+  }
+
+  function safeClick(button) {
+    if (button && !button.disabled) {
+      button.click();
+      return true;
+    }
+    return false;
+  }
+
+  function autoStartReviewLoop() {
+    const video = document.getElementById("ai-video");
+    if (!video || !video.srcObject) return;
+
+    let tries = 0;
+    const timer = setInterval(() => {
+      tries += 1;
+
+      const startAdvanced = [...document.querySelectorAll("button")]
+        .find((btn) => btn.textContent.trim() === "Start Advanced AI Analysis");
+      const startPhone = document.getElementById("start-phone-detection") ||
+        [...document.querySelectorAll("button")].find((btn) => btn.textContent.trim() === "Start Phone Review");
+      const startAttention = document.getElementById("start-attention-detection") ||
+        [...document.querySelectorAll("button")].find((btn) => btn.textContent.trim() === "Start Candidate Review");
+
+      safeClick(startAdvanced);
+      safeClick(startPhone);
+      safeClick(startAttention);
+
+      const cameraStatus = document.getElementById("camera-status");
+      if (cameraStatus) {
+        cameraStatus.textContent =
+          "Camera ready. Safe AI review is starting automatically. Manual retry is available.";
+      }
+
+      if (tries >= 12) clearInterval(timer);
+    }, 1000);
+  }
+
+  function bootFriendlyDemoPatch() {
+    ensureTeacherSupportPanel();
+
+    const startCameraButton = [...document.querySelectorAll("button")]
+      .find((btn) => btn.textContent.trim() === "Start Camera");
+
+    if (startCameraButton && !startCameraButton.dataset.friendlyAutoStartBound) {
+      startCameraButton.dataset.friendlyAutoStartBound = "1";
+      startCameraButton.addEventListener("click", () => {
+        setTimeout(autoStartReviewLoop, 1200);
+      });
+    }
+
+    setInterval(() => {
+      patchVisibleLabels();
+      ensureTeacherSupportPanel();
+
+      const video = document.getElementById("ai-video");
+      if (video && video.srcObject) {
+        autoStartReviewLoop();
+      }
+    }, 3500);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootFriendlyDemoPatch);
+  } else {
+    bootFriendlyDemoPatch();
+  }
+})();
