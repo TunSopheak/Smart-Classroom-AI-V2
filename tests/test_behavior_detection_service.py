@@ -28,7 +28,7 @@ class BehaviorDetectionServiceTests(unittest.TestCase):
         self.assertFalse(status["possible_head_down"])
         self.assertFalse(status["possible_inattentive"])
         self.assertIsNone(status["confidence"])
-        self.assertIn("Person detection alone", status["message"])
+        self.assertIn("person candidate alone", status["message"])
         self.assertEqual(status["current_consecutive_count"], 0)
         self.assertIsNone(evaluation["event"])
         self.assertEqual(evaluation["state"]["head_down_consecutive_count"], 0)
@@ -88,7 +88,7 @@ class BehaviorDetectionServiceTests(unittest.TestCase):
         self.assertEqual(events[2]["event_type"], "possible_head_down")
         self.assertEqual(
             events[2]["title"],
-            "Possible head-down behavior detected",
+            "Head-down candidate for review",
         )
 
     @staticmethod

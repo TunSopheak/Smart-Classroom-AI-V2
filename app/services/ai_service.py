@@ -20,8 +20,8 @@ EVENTS = {
     "monitoring_started": (INFO, "Monitoring started for the active session."),
     "monitoring_stopped": (INFO, "Monitoring stopped for the active session."),
     "face_detected": (INFO, "Demo event: face detected."),
-    "attention_warning": (WARNING, "Student may not be paying attention; looking away detected by prototype."),
-    "phone_usage_warning": (WARNING, "Demo event: phone usage warning logged."),
+    "attention_warning": (WARNING, "Attention candidate from sampled analysis; teacher review required."),
+    "phone_usage_warning": (WARNING, "Phone-use candidate from sampled analysis; teacher review required."),
     "no_event": (INFO, "Demo event: no event detected."),
     "occupancy_empty": (WARNING, "No students detected in the classroom."),
     "light_auto_off": (WARNING, "Classroom light turned OFF automatically because no students were detected."),
@@ -29,8 +29,8 @@ EVENTS = {
 }
 
 AUTO_FACE_MESSAGE = "Face detected by camera."
-AUTO_ATTENTION_MESSAGE = "Student may not be paying attention; looking away detected by prototype."
-AUTO_PHONE_MESSAGE = "Phone usage detected by camera prototype."
+AUTO_ATTENTION_MESSAGE = "Attention candidate from sampled analysis; teacher review required."
+AUTO_PHONE_MESSAGE = "Phone-use candidate from sampled analysis; teacher review required."
 AUTO_FACE_COOLDOWN_SECONDS = 15
 ATTENTION_WARNING_COOLDOWN_SECONDS = 60
 PHONE_USAGE_COOLDOWN_SECONDS = 60
@@ -462,11 +462,11 @@ def attention_warning_cooldown_remaining(db: DatabaseSession, session_id: int) -
 
 
 def phone_usage_cooldown_message(remaining_seconds: int) -> str:
-    return f"Phone detected, but cooldown is active. {remaining_seconds} seconds remaining."
+    return f"Phone-use candidate is ready for review, but cooldown is active. {remaining_seconds} seconds remaining."
 
 
 def attention_warning_cooldown_message(remaining_seconds: int) -> str:
-    return f"Looking away detected, but cooldown is active. {remaining_seconds} seconds remaining."
+    return f"Attention candidate is ready for review, but cooldown is active. {remaining_seconds} seconds remaining."
 
 
 def log_auto_face_detected(db: DatabaseSession, session_id: int | str | None) -> tuple[AIEvent | None, str | None]:

@@ -129,7 +129,7 @@ async def log_phone_usage_event(session_id: str = Form(""), db: DatabaseSession 
 
     return {
         "ok": True,
-        "message": "Phone warning logged. Waiting for cooldown.",
+        "message": "Phone-use candidate logged for teacher review. Waiting for cooldown.",
         "event_type": event.event_type,
         "severity": event.severity,
         "snapshot_url": ai_service.event_snapshot_url(event),
@@ -155,7 +155,7 @@ async def log_attention_warning_event(session_id: str = Form(""), db: DatabaseSe
 
     return {
         "ok": True,
-        "message": "Attention warning logged. Waiting for cooldown.",
+        "message": "Attention candidate logged for teacher review. Waiting for cooldown.",
         "event_type": event.event_type,
         "severity": event.severity,
         "snapshot_url": ai_service.event_snapshot_url(event),
@@ -205,7 +205,7 @@ async def analyze_frame(
                 result["phone_cooldown_remaining_seconds"] = cooldown_remaining_seconds
             else:
                 snapshot_url = ai_service.event_snapshot_url(phone_event)
-                event_messages.append("Phone warning logged. Snapshot saved. Waiting for cooldown.")
+                event_messages.append("Phone-use candidate logged for teacher review. Snapshot saved. Waiting for cooldown.")
                 result["phone_cooldown_seconds"] = cooldown_remaining_seconds
                 result["snapshot_url"] = snapshot_url
                 result["phone_event_id"] = phone_event.id if phone_event else None

@@ -99,7 +99,7 @@ class PhoneEventPolicyTests(unittest.TestCase):
         )
 
         self.assertEqual(events[0]["event_type"], "phone_usage")
-        self.assertEqual(events[0]["title"], "Possible phone usage detected")
+        self.assertEqual(events[0]["title"], "Phone-use candidate for review")
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             evidence_directory = Path(temporary_directory)
@@ -138,7 +138,7 @@ class PhoneEventPolicyTests(unittest.TestCase):
 
                 iot_event_service._recent_events.clear()
                 reloaded = iot_event_service.recent_event_files()
-                self.assertEqual(reloaded[0]["title"], "Possible phone usage detected")
+                self.assertEqual(reloaded[0]["title"], "Phone-use candidate for review")
                 self.assertEqual(reloaded[0]["event_type_label"], "Phone Usage")
                 self.assertEqual(reloaded[0]["confidence"], 0.84)
 

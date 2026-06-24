@@ -14,76 +14,76 @@ from app.services.model_adapters import default_model_adapters
 
 MODEL_REQUIREMENTS: dict[str, dict] = {
     "normal_sitting": {
-        "label": "Normal Sitting",
+        "label": "Person candidate",
         "group": "posture",
         "required_models": ["object_detector"],
         "active": True,
         "risk": "low",
         "color": "#2dd4bf",
-        "description": "Basic person monitoring from the current object detector.",
+        "description": "Person candidate from sampled object-model analysis; no posture judgment.",
     },
     "possible_phone_usage": {
-        "label": "Possible Phone Usage",
+        "label": "Phone-use candidate",
         "group": "object_behavior",
         "required_models": ["object_detector"],
         "active": True,
         "risk": "high",
         "color": "#ef4444",
-        "description": "Phone-like object appears near a detected person.",
+        "description": "Phone-like object candidate appears near a person candidate; teacher review required.",
     },
     "possible_head_down": {
-        "label": "Possible Head Down",
+        "label": "Head-down candidate",
         "group": "pose_behavior",
         "required_models": ["pose_model", "head_landmark_model", "temporal_smoothing"],
         "active": False,
         "risk": "high",
         "color": "#ef4444",
-        "description": "Needs pose/head landmarks and repeated confirmation before activation.",
+        "description": "Model required; any sampled candidate needs teacher review.",
     },
     "looking_around": {
-        "label": "Looking Around",
+        "label": "Looking-around candidate",
         "group": "attention_behavior",
         "required_models": ["face_orientation_model", "temporal_smoothing"],
         "active": False,
         "risk": "warning",
         "color": "#a855f7",
-        "description": "Needs head direction or face orientation over time.",
+        "description": "Model required; camera angle and image quality affect sampled candidates.",
     },
     "sleepy_drowsy": {
-        "label": "Sleepy / Drowsy",
+        "label": "Drowsiness candidate (planned)",
         "group": "face_state",
         "required_models": ["face_landmark_model", "eye_state_model", "temporal_smoothing"],
         "active": False,
         "risk": "warning",
         "color": "#f97316",
-        "description": "Needs eye/head landmarks and repeated confirmation.",
+        "description": "Model required; no drowsiness judgment is active.",
     },
     "happy_smile": {
-        "label": "Happy / Smile",
+        "label": "Expression candidate (planned)",
         "group": "emotion",
         "required_models": ["face_emotion_model"],
         "active": False,
         "risk": "low",
         "color": "#22c55e",
-        "description": "Needs a validated face-emotion model.",
+        "description": "Model required; no emotion judgment is active.",
     },
     "laughing": {
-        "label": "Laughing",
+        "label": "Expression candidate (planned)",
         "group": "emotion",
         "required_models": ["face_emotion_model", "temporal_smoothing"],
         "active": False,
         "risk": "low",
         "color": "#22c55e",
-        "description": "Needs a validated face-emotion model and classroom testing.",
+        "description": "Model required; no emotion judgment is active.",
     },
     "sad_tired": {
-        "label": "Sad / Tired",
+        "label": "Expression candidate (planned)",
         "group": "emotion",
         "required_models": ["face_emotion_model"],
         "active": False,
         "risk": "warning",
         "color": "#64748b",
-        "description": "Needs a validated face-emotion model; should be used carefully.",
+        "description": "Model required; no emotion or tiredness judgment is active.",
     },
 }
 
@@ -157,7 +157,7 @@ def model_capability_status() -> dict:
         "tracking_active": False,
         "temporal_smoothing_active": False,
         "safe_mode": True,
-        "message": "Object-based behavior overlay is active. Pose, head, and emotion models are planned, not active.",
+        "message": "Safe AI Mode: sampled object candidates are active. Behavior and emotion models are required and not active.",
         "adapter_status": adapter_status,
         "catalog": catalog,
     }
@@ -176,9 +176,9 @@ def attach_candidate_model_fields(analysis: dict | None) -> dict:
     for detection in detections:
         if not isinstance(detection, dict):
             continue
-        detection.setdefault("attention_label", "Monitoring")
-        detection.setdefault("emotion_label", "Model Required")
-        detection.setdefault("posture_label", "Model Required")
+        detection.setdefault("attention_label", "Teacher review required")
+        detection.setdefault("emotion_label", "Model required")
+        detection.setdefault("posture_label", "Model required")
         detection.setdefault("model_status", "object_model_only")
         detection.setdefault(
             "future_behavior_candidates",

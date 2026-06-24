@@ -26,11 +26,11 @@ EVENT_FILENAME_PATTERN = re.compile(
     r"(?P<microseconds>\d{6})_[0-9a-fA-F]{8}$"
 )
 EVENT_REASON_LABELS = {
-    "phone_usage": "Phone-like object detected above confidence threshold.",
+    "phone_usage": "Phone-like object candidate from sampled analysis; teacher review required.",
     "light_auto_off": "Classroom lights transitioned to auto-off.",
 }
 EVENT_TITLE_LABELS = {
-    "phone_usage": "Possible phone usage detected",
+    "phone_usage": "Phone-use candidate for review",
     "light_auto_off": "Lights auto-off evidence",
 }
 PHONE_LABELS = {"phone", "cell phone", "mobile phone"}

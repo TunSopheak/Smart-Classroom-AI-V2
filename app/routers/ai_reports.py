@@ -119,7 +119,7 @@ def timeline_title(event: dict) -> str:
     if event.get("title"):
         return str(event["title"])
     if event_type == "phone_usage":
-        return "Possible phone usage detected"
+        return "Phone-use candidate for review"
     if event_type == "light_auto_off":
         return "Lights auto-off evidence"
     if event_type in {"possible_head_down", "possible_inattentive"}:

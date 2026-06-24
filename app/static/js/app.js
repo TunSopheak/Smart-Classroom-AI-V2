@@ -202,15 +202,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!behaviorLabel) {
             if (label === "person") {
-                behaviorLabel = "Monitoring Person";
+                behaviorLabel = "Person candidate";
                 color = color || "#2dd4bf";
                 risk = "low";
             } else if (isPhoneLabel(label)) {
-                behaviorLabel = "Phone Object";
+                behaviorLabel = "Phone object candidate";
                 color = color || "#f59e0b";
                 risk = "warning";
             } else {
-                behaviorLabel = detection.label || "Object Detected";
+                behaviorLabel = detection.label ? `${detection.label} candidate` : "Object candidate";
                 color = color || "#60a5fa";
             }
         }
@@ -303,12 +303,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const phoneUsage = Number(counts.possible_phone_usage || 0);
         const phoneObjects = Number(counts.phone_object || 0);
         if (phoneUsage > 0) {
-            return `${phoneUsage} possible phone-usage warning${phoneUsage === 1 ? "" : "s"}`;
+            return `${phoneUsage} phone-use candidate${phoneUsage === 1 ? "" : "s"} for review`;
         }
         if (phoneObjects > 0) {
-            return `${phoneObjects} phone object${phoneObjects === 1 ? "" : "s"} detected`;
+            return `${phoneObjects} phone object candidate${phoneObjects === 1 ? "" : "s"} for review`;
         }
-        return `${detections.length} monitored object${detections.length === 1 ? "" : "s"}`;
+        return `${detections.length} sampled object candidate${detections.length === 1 ? "" : "s"}`;
     }
 
     function renderLiveAiState(state) {
