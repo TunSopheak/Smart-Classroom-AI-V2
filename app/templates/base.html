@@ -133,5 +133,8 @@
     <script src="{{ url_for('static', path='js/iot_snapshot.js') }}?v=ui26"></script>
     <script src="{{ url_for('static', path='js/iot_ai_detection.js') }}?v=ui26"></script>
     {% block scripts %}{% endblock %}
+    {% if request is defined and request.url.path.startswith('/ai-monitoring') %}
+    <script src="{{ url_for('static', path='js/ai_demo_overlay_patch.js') }}?v=ui28"></script>
+    {% endif %}
 </body>
 </html>
