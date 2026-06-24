@@ -447,6 +447,9 @@ endblock %} {% block content %}
         </button>
       </div>
     </div>
+    <p class="helper-note compact-note">
+      Computer camera works best from localhost. Phone browser camera requires HTTPS; use Flutter/native camera later.
+    </p>
     <p id="camera-status" class="monitor-message">Camera stopped.</p>
     <!-- <video id="ai-video" class="camera-preview monitor-camera" autoplay muted playsinline></video> -->
     <div class="video-overlay-wrap">
@@ -1790,9 +1793,13 @@ endblock %} {% block content %}
       clearAiOverlay();
     }
 
+    const browserCameraRequirementMessage =
+      "Browser camera requires localhost or HTTPS. On this laptop, open http://127.0.0.1:8000/ai-monitoring for computer camera. Use the LAN IP only for viewing dashboard from phone/team devices.";
+
     startButton.addEventListener("click", async () => {
       if (!navigator.mediaDevices?.getUserMedia) {
-        setStatus("Camera is not supported in this browser.");
+        setStatus(browserCameraRequirementMessage);
+        setDetectionStatus(browserCameraRequirementMessage);
         return;
       }
       try {
@@ -1817,8 +1824,8 @@ endblock %} {% block content %}
             : "Automatic face counting is not supported in this browser.",
         );
       } catch (error) {
-        setStatus("Camera permission denied or unavailable.");
-        setDetectionStatus("Camera permission denied.");
+        setStatus(browserCameraRequirementMessage);
+        setDetectionStatus(browserCameraRequirementMessage);
       }
     });
 
