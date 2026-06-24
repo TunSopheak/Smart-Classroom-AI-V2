@@ -140,6 +140,25 @@ def phone_overlaps_person(phone_box: list[float], person_box: list[float]) -> bo
     return person_box[0] <= phone_center_x <= person_box[2] and person_box[1] <= phone_center_y <= person_box[3]
 
 
+def phone_person_match_score(
+    phone_box: list[float],
+    person_box: list[float],
+) -> float:
+    """Score one phone/person match without assigning the phone to every box."""
+
+    phone_area = box_area(phone_box)
+    if phone_area <= 0 or not phone_overlaps_person(phone_box, person_box):
+        return 0.0
+    overlap_ratio = intersection_area(phone_box, person_box) / phone_area
+    phone_center_x = (phone_box[0] + phone_box[2]) / 2
+    phone_center_y = (phone_box[1] + phone_box[3]) / 2
+    center_inside = (
+        person_box[0] <= phone_center_x <= person_box[2]
+        and person_box[1] <= phone_center_y <= person_box[3]
+    )
+    return overlap_ratio + (0.01 if center_inside else 0.0)
+
+
 def style_for(behavior: str) -> dict[str, str]:
     return BEHAVIOR_STYLES.get(behavior, BEHAVIOR_STYLES["object_detected"])
 
@@ -152,6 +171,65 @@ def confidence_percent(value) -> int:
     if confidence <= 1:
         confidence *= 100
     return max(0, min(100, round(confidence)))
+
+
+def safe_unit_confidence(value) -> float | None:
+    try:
+        confidence = float(value)
+    except (TypeError, ValueError):
+        return None
+    if confidence > 1:
+        confidence /= 100
+    return round(max(0.0, min(1.0, confidence)), 3)
+
+
+def attention_signal_for_track(analysis: dict, track_id: int) -> dict | None:
+    """Resolve only explicitly per-student signals; never copy one global signal."""
+
+    signals = analysis.get("student_attention_signals")
+    if isinstance(signals, dict):
+        candidate = signals.get(str(track_id)) or signals.get(f"Student {track_id}")
+        return candidate if isinstance(candidate, dict) else None
+    if isinstance(signals, list):
+        for candidate in signals:
+            if not isinstance(candidate, dict):
+                continue
+            if candidate.get("track_id") == track_id or candidate.get("student_label") == f"Student {track_id}":
+                return candidate
+    return None
+
+
+def attention_candidate_status(analysis: dict, track_id: int) -> tuple[str, float | None, str]:
+    signal = attention_signal_for_track(analysis, track_id)
+    if not signal or not (
+        signal.get("validated")
+        or signal.get("pose_landmarks_available")
+        or signal.get("head_orientation_available")
+    ):
+        return (
+            "model_required",
+            None,
+            "Attention model required; a person box alone cannot create an attention candidate.",
+        )
+
+    is_candidate = bool(
+        signal.get("attention_candidate")
+        or signal.get("possible_inattentive")
+    )
+    confidence = safe_unit_confidence(
+        signal.get("attention_confidence", signal.get("inattentive_confidence"))
+    )
+    if is_candidate:
+        return (
+            "candidate",
+            confidence,
+            "Attention candidate from a validated per-student signal; teacher review required.",
+        )
+    return (
+        "none",
+        confidence,
+        "No attention candidate in the validated per-student sampled signal.",
+    )
 
 
 def apply_overlay_fields(
@@ -176,6 +254,11 @@ def apply_overlay_fields(
     if track_id is not None:
         detection["track_id"] = track_id
         detection["student_label"] = f"Student {track_id}"
+        detection["overlay_label"] = (
+            f"Student {track_id} · {behavior_label} {confidence}%"
+            if confidence
+            else f"Student {track_id} · {behavior_label}"
+        )
     return detection
 
 
@@ -212,15 +295,20 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
     track_ids = {person_index: order + 1 for order, person_index in enumerate(sorted_person_indexes)}
 
     person_phone_match: dict[int, int] = {}
-    for person_index in person_indexes:
-        person_box = boxes.get(person_index)
-        if not person_box:
+    person_phone_scores: dict[int, float] = {}
+    for phone_index in phone_indexes:
+        phone_box = boxes.get(phone_index)
+        if not phone_box:
             continue
-        for phone_index in phone_indexes:
-            phone_box = boxes.get(phone_index)
-            if phone_box and phone_overlaps_person(phone_box, person_box):
-                person_phone_match[person_index] = phone_index
-                break
+        scored_people = [
+            (phone_person_match_score(phone_box, boxes[person_index]), person_index)
+            for person_index in person_indexes
+            if person_index in boxes
+        ]
+        score, person_index = max(scored_people, default=(0.0, -1))
+        if score > person_phone_scores.get(person_index, 0.0):
+            person_phone_match[person_index] = phone_index
+            person_phone_scores[person_index] = score
 
     behavior_counts = {
         "normal_monitoring": 0,
@@ -262,6 +350,77 @@ def enrich_analysis_for_behavior_overlay(analysis: dict | None) -> dict:
             apply_overlay_fields(detection, "object_detected")
 
     enriched["detections"] = detections
+    student_candidates = []
+    for person_index in sorted_person_indexes:
+        detection = detections[person_index]
+        if not isinstance(detection, dict):
+            continue
+        track_id = track_ids[person_index]
+        phone_index = person_phone_match.get(person_index)
+        phone_detection = detections[phone_index] if phone_index is not None else None
+        attention_status, attention_confidence, attention_reason = attention_candidate_status(
+            enriched,
+            track_id,
+        )
+        phone_candidate = isinstance(phone_detection, dict)
+        attention_label = {
+            "candidate": "Attention candidate · teacher review",
+            "none": "No attention candidate",
+            "model_required": "Attention model required",
+        }[attention_status]
+        candidate_label = (
+            "Phone-use candidate"
+            if phone_candidate
+            else (
+                "Attention candidate · teacher review"
+                if attention_status == "candidate"
+                else "Person candidate"
+            )
+        )
+        detection["attention_label"] = attention_label
+        detection["attention_confidence"] = attention_confidence
+        detection["student_candidate_label"] = candidate_label
+        candidate_confidence = (
+            safe_unit_confidence(phone_detection.get("confidence"))
+            if phone_candidate
+            else (
+                attention_confidence
+                if attention_status == "candidate" and attention_confidence is not None
+                else safe_unit_confidence(detection.get("confidence"))
+            )
+        )
+        detection["candidate_confidence"] = candidate_confidence
+        candidate_percent = confidence_percent(candidate_confidence)
+        detection["overlay_label"] = (
+            f"Student {track_id} · {candidate_label} {candidate_percent}%"
+            if candidate_percent
+            else f"Student {track_id} · {candidate_label}"
+        )
+        reason = (
+            detection.get("behavior_reason")
+            if phone_candidate
+            else attention_reason
+        )
+        student_candidates.append(
+            {
+                "student_label": f"Student {track_id}",
+                "track_id": track_id,
+                "person_confidence": safe_unit_confidence(detection.get("confidence")),
+                "box": boxes.get(person_index),
+                "phone_candidate": phone_candidate,
+                "phone_confidence": (
+                    safe_unit_confidence(phone_detection.get("confidence"))
+                    if phone_candidate
+                    else None
+                ),
+                "attention_candidate": attention_status,
+                "attention_confidence": attention_confidence,
+                "candidate_label": candidate_label,
+                "reason": reason,
+                "frame_quality_label": enriched.get("frame_quality_label", "unknown"),
+            }
+        )
+    enriched["student_candidates"] = student_candidates
     enriched = multibehavior_model_service.attach_candidate_model_fields(enriched)
     enriched["behavior_summary"] = {
         "schema_version": "behavior-overlay-v2",

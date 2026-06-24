@@ -13,6 +13,7 @@ from app.services import (
     ai_service,
     behavior_detection_service,
     behavior_overlay_service,
+    camera_quality_service,
     iot_service,
     multibehavior_model_service,
 )
@@ -182,12 +183,46 @@ async def analyze_frame(
             status_code=400,
         )
 
+    frame_quality = camera_quality_service.evaluate_live_frame_quality(image_bytes)
+    object_analysis = get_yolo_detector().analyze(image_bytes)
+    object_analysis.update(frame_quality)
     result = behavior_overlay_service.enrich_analysis_for_behavior_overlay(
-        get_yolo_detector().analyze(image_bytes)
+        object_analysis
     )
+    result.update(
+        {
+            "analysis_source": "computer_camera",
+            "ai_mode": "advanced_safe_mode",
+            "frame_type": "browser_camera_sampled_frame",
+            "result_type": "candidate_for_review",
+        }
+    )
+    confidences = [
+        float(detection.get("confidence") or 0)
+        for detection in result.get("detections", [])
+        if isinstance(detection, dict)
+    ]
+    result["latest_confidence"] = max(confidences) if confidences else None
+    result["candidate_warning"] = (
+        "Low confidence candidate: teacher review required."
+        if confidences and result["latest_confidence"] < 0.5
+        else ""
+    )
+    result["warnings"] = [
+        warning
+        for warning in (
+            result.get("frame_quality_warning"),
+            result.get("candidate_warning"),
+        )
+        if warning
+    ]
     event_messages = []
 
     if result["available"]:
+        result["message"] = (
+            "Advanced AI Safe Mode completed sampled computer camera analysis. "
+            "Candidates require teacher review."
+        )
         occupancy, occupancy_error = ai_service.update_detected_count(db, active_session.id, result["person_count"])
         if occupancy_error:
             event_messages.append(occupancy_error)

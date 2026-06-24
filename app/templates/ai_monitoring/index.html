@@ -436,7 +436,8 @@ endblock %} {% block content %}
     <div class="section-heading">
       <div>
         <p class="eyebrow">Camera Controls</p>
-        <h3>Live Preview</h3>
+        <h3>Computer Camera AI Preview</h3>
+        <span class="status active">Recommended AI Source</span>
       </div>
       <div class="button-row">
         <button id="start-camera" class="button primary" type="button">
@@ -449,6 +450,9 @@ endblock %} {% block content %}
     </div>
     <p class="helper-note compact-note">
       Computer camera works best from localhost. Phone browser camera requires HTTPS; use Flutter/native camera later.
+    </p>
+    <p class="helper-note compact-note">
+      Computer camera is used for advanced AI analysis because image quality is clearer. Raspberry Pi remains the IoT live stream source.
     </p>
     <p id="camera-status" class="monitor-message">Camera stopped.</p>
     <!-- <video id="ai-video" class="camera-preview monitor-camera" autoplay muted playsinline></video> -->
@@ -466,6 +470,33 @@ endblock %} {% block content %}
         aria-hidden="true"
       ></canvas>
     </div>
+    <div class="backend-ai-grid" aria-label="Advanced computer camera AI status">
+      <article class="summary-card metric-card">
+        <span>Source</span><strong>Computer Camera</strong>
+      </article>
+      <article class="summary-card metric-card">
+        <span>AI Mode</span><strong>Advanced Safe Mode</strong>
+      </article>
+      <article class="summary-card metric-card">
+        <span>Frame Type</span><strong>Browser camera sampled frame</strong>
+      </article>
+      <article class="summary-card metric-card">
+        <span>Result Type</span><strong>Candidate for review</strong>
+      </article>
+      <article class="summary-card metric-card">
+        <span>Person Count</span><strong id="backend-person-count">-</strong>
+      </article>
+      <article class="summary-card metric-card">
+        <span>Phone Candidate Count</span><strong id="backend-phone-count">-</strong>
+      </article>
+      <article class="summary-card metric-card">
+        <span>Latest Confidence</span><strong id="advanced-latest-confidence">-</strong>
+      </article>
+      <article class="summary-card metric-card">
+        <span>Frame Quality</span><strong id="advanced-frame-quality">Unknown</strong>
+      </article>
+    </div>
+    <p id="advanced-frame-quality-reason" class="muted">Frame quality has not been sampled yet.</p>
   </section>
 
   <div class="monitor-control-stack">
@@ -513,44 +544,34 @@ endblock %} {% block content %}
     <section class="monitor-section">
       <div class="section-heading">
         <div>
-          <p class="eyebrow">Backend AI Engine</p>
-          <h3>YOLO / OpenCV Analysis</h3>
+          <p class="eyebrow">Advanced Computer Camera AI</p>
+          <h3>YOLO / OpenCV Candidate Analysis</h3>
         </div>
         <strong id="backend-model-status" class="status scheduled"
           >Not started</strong
         >
       </div>
       <p class="helper-note compact-note">
-        Backend AI Engine is a prototype using YOLO/OpenCV. Accuracy depends on
-        model, camera angle, lighting, and hardware performance.
+        Advanced AI Safe Mode uses sampled computer camera frames. Results are
+        candidates for review and depend on model, angle, lighting, and frame quality.
       </p>
-      <div class="backend-ai-grid">
-        <article class="summary-card metric-card">
-          <span>Backend Person Count</span>
-          <strong id="backend-person-count">-</strong>
-        </article>
-        <article class="summary-card metric-card">
-          <span>Backend Phone Count</span>
-          <strong id="backend-phone-count">-</strong>
-        </article>
-      </div>
       <div class="control-card">
         <div>
-          <strong>Detected Objects</strong>
+          <strong>Candidate Results</strong>
           <p id="backend-ai-message" class="monitor-message">
-            Backend AI analysis is not started.
+            Advanced AI analysis is not started.
           </p>
           <div id="backend-detections" class="detection-list">
-            No backend detections yet.
+            No candidate results yet.
           </div>
         </div>
         <div class="control-status">
           <div class="button-row">
             <button id="start-backend-ai" class="button" type="button" disabled>
-              Start Backend AI Analysis
+              Start Advanced AI Analysis
             </button>
             <button id="stop-backend-ai" class="button" type="button" disabled>
-              Stop Backend AI Analysis
+              Stop Advanced AI Analysis
             </button>
           </div>
         </div>
@@ -636,6 +657,25 @@ endblock %} {% block content %}
             </button>
           </div>
         </div>
+      </div>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Sampled Frame Summary</p>
+          <h4>Per-Student Candidate Review</h4>
+        </div>
+        <span class="status info">Per-frame tracking only</span>
+      </div>
+      <p class="helper-note compact-note">
+        Student labels are temporary left-to-right labels for each sampled frame. They are not real identity recognition.
+      </p>
+      <p class="muted">
+        The system shows per-student candidate results from sampled frames. Student labels are temporary per-frame labels, not real identity recognition. Attention results require validated head/pose signals, so the current system only shows candidates for teacher review.
+      </p>
+      <div id="per-student-candidate-list" class="backend-ai-grid" aria-live="polite">
+        <article class="summary-card metric-card">
+          <strong>Waiting for sampled analysis</strong>
+          <small class="muted">Start the computer camera and Advanced AI analysis.</small>
+        </article>
       </div>
     </section>
 
@@ -745,7 +785,7 @@ endblock %} {% block content %}
 
 <div class="helper-note evidence-policy-note">
   <strong>Evidence snapshot policy</strong>
-  <span>Routine AI samples are temporary. Report evidence is retained only for qualified alert events, currently including supported phone-object alerts and light auto-off transitions. Unexpected occupancy evidence and sleeping/head-down evidence are planned capabilities.</span>
+  <span>Routine AI samples are temporary. Report evidence is retained only for qualified candidate events, currently including supported phone-object candidates and light auto-off transitions. Unexpected occupancy evidence and drowsiness/head-down candidate evidence are planned capabilities.</span>
 </div>
 
 <section id="recent-ai-events" class="table-panel ai-events monitor-events-section anchor-section">
@@ -854,8 +894,20 @@ endblock %} {% block content %}
     const backendModelStatus = document.getElementById("backend-model-status");
     const backendPersonCount = document.getElementById("backend-person-count");
     const backendPhoneCount = document.getElementById("backend-phone-count");
+    const advancedLatestConfidence = document.getElementById(
+      "advanced-latest-confidence",
+    );
+    const advancedFrameQuality = document.getElementById(
+      "advanced-frame-quality",
+    );
+    const advancedFrameQualityReason = document.getElementById(
+      "advanced-frame-quality-reason",
+    );
     const backendAiMessage = document.getElementById("backend-ai-message");
     const backendDetections = document.getElementById("backend-detections");
+    const perStudentCandidateList = document.getElementById(
+      "per-student-candidate-list",
+    );
     const video = document.getElementById("ai-video");
     const overlayCanvas = document.getElementById("ai-overlay-canvas");
     const overlayContext = overlayCanvas
@@ -1036,9 +1088,27 @@ endblock %} {% block content %}
       }
     }
 
+    function candidateLabelForDetection(item) {
+      const rawLabel = String(item.label || item.class_name || "object");
+      const normalized = rawLabel.toLowerCase();
+      if (normalized.includes("phone")) {
+        return "Phone-use candidate";
+      }
+      if (item.student_candidate_label) {
+        return `${item.student_label ? `${item.student_label} · ` : ""}${item.student_candidate_label}`;
+      }
+      if (item.behavior_label) {
+        return `${item.student_label ? `${item.student_label} · ` : ""}${item.behavior_label}`;
+      }
+      if (normalized === "person") {
+        return "Person candidate";
+      }
+      return `${rawLabel} candidate`;
+    }
+
     function renderBackendDetections(detections) {
       if (!detections || detections.length === 0) {
-        backendDetections.textContent = "No objects detected.";
+        backendDetections.textContent = "No candidates in the latest sampled frame.";
         return;
       }
 
@@ -1046,8 +1116,64 @@ endblock %} {% block content %}
       detections.slice(0, 8).forEach((item) => {
         const badge = document.createElement("span");
         badge.className = "detection-badge";
-        badge.textContent = `${item.label || "Object"} candidate ${Math.round(item.confidence * 100)}%`;
+        const confidence = Number(
+          item.candidate_confidence ?? item.confidence ?? 0,
+        );
+        badge.textContent = `${candidateLabelForDetection(item)} ${Math.round(confidence * 100)}%`;
         backendDetections.appendChild(badge);
+      });
+    }
+
+    function renderStudentCandidates(candidates) {
+      if (!perStudentCandidateList) {
+        return;
+      }
+      perStudentCandidateList.innerHTML = "";
+      if (!Array.isArray(candidates) || candidates.length === 0) {
+        const emptyCard = document.createElement("article");
+        emptyCard.className = "summary-card metric-card";
+        emptyCard.textContent = "No person candidates in the latest sampled frame.";
+        perStudentCandidateList.appendChild(emptyCard);
+        return;
+      }
+
+      const attentionLabels = {
+        candidate: "Candidate",
+        none: "None",
+        model_required: "Model required",
+      };
+      const qualityLabels = {
+        good: "Good",
+        low_light: "Low light",
+        blurry: "Blurry",
+        low_quality_frame: "Low-quality frame",
+      };
+
+      candidates.forEach((candidate) => {
+        const card = document.createElement("article");
+        card.className = "summary-card metric-card";
+        const title = document.createElement("strong");
+        title.textContent = candidate.student_label || "Student candidate";
+        card.appendChild(title);
+
+        const phoneConfidence =
+          typeof candidate.phone_confidence === "number"
+            ? ` (${Math.round(candidate.phone_confidence * 100)}%)`
+            : "";
+        const details = [
+          `Person confidence: ${typeof candidate.person_confidence === "number" ? `${Math.round(candidate.person_confidence * 100)}%` : "Unknown"}`,
+          `Phone candidate: ${candidate.phone_candidate ? `Yes${phoneConfidence}` : "No"}`,
+          `Attention candidate: ${attentionLabels[candidate.attention_candidate] || "Model required"}`,
+          `Reason: ${candidate.reason || "Teacher review required."}`,
+          `Frame quality: ${qualityLabels[candidate.frame_quality_label] || "Unknown"}`,
+        ];
+        details.forEach((text) => {
+          const line = document.createElement("small");
+          line.className = "muted";
+          line.textContent = text;
+          card.appendChild(line);
+        });
+        perStudentCandidateList.appendChild(card);
       });
     }
 
@@ -1127,7 +1253,9 @@ endblock %} {% block content %}
         }
 
         const label = item.label || item.class_name || "object";
-        const confidence = Number(item.confidence ?? item.score ?? 0);
+        const confidence = Number(
+          item.candidate_confidence ?? item.confidence ?? item.score ?? 0,
+        );
         const isWarning = label.toLowerCase().includes("phone");
 
         const x = box.x1 * scaleX;
@@ -1147,7 +1275,7 @@ endblock %} {% block content %}
 
         overlayContext.strokeRect(x, y, width, height);
 
-        const text = `${label} candidate ${Math.round(confidence * 100)}%`;
+        const text = `${candidateLabelForDetection(item)} ${Math.round(confidence * 100)}%`;
         overlayContext.font =
           "600 13px system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif";
         const textWidth = overlayContext.measureText(text).width + 12;
@@ -1191,7 +1319,7 @@ endblock %} {% block content %}
       const result = await response.json();
       if (!result.ok) {
         setBackendAiStatus(
-          result.message || "Backend AI analysis is unavailable.",
+          result.message || "Advanced AI analysis is unavailable.",
           "status warning",
         );
         return false;
@@ -1199,7 +1327,24 @@ endblock %} {% block content %}
 
       backendPersonCount.textContent = result.person_count;
       backendPhoneCount.textContent = result.phone_count;
+      advancedLatestConfidence.textContent =
+        typeof result.latest_confidence === "number"
+          ? `${Math.round(result.latest_confidence * 100)}%`
+          : "No candidate";
+      const frameQualityLabels = {
+        good: "Good",
+        low_light: "Low light",
+        blurry: "Blurry",
+        low_quality_frame: "Low-quality frame",
+      };
+      advancedFrameQuality.textContent =
+        frameQualityLabels[result.frame_quality_label] || "Unknown";
+      advancedFrameQuality.className =
+        result.frame_quality_label === "good" ? "status active" : "status warning";
+      advancedFrameQualityReason.textContent =
+        result.frame_quality_reason || "Frame quality is unknown.";
       renderBackendDetections(result.detections);
+      renderStudentCandidates(result.student_candidates);
       latestBackendImageSize = {
         width:
           result.image_width || result.frame_width || video.videoWidth || 0,
@@ -1218,14 +1363,18 @@ endblock %} {% block content %}
       if (result.available) {
         backendModelStatus.textContent = "Model active";
         backendModelStatus.className = "status active";
-        const backendMessage =
+        const backendMessage = [
           result.event_message ||
-          result.message ||
-          "Backend AI analysis completed.";
+            result.message ||
+            "Advanced AI Safe Mode completed sampled analysis.",
+          ...(result.warnings || []),
+        ]
+          .filter(Boolean)
+          .join(" ");
         showBackendAiMessage(backendMessage, result.snapshot_url);
       } else {
         setBackendAiStatus(
-          result.message || "Backend YOLO model is unavailable.",
+          result.message || "Advanced AI model is unavailable.",
           "status warning",
         );
       }
@@ -1453,7 +1602,10 @@ endblock %} {% block content %}
       backendAiRunning = true;
       startBackendAiButton.disabled = true;
       stopBackendAiButton.disabled = false;
-      setBackendAiStatus("Analyzing frames", "status info");
+      setBackendAiStatus(
+        "Advanced AI Safe Mode is analyzing sampled computer camera frames.",
+        "status info",
+      );
       await analyzeBackendFrameLoop();
     }
 
@@ -1949,7 +2101,7 @@ endblock %} {% block content %}
       }
       if (!stream) {
         setBackendAiStatus(
-          "Start camera before backend AI analysis.",
+          "Start the computer camera before advanced AI analysis.",
           "status warning",
         );
         return;
