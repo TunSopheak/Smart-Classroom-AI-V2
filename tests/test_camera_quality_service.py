@@ -2,11 +2,37 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from app.services.camera_quality_service import classify_camera_quality, summarize_camera_quality
+from app.services.camera_quality_service import (
+    LOW_QUALITY_WARNING,
+    classify_camera_quality,
+    classify_live_frame_quality,
+    summarize_camera_quality,
+)
 from tools import camera_quality_check
 
 
 class CameraQualityServiceTests(unittest.TestCase):
+    def test_live_frame_quality_labels_good_frame(self):
+        result = classify_live_frame_quality(115, 120)
+
+        self.assertEqual(result["frame_quality_label"], "good")
+        self.assertEqual(result["brightness_score"], 115.0)
+        self.assertEqual(result["blur_score"], 120.0)
+        self.assertEqual(result["frame_quality_warning"], "")
+
+    def test_live_frame_quality_labels_dark_and_blurry_frame(self):
+        result = classify_live_frame_quality(25, 20)
+
+        self.assertEqual(result["frame_quality_label"], "low_quality_frame")
+        self.assertEqual(result["frame_quality_warning"], LOW_QUALITY_WARNING)
+
+    def test_live_frame_quality_distinguishes_low_light_and_blur(self):
+        low_light = classify_live_frame_quality(30, 100)
+        blurry = classify_live_frame_quality(100, 25)
+
+        self.assertEqual(low_light["frame_quality_label"], "low_light")
+        self.assertEqual(blurry["frame_quality_label"], "blurry")
+
     def test_good_quality_classification(self):
         result = classify_camera_quality(
             {

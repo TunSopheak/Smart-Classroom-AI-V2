@@ -16,6 +16,7 @@ MIN_BRIGHTNESS = 60.0
 MAX_BRIGHTNESS = 190.0
 MIN_CONTRAST = 25.0
 MIN_SHARPNESS = 50.0
+LOW_QUALITY_WARNING = "Low-quality frame: AI result is less reliable."
 
 
 def _safe_float(value: Any) -> float | None:
@@ -66,6 +67,66 @@ def classify_camera_quality(metrics: dict[str, Any]) -> dict[str, Any]:
         "recommendations": recommendations,
         "safe_mode": True,
     }
+
+
+def classify_live_frame_quality(
+    brightness_score: Any,
+    blur_score: Any,
+) -> dict[str, Any]:
+    """Return dashboard-safe quality labels for a sampled browser frame."""
+
+    brightness = _safe_float(brightness_score)
+    blur = _safe_float(blur_score)
+    low_light = brightness is not None and brightness < MIN_BRIGHTNESS
+    blurry = blur is not None and blur < MIN_SHARPNESS
+
+    if brightness is None or blur is None:
+        label = "low_quality_frame"
+        reason = "Frame quality could not be measured completely."
+    elif low_light and blurry:
+        label = "low_quality_frame"
+        reason = "The sampled frame is dark and blurry."
+    elif low_light:
+        label = "low_light"
+        reason = "The sampled frame is too dark for reliable AI review."
+    elif blurry:
+        label = "blurry"
+        reason = "The sampled frame appears blurry or soft."
+    else:
+        label = "good"
+        reason = "Brightness and sharpness are suitable for sampled analysis."
+
+    is_low_quality = label != "good"
+    return {
+        "frame_quality_label": label,
+        "frame_quality_reason": reason,
+        "brightness_score": round(brightness, 3) if brightness is not None else None,
+        "blur_score": round(blur, 3) if blur is not None else None,
+        "frame_quality_warning": LOW_QUALITY_WARNING if is_low_quality else "",
+    }
+
+
+def evaluate_live_frame_quality(image_bytes: bytes) -> dict[str, Any]:
+    """Estimate brightness and Laplacian blur for one sampled camera frame."""
+
+    try:
+        import cv2  # type: ignore
+        import numpy as np  # type: ignore
+    except Exception:  # pragma: no cover - optional dependency path
+        return classify_live_frame_quality(None, None)
+
+    image_array = np.frombuffer(image_bytes, dtype=np.uint8)
+    frame = cv2.imdecode(image_array, cv2.IMREAD_COLOR)
+    if frame is None:
+        result = classify_live_frame_quality(None, None)
+        result["frame_quality_reason"] = "The sampled frame could not be decoded for quality review."
+        return result
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    return classify_live_frame_quality(
+        float(gray.mean()),
+        float(cv2.Laplacian(gray, cv2.CV_64F).var()),
+    )
 
 
 def analyze_image_quality(image_path: str | Path) -> dict[str, Any]:
