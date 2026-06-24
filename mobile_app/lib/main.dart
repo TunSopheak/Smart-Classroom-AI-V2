@@ -53,7 +53,7 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   final TextEditingController _apiController = TextEditingController(
-    text: 'http://10.86.94.199:8000',
+    text: 'http://10.158.139.199:8000',
   );
 
   int _selectedIndex = 0;
@@ -103,10 +103,11 @@ class _HomePageState extends State<HomePage> {
         _error = error.toString();
       });
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _loading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _loading = false;
+        });
+      }
     }
   }
 
@@ -348,7 +349,7 @@ class SettingsPage extends StatelessWidget {
           controller: controller,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
-            hintText: 'http://10.86.94.199:8000 or ngrok URL',
+            hintText: 'http://10.158.139.199:8000 or ngrok URL',
           ),
           keyboardType: TextInputType.url,
         ),
@@ -420,3 +421,6 @@ class InfoCard extends StatelessWidget {
     );
   }
 }
+
+
+
