@@ -1,6 +1,6 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 
-{% block title %}AI Alert Report Center - Smart Classroom V2{% endblock %}
+{% block title %}Classroom Review Report - Smart Classroom V2{% endblock %}
 
 {% block content %}
 <section class="page-hero">
@@ -10,11 +10,11 @@
             <span class="breadcrumb-separator">&gt;</span>
             <a href="/ai-monitoring">AI Monitoring</a>
             <span class="breadcrumb-separator">&gt;</span>
-            <span>AI Alert Report Center</span>
+            <span>Classroom Review Report</span>
         </nav>
-        <p class="eyebrow">Event Evidence UX</p>
-        <h2>AI Alert Report Center</h2>
-        <p class="page-subtitle">Review retained alert evidence, behavior timeline context, and classroom event history.</p>
+        <p class="eyebrow">Teacher Review</p>
+        <h2>Classroom Review Report</h2>
+        <p class="page-subtitle">Review saved candidate snapshots and session context.</p>
     </div>
     <div class="page-actions">
         <a class="button" href="/dashboard">Dashboard</a>
@@ -26,9 +26,9 @@
 
 <section class="alert-evidence-policy" aria-labelledby="alert-evidence-policy-title">
     <div>
-        <p class="eyebrow">Evidence Retention Policy</p>
-        <h3 id="alert-evidence-policy-title">Temporary AI samples are auto-cleaned. Only alert-worthy evidence is saved here.</h3>
-        <p>Normal person detection updates monitoring and occupancy; it does not create permanent evidence.</p>
+        <p class="eyebrow">Evidence Policy</p>
+        <h3 id="alert-evidence-policy-title">Routine frames stay temporary. Only review-worthy candidates are saved.</h3>
+        <p>Normal monitoring updates occupancy only; candidate events create review evidence.</p>
     </div>
     <div class="alert-policy-grid">
         <div>
@@ -72,8 +72,8 @@
 <section class="alert-evidence-section" aria-labelledby="alert-timeline-title">
     <div class="section-heading">
         <div>
-            <p class="eyebrow">Behavior &amp; Alert Timeline</p>
-            <h3 id="alert-timeline-title">Saved Evidence Timeline</h3>
+            <p class="eyebrow">Review Timeline</p>
+            <h3 id="alert-timeline-title">Saved Candidate Evidence</h3>
             <p class="muted">Newest retained evidence appears first. Timeline items are built from saved alert snapshots and metadata when available.</p>
         </div>
         <span class="status info">{{ evidence_timeline|length }} timeline items</span>
@@ -138,7 +138,7 @@
     <div class="section-heading">
         <div>
             <p class="eyebrow">Saved Alert Snapshots</p>
-            <h3 id="alert-evidence-title">AI Alert Evidence</h3>
+            <h3 id="alert-evidence-title">Snapshot Evidence</h3>
             <p class="muted">Newest retained evidence files from the event snapshot store.</p>
         </div>
         <span class="status info">{{ evidence_status.total_event_files }} saved</span>
@@ -189,7 +189,7 @@
 <div class="ai-event-log-heading">
     <div>
         <p class="eyebrow">Search &amp; Export</p>
-        <h3>AI Event Log</h3>
+        <h3>Event Log</h3>
     </div>
     <p class="muted">Database events may include monitoring records without a retained evidence image.</p>
 </div>
@@ -389,3 +389,4 @@
     </table>
 </section>
 {% endblock %}
+

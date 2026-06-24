@@ -1,4 +1,4 @@
-{% extends "base.html" %} {% block title %}AI Monitoring - Smart Classroom V2{%
+﻿{% extends "base.html" %} {% block title %}AI Monitoring - Smart Classroom V2{%
 endblock %} {% block content %}
 <section class="page-hero">
   <div>
@@ -9,8 +9,7 @@ endblock %} {% block content %}
     </nav>
     <h2>AI Monitoring</h2>
     <p class="page-subtitle">
-      Monitor selected active classroom sessions with attendance, AI detection,
-      and device status.
+      Support teachers with candidate highlights, attendance context, and review snapshots.
     </p>
   </div>
   <div class="page-actions">
@@ -59,7 +58,7 @@ endblock %} {% block content %}
       <span>AI Sampling</span><strong>{% if latest_analysis_state.available %}Completed{% else %}Waiting{% endif %}</strong><small>{{ latest_analysis_state.analyzed_at or "No completed sample yet" }}</small>
     </article>
     <article id="demoReadySession" class="demo-readiness-item {% if active_session %}ready{% else %}neutral{% endif %}">
-      <span>Active Session</span><strong>{% if active_session %}Selected{% else %}Not Selected{% endif %}</strong><small>{% if active_session %}{{ active_session.class_group.class_code }} · {{ active_session.subject.code }}{% else %}Select a session for occupancy sync{% endif %}</small>
+      <span>Active Session</span><strong>{% if active_session %}Selected{% else %}Not Selected{% endif %}</strong><small>{% if active_session %}{{ active_session.class_group.class_code }} Â· {{ active_session.subject.code }}{% else %}Select a session for occupancy sync{% endif %}</small>
     </article>
     <article id="demoReadyOccupancy" class="demo-readiness-item {% if latest_analysis_state.session_sync_status == 'active' %}ready{% elif latest_analysis_state.session_sync_status == 'not_active' %}warning{% else %}neutral{% endif %}">
       <span>Occupancy Sync</span>
@@ -2574,3 +2573,4 @@ endblock %} {% block content %}
 </script>
 
 {% endblock %}
+

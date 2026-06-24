@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -41,7 +41,7 @@
             <span></span>
         </button>
         <a class="brand-lockup" href="/dashboard" aria-label="Smart Classroom dashboard">
-            <span>Smart Classroom · Version 2</span>
+            <span>Smart Classroom Â· Version 2</span>
             <h1>Smart Classroom AI Monitoring</h1>
         </a>
         <span class="header-context">AI + IoT Demo</span>
@@ -133,8 +133,10 @@
     <script src="{{ url_for('static', path='js/iot_snapshot.js') }}?v=ui26"></script>
     <script src="{{ url_for('static', path='js/iot_ai_detection.js') }}?v=ui26"></script>
     {% block scripts %}{% endblock %}
+    {% if request is defined and request.url.path.startswith('/ai-monitoring') %}<script src="{{ url_for('static', path='js/ai_professional_review_ui.js') }}?v=ui31"></script>{% endif %}
     {% if request is defined and request.url.path.startswith('/ai-monitoring') %}
-    <script src="{{ url_for('static', path='js/ai_demo_overlay_patch.js') }}?v=ui30"></script>
+    <script src="{{ url_for('static', path='js/ai_demo_overlay_patch.js') }}?v=ui31"></script>
     {% endif %}
 </body>
 </html>
+
