@@ -20,6 +20,7 @@ from app.models import (
 )
 from app.routers import (
     ai_monitoring,
+    ai_monitoring_head_pose,
     ai_reports,
     attendance as attendance_router,
     classes,
@@ -55,8 +56,6 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Demo CORS for Flutter web/mobile MVP testing.
-# Tighten this before any real public production deployment.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -77,6 +76,7 @@ app.include_router(schedules.router)
 app.include_router(sessions.router)
 app.include_router(attendance_router.router)
 app.include_router(attendance_router.qr_router)
+app.include_router(ai_monitoring_head_pose.router)
 app.include_router(ai_monitoring.router)
 app.include_router(ai_reports.router)
 app.include_router(ai_reports.reports_router)
