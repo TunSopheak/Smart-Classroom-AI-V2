@@ -83,3 +83,62 @@ FastAPI docs are available at:
 ```text
 http://127.0.0.1:8000/docs
 ```
+
+## Stage 1 Face Attendance Demo
+
+Face attendance uses OpenCV Haar face detection plus LBPH recognition from
+`opencv-contrib-python`. It does not use heavy `dlib` or `face_recognition`
+dependencies. If the app logs `LBPH face recognition is unavailable`, reinstall
+dependencies with `pip install -r requirements.txt` and restart the server.
+
+Dataset folder format:
+
+```text
+models/
+  face_dataset/
+    S001/
+      image_01.jpg
+      image_02.jpg
+      image_03.jpg
+    S002/
+      image_01.jpg
+      image_02.jpg
+```
+
+The folder name should match an existing `students.student_code`. A folder like
+`S001_StudentName` also works because the system uses the first `_` segment as a
+fallback student code.
+
+To train 10 group members for the demo:
+
+1. Create 10 student records in the app and enroll them in the demo class.
+2. Create one folder per student under `models/face_dataset/`.
+3. Add 8-15 clear face images per student with different angles and lighting.
+4. Start an active class session.
+5. Open `/ai-monitoring`, select the session, start the camera, then start
+   backend AI analysis. The first analysis trains and saves
+   `models/face_lbph_model.yml` automatically.
+
+Laptop webcam demo:
+
+```powershell
+$env:CAMERA_BACKEND="opencv"
+$env:CAMERA_SOURCE="0"
+uvicorn main:app --reload
+```
+
+Raspberry Pi camera switch later:
+
+```powershell
+$env:CAMERA_BACKEND="picamera"
+$env:CAMERA_SOURCE="pi"
+uvicorn main:app --reload
+```
+
+After adding/changing dataset images, delete the model `.yml` and `.labels.json`
+files to retrain.
+
+Stage 1 records face attendance into the existing attendance table. The existing
+`recorded_at` field is used as the first seen time, QR attendance remains as a
+backup, duplicate face attendance is skipped per active session, and closing a
+session still marks missing enrolled students absent.

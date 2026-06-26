@@ -13,7 +13,11 @@ from app.services import (
     ai_service,
     behavior_detection_service,
     behavior_overlay_service,
+<<<<<<< HEAD
     camera_quality_service,
+=======
+    face_attendance_service,
+>>>>>>> flutter-from-phase-31A
     iot_service,
     multibehavior_model_service,
 )
@@ -188,6 +192,7 @@ async def analyze_frame(
     object_analysis.update(frame_quality)
     result = behavior_overlay_service.enrich_analysis_for_behavior_overlay(
         object_analysis
+
     )
     result.update(
         {
@@ -244,6 +249,33 @@ async def analyze_frame(
                 result["phone_cooldown_seconds"] = cooldown_remaining_seconds
                 result["snapshot_url"] = snapshot_url
                 result["phone_event_id"] = phone_event.id if phone_event else None
+
+    try:
+        face_attendance = face_attendance_service.mark_face_attendance(
+            db,
+            active_session.id,
+            image_bytes,
+        )
+        result["face_attendance"] = face_attendance
+        if face_attendance.get("attendance"):
+            saved_count = sum(1 for item in face_attendance["attendance"] if not item.get("duplicate"))
+            duplicate_count = sum(1 for item in face_attendance["attendance"] if item.get("duplicate"))
+            if saved_count:
+                event_messages.append(f"Face attendance saved for {saved_count} student(s).")
+            if duplicate_count:
+                event_messages.append(f"Duplicate face attendance skipped for {duplicate_count} student(s).")
+        if face_attendance.get("unknown_face_count"):
+            event_messages.append(f"Unknown face count: {face_attendance['unknown_face_count']}.")
+    except Exception as error:  # pragma: no cover - demo route safety
+        result["face_attendance"] = {
+            "available": False,
+            "message": f"Face attendance unavailable: {error}",
+            "faces": [],
+            "recognized_count": 0,
+            "unknown_face_count": 0,
+            "attendance": [],
+        }
+        event_messages.append("Face attendance unavailable.")
 
     result["ok"] = True
     result["event_message"] = " ".join(event_messages)

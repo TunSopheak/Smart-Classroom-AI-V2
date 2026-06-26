@@ -5,6 +5,22 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 DATABASE_URL = f"sqlite:///{BASE_DIR / 'smart_classroom_v2.db'}"
 PROJECT_NAME = "Smart Classroom AI Monitoring V2"
+FACE_DATASET_DIR = Path(
+    os.getenv("SMART_CLASSROOM_FACE_DATASET_DIR", str(BASE_DIR / "models" / "face_dataset"))
+)
+FACE_MODEL_PATH = Path(
+    os.getenv("SMART_CLASSROOM_FACE_MODEL_PATH", str(BASE_DIR / "models" / "face_lbph_model.yml"))
+)
+try:
+    _face_confidence_threshold = float(
+        os.getenv("SMART_CLASSROOM_FACE_CONFIDENCE_THRESHOLD", "70")
+    )
+except ValueError:
+    _face_confidence_threshold = 70.0
+
+FACE_CONFIDENCE_THRESHOLD = max(0.0, _face_confidence_threshold)
+CAMERA_BACKEND = os.getenv("CAMERA_BACKEND", "opencv").strip().lower() or "opencv"
+CAMERA_SOURCE = os.getenv("CAMERA_SOURCE", "0").strip() or "0"
 PI_LIVE_STREAM_URL = os.getenv(
     "SMART_CLASSROOM_PI_STREAM_URL",
     "http://10.86.94.200:8081/stream.mjpg",

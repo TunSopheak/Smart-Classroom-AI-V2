@@ -427,7 +427,41 @@ endblock %} {% block content %}
         >{{ occupancy.light_status }}</strong
       >
     </article>
+    <article class="summary-card metric-card">
+      <span>Face Attendance</span>
+      <strong id="face-attendance-count">0</strong>
+    </article>
+    <article class="summary-card metric-card">
+      <span>Unknown Faces</span>
+      <strong id="unknown-face-count">0</strong>
+    </article>
   </div>
+</section>
+
+<section class="table-panel ai-events monitor-events-section">
+  <div class="table-heading">
+    <div>
+      <p class="eyebrow">Face Attendance</p>
+      <h3>Recent Recognitions</h3>
+    </div>
+    <span id="face-attendance-status" class="status scheduled">Waiting</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Student</th>
+        <th>Confidence</th>
+        <th>Detected Time</th>
+        <th>Status</th>
+        <th>Result</th>
+      </tr>
+    </thead>
+    <tbody id="face-attendance-records">
+      <tr>
+        <td colspan="5" class="empty">Start backend AI analysis to record face attendance.</td>
+      </tr>
+    </tbody>
+  </table>
 </section>
 
 <section class="monitor-grid">
@@ -939,6 +973,10 @@ endblock %} {% block content %}
     const occupancyStatus = document.getElementById("occupancy-status");
     const lightStatus = document.getElementById("light-status");
     const lightStatusCopy = document.getElementById("light-status-copy");
+    const faceAttendanceCount = document.getElementById("face-attendance-count");
+    const unknownFaceCount = document.getElementById("unknown-face-count");
+    const faceAttendanceStatus = document.getElementById("face-attendance-status");
+    const faceAttendanceRecords = document.getElementById("face-attendance-records");
     const occupancyMessage = document.getElementById("occupancy-message");
     const demoButtons = document.querySelectorAll("[data-demo-count]");
     const selectedSessionId =
@@ -1170,6 +1208,7 @@ endblock %} {% block content %}
       });
     }
 
+<<<<<<< HEAD
     function renderStudentCandidates(candidates) {
       if (!perStudentCandidateList) {
         return;
@@ -1220,6 +1259,53 @@ endblock %} {% block content %}
           card.appendChild(line);
         });
         perStudentCandidateList.appendChild(card);
+=======
+    function renderFaceAttendance(faceAttendance) {
+      if (!faceAttendance) {
+        return;
+      }
+
+      const records = faceAttendance.attendance || [];
+      if (faceAttendanceCount) {
+        faceAttendanceCount.textContent = String(records.length);
+      }
+      if (unknownFaceCount) {
+        unknownFaceCount.textContent = String(faceAttendance.unknown_face_count || 0);
+      }
+      if (faceAttendanceStatus) {
+        faceAttendanceStatus.textContent = faceAttendance.available ? "Active" : "Not trained";
+        faceAttendanceStatus.className = faceAttendance.available ? "status active" : "status warning";
+      }
+      if (!faceAttendanceRecords) {
+        return;
+      }
+      if (records.length === 0) {
+        faceAttendanceRecords.innerHTML =
+          '<tr><td colspan="5" class="empty">No recognized face attendance in this frame.</td></tr>';
+        return;
+      }
+
+      faceAttendanceRecords.innerHTML = "";
+      records.slice(0, 10).forEach((record) => {
+        const row = document.createElement("tr");
+        const result = record.duplicate ? "Duplicate skipped" : "Saved";
+        const studentCell = document.createElement("td");
+        const confidenceCell = document.createElement("td");
+        const timeCell = document.createElement("td");
+        const statusCell = document.createElement("td");
+        const resultCell = document.createElement("td");
+        const statusBadge = document.createElement("span");
+
+        studentCell.textContent = record.student_name || record.student_code || "-";
+        confidenceCell.textContent = `${record.confidence ?? "-"}%`;
+        timeCell.textContent = record.detected_time || record.first_seen_time || "-";
+        statusBadge.className = `status ${record.status || "info"}`;
+        statusBadge.textContent = record.status || "-";
+        statusCell.appendChild(statusBadge);
+        resultCell.textContent = result;
+        row.append(studentCell, confidenceCell, timeCell, statusCell, resultCell);
+        faceAttendanceRecords.appendChild(row);
+>>>>>>> flutter-from-phase-31A
       });
     }
 
@@ -1511,6 +1597,7 @@ endblock %} {% block content %}
       if (result.occupancy) {
         renderOccupancy(result.occupancy);
       }
+      renderFaceAttendance(result.face_attendance);
 
       if (result.available) {
         backendModelStatus.textContent = "Model active";
