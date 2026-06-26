@@ -1208,7 +1208,6 @@ endblock %} {% block content %}
       });
     }
 
-<<<<<<< HEAD
     function renderStudentCandidates(candidates) {
       if (!perStudentCandidateList) {
         return;
@@ -1259,7 +1258,9 @@ endblock %} {% block content %}
           card.appendChild(line);
         });
         perStudentCandidateList.appendChild(card);
-=======
+      });
+    }
+
     function renderFaceAttendance(faceAttendance) {
       if (!faceAttendance) {
         return;
@@ -1305,7 +1306,9 @@ endblock %} {% block content %}
         resultCell.textContent = result;
         row.append(studentCell, confidenceCell, timeCell, statusCell, resultCell);
         faceAttendanceRecords.appendChild(row);
->>>>>>> flutter-from-phase-31A
+      });
+    }
+
       });
     }
 

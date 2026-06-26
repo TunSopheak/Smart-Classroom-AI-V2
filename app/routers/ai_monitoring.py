@@ -1,4 +1,4 @@
-﻿from urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -13,11 +13,8 @@ from app.services import (
     ai_service,
     behavior_detection_service,
     behavior_overlay_service,
-<<<<<<< HEAD
     camera_quality_service,
-=======
     face_attendance_service,
->>>>>>> flutter-from-phase-31A
     iot_service,
     multibehavior_model_service,
 )
@@ -300,4 +297,5 @@ async def occupancy_status(session_id: str = "", db: DatabaseSession = Depends(g
     if error:
         return JSONResponse({"ok": False, "message": error}, status_code=400)
     return {"ok": True, "occupancy": occupancy}
+
 
