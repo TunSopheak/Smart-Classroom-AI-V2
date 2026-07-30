@@ -26,7 +26,10 @@ jobs:
       - name: Restore CurateCV source
         run: |
           mkdir -p /tmp/curatecv
-          cat .curatecv/chunk-*.txt | base64 --decode > /tmp/curatecv.zip
+          cat .curatecv/chunk-*.txt \
+            | tr -d '\r\n\t ' \
+            | tr -cd 'A-Za-z0-9+/=' \
+            | base64 --decode > /tmp/curatecv.zip
           unzip -q /tmp/curatecv.zip -d /tmp/curatecv
           test -f /tmp/curatecv/cv_project/package.json
 
