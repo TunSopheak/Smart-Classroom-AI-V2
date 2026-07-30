@@ -1,0 +1,54 @@
+name: CurateCV ZIP CI
+
+on:
+  push:
+    branches:
+      - ci-curatecv-pro
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore CurateCV source
+        run: |
+          mkdir -p /tmp/curatecv
+          cat .curatecv/chunk-*.txt | base64 --decode > /tmp/curatecv.zip
+          unzip -q /tmp/curatecv.zip -d /tmp/curatecv
+          test -f /tmp/curatecv/cv_project/package.json
+
+      - name: Install dependencies
+        working-directory: /tmp/curatecv/cv_project
+        run: npm install
+
+      - name: Type-check
+        working-directory: /tmp/curatecv/cv_project
+        run: npm run lint
+
+      - name: Build
+        working-directory: /tmp/curatecv/cv_project
+        run: npm run build
+
+      - name: Smoke test
+        working-directory: /tmp/curatecv/cv_project
+        run: |
+          npm start > /tmp/curatecv-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill $SERVER_PID || true; cat /tmp/curatecv-server.log' EXIT
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:3000/ > /tmp/curatecv-home.html; then
+              break
+            fi
+            sleep 1
+          done
+          grep -q 'id="root"' /tmp/curatecv-home.html
